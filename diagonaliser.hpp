@@ -85,9 +85,12 @@ public:
     typedef VectorXd DVector;
     typedef std::vector<State>::const_iterator CBIT;
 
-    System (size_t N_orbital_) : N_orbital(N_orbital_), cs(N_orbital_), as(N_orbital_)
+    System (size_t N_orbital_) 
+    : N_orbital(N_orbital_), cs(N_orbital_), as(N_orbital_), Emin(0)
     {
         constructBasis(N_orbital, voidFilter, voidSorter);
+
+        H = SMatrix(basis.size(), basis.size());
 
         
         for (size_t i=0; i<N_orbital; i++)
@@ -187,6 +190,35 @@ public:
         return annihilator(I(i));
     }
 
+    void constructH () {}
+
+    void diagonalise ()
+    {
+        DMatrix m(H);
+        SelfAdjointEigenSolver<DMatrix> es(m);
+        eigenvalues = es.eigenvalues();
+        eigenvectors = es.eigenvectors();
+        Emin = eigenvalues.minCoeff();
+    }
+
+    double ensembleAverage (double beta, const SMatrix& O) const
+    {
+        double sum = 0;
+        for (size_t i=0; i<eigenvalues.size(); i++)
+            sum += 
+                std::exp(-beta * (eigenvalues(i) - Emin)) * 
+                eigenvectors.col(i).adjoint() * O * eigenvectors.col(i);
+        return sum / partitionFunction(beta);
+    }
+
+    double partitionFunction (double beta) const
+    {
+        double Z = 0;
+        for (size_t i=0; i<eigenvalues.size(); i++)
+            Z += std::exp(-beta * (eigenvalues(i) - Emin));
+        return Z;
+    }
+
     class FilterSelectAll
     {
     public:
@@ -207,15 +239,20 @@ public:
     SorterDontSort voidSorter;
     std::vector<SMatrix> cs, as;
     enum Spin {UP=0, DOWN=1};
+    
+    SMatrix H;
+    DMatrix eigenvectors;
+    DVector eigenvalues;
+    double Emin;
 };
 
 class AndersonModel : public System
 {
 public:
     AndersonModel (size_t N_bath_)
-        : System(2*N_bath_+ 2), N_bath(N_bath_), H(*this, N_bath_)
+        : System(2*N_bath_+ 2), N_bath(N_bath_), N_sites(N_bath_+1), t(1), mu(0), U(0), V(1), Ed(0)
     {}
-
+    
     size_t I (size_t i, Spin s) const
     {
         return 2*i + s;
@@ -231,54 +268,126 @@ public:
         return annihilator(I(i,s));
     }
 
-    class Hamiltonian
+    void constructH ()
     {
-    public:
-        Hamiltonian (const AndersonModel& s_, size_t N_bath_)
-            : s(s_), t(1), mu(0), U(0), V(1), Ed(0), N_bath(N_bath_), Hmatrix(s_.basis.size(), s_.basis.size())
-        {}
-
-        SMatrix getMatrix ()
+        H.setZero();
+        for (size_t i = 1; i<N_sites; i++)
         {
-            Hmatrix.setZero();
-            for (size_t i = 1; i<N_bath+1; i++)
+            H += - mu * ( c(i,UP) * a(i,UP) + c(i,DOWN) * a(i,DOWN) );
+            
+            // this is physically correct, I think
+            //size_t j = (i+1==N_sites)?1:i+1;
+            //if (i==j) continue;
+            //H += -t * ( 
+            //    c(i,UP) * a(j,UP) + c(j,UP) * a(i,UP) +
+            //    c(i,DOWN) * a(j,DOWN) + c(j,DOWN) * a(i,DOWN)
+            //);
+
+            // this is what my python diagonaliser does (and probably my ctqmc
+            // code as well)
+            for (size_t j=i-1; j<=i+1; j+=2)
             {
-                Hmatrix += - mu * s.c(i,UP) * s.a(i,UP) - mu * s.c(i,DOWN) * s.a(i,DOWN);
-                
-                Hmatrix += -t * ( 
-                    s.c(i,UP) * s.a((i+1)%N_bath,UP) + s.c((i+1)%N_bath,UP) * s.a(i,UP) +
-                    s.c(i,DOWN) * s.a((i+1)%N_bath,DOWN) + s.c((i+1)%N_bath,DOWN) * s.a(i,DOWN)
+                size_t k = j;
+                if (k==0) k = N_sites-1;
+                else if (k==N_sites) k = 1;
+                H += -t * ( 
+                    c(i,UP) * a(k,UP) + c(i,DOWN) * a(k,DOWN)
                 );
             }
-            Hmatrix += Ed * (s.c(0,UP)*s.a(0,UP) + s.c(0,DOWN)*s.a(0,DOWN));
-            Hmatrix += V * (
-                s.c(0,UP)*s.a(1,UP) + s.c(1,UP)*s.a(0,UP) + 
-                s.c(0,DOWN)*s.a(1,DOWN) + s.c(1,DOWN)*s.a(0,DOWN)
-            );
-
-            return Hmatrix;
         }
-
-        void diagonalise ()
+        H += Ed * (c(0,UP)*a(0,UP) + c(0,DOWN)*a(0,DOWN));
+        H += V * (
+            c(0,UP)*a(1,UP) + c(1,UP)*a(0,UP) + 
+            c(0,DOWN)*a(1,DOWN) + c(1,DOWN)*a(0,DOWN)
+        );
+        //SMatrix I(DMatrix::Identity(basis.size(),basis.size()));
+        //TODO
+        SMatrix Id(basis.size(), basis.size());
+        Id.reserve(basis.size());
+        for (size_t i=0; i<basis.size(); i++)
         {
-            DMatrix m(Hmatrix);
-            SelfAdjointEigenSolver<DMatrix> es(m);
-            eigenvalues = es.eigenvalues();
-            eigenvectors = es.eigenvectors();
+            Id.startVec(i);
+            Id.insertBack(i,i) = 1;
         }
+        Id.finalize();
+        H += U * (c(0,UP)*a(0,UP) - 0.5*Id) * (c(0,DOWN)*a(0,DOWN) - 0.5*Id);
+    }
 
-        const AndersonModel& s;
-        double t, mu, U, V, Ed;
-        size_t N_bath;
-        SMatrix Hmatrix;
-        DMatrix eigenvectors;
-        DVector eigenvalues;
-    };
+    SMatrix doubleOccupancy (size_t i) const
+    {
+        return c(i,UP)*a(i,UP) * c(i,DOWN)*a(i,DOWN);
+    }
 
-    Hamiltonian H;
-    size_t N_bath;
+    SMatrix n (size_t i, Spin s) const
+    {
+        return c(i,s)*a(i,s);
+    }
+
+    SMatrix n (size_t i) const
+    {
+        return n(i,UP) + n(i,DOWN);
+    }
+
+    SMatrix particleNumber () const
+    {
+        SMatrix pn(basis.size(), basis.size());
+        for (size_t i=0; i<N_sites; i++)
+        {
+            pn += n(i);
+        }
+        return pn;
+    }
+
+    double t, mu, U, V, Ed;
+    size_t N_bath, N_sites;
 };
 
+template<class S>
+class DoubleOccupancy
+{
+public:
+    DoubleOccupancy (const S& s_) 
+    : s(s_)
+    {}
 
+    typename S::SMatrix operator() (size_t i) const
+    {
+        return s.c(i,S::UP)*s.a(i,S::UP) * s.c(i,S::DOWN)*s.a(i,S::DOWN);
+    }
+
+private:
+    const S& s;
+};
+
+template<class S>
+class EnsembleAverage
+{
+public:
+    EnsembleAverage (const S& s_)
+    : s(s_) 
+    {}
+    
+    double operator() (double beta, const typename S::SMatrix& O) const
+    {
+        double sum = 0;
+        for (size_t i=0; i<s.eigenvalues.size(); i++)
+            sum += 
+                exp(-beta * s.eigenvalues(i)) * 
+                s.eigenvectors.cols(i).transpose() * O * s.eigenvectors.cols(i);
+        return sum / partitionFunction(beta);
+    }
+
+    //TODO: pull out first/smallest eigenvalue
+    double partitionFunction (double beta)
+    {
+        double Z = 0;
+        for (size_t i=0; i<s.eigenvalues.size(); i++)
+            Z += std::exp(-beta * s.eigenvalues(i));
+        return Z;
+    }
+
+private:
+    const S& s;
+};
 
 #endif // __DIAGONALISER_HPP__ 
