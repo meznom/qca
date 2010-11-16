@@ -9,6 +9,10 @@ int main (int argc, char** argv)
     //std::cerr << s.cs[2] << std::endl;
 
 
+    /*
+     * Test Anderson model
+     */
+    /*
     AndersonModel am(3);
     am.t = 1;
     am.V = 1;
@@ -25,6 +29,20 @@ int main (int argc, char** argv)
     std::cerr << am.ensembleAverage(1, am.doubleOccupancy(0)) << std::endl;
     std::cerr << am.ensembleAverage(1, am.particleNumber()) << std::endl;
     //std::cerr << am.H << std::endl;
+    */
+
+    QCABond qca(1);
+    qca.constructH();
+    //qca.selectBlock();
+    //std::cerr << qca.sparseBlock(qca.H, 2,2,4,4) << std::endl;
+    //std::cerr << qca.H << std::endl;
+    qca.selectBlock(FilterNElectrons(2));
+    std::cerr << qca.H << std::endl;
+    qca.diagonalise();
+    std::cerr << qca.eigenvalues << std::endl;
+    
+
+
 
 
     std::exit(0);

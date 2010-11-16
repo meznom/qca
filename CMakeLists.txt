@@ -7,10 +7,10 @@ cmake_minimum_required(VERSION 2.6)
 ### set up paths and flags ###
 set(EIGEN_INCLUDE_DIR "~/src/include" CACHE PATH "Include path for eigen2")
 include_directories(
-	${BOOST_INCLUDE_DIR}
 	${EIGEN_INCLUDE_DIR}
-	${FILEVECTOR_INCLUDE_DIR}
 )
+
+set(CMAKE_CXX_FLAGS "-Wall")
 
 # make sure that the default is a Release
 if (NOT CMAKE_BUILD_TYPE)

@@ -15,7 +15,7 @@ using namespace Eigen;
 
 
 //typedef std::vector<bool> state;
-typedef std::bitset<64> state;
+//typedef std::bitset<64> state;
 
 template<typename T=uint64_t>
 class FermionicState
@@ -61,6 +61,11 @@ public:
         for (size_t i=0; i<toPos; i++)
             sum += s[i];
         return sum;
+    }
+
+    size_t count() const
+    {
+        return s.count();
     }
 
 private:
@@ -147,6 +152,7 @@ public:
                 return i-basis.begin();
         }
         //TODO: throw exception if not found!
+        return 0;
     }
 
     void dumpBasis ()
@@ -219,7 +225,7 @@ public:
     double ensembleAverage (double beta, const SMatrix& O) const
     {
         double sum = 0;
-        for (size_t i=0; i<eigenvalues.size(); i++)
+        for (int i=0; i<eigenvalues.size(); i++)
             sum += 
                 std::exp(-beta * (eigenvalues(i) - Emin)) * 
                 eigenvectors.col(i).adjoint() * O * eigenvectors.col(i);
@@ -229,7 +235,7 @@ public:
     double partitionFunction (double beta) const
     {
         double Z = 0;
-        for (size_t i=0; i<eigenvalues.size(); i++)
+        for (int i=0; i<eigenvalues.size(); i++)
             Z += std::exp(-beta * (eigenvalues(i) - Emin));
         return Z;
     }
@@ -340,9 +346,9 @@ public:
         }
         return pn;
     }
-
-    double t, mu, U, V, Ed;
+    
     size_t N_bath, N_sites;
+    double t, mu, U, V, Ed;
 };
 
 class Hopping
@@ -367,7 +373,7 @@ class Coulomb
 {
 public:
     Coulomb (double V0_, double a_, double b_)
-    : V0(0), a(a), b(b)
+    : V0(V0_), a(a_), b(b_)
     {}
 
     double operator() (size_t i, size_t j) const
@@ -383,7 +389,7 @@ public:
         const int i = static_cast<int>(i_);
         const int j = static_cast<int>(j_);
         const double deltaY = a * ( (i/2-j/2)%2 );
-        assert( std::abs(deltaY==a) || deltaY==0 );
+        assert( std::abs(deltaY-a) < 10E-20 || deltaY < 10E-20 );
 
         /*
          * 0 1
@@ -393,6 +399,8 @@ public:
         const double deltaX = 
             (a+b) * ( (i - j) / 4 ) + 
             a * ( ( ((i%4)%3==0)?0:1 ) - ( ((j%4)%3==0)?0:1 ) );
+
+        //std::cerr << i << "   " << j << "    " << deltaX << "   " << deltaY << std::endl;
 
         return std::sqrt(deltaX*deltaX + deltaY*deltaY);
     }
@@ -408,28 +416,78 @@ public:
     : Vext(Vext_)
     {}
 
-    double operator() (size_t i)
+    double operator() (size_t i) 
     {
         if (i==0)
             return Vext;
         if (i==3)
             return -Vext;
+        return 0;
     }
 private:
-    const double Vext;
+    double Vext;
+};
+
+class FilterNElectrons
+{
+public:
+    FilterNElectrons (size_t N_)
+    : N(N_)
+    {}
+
+    bool operator() (const FermionicState<>& s) const
+    {
+        return s.count() == N;
+    }
+
+private:
+    size_t N;
+};
+
+class SorterBond
+{
+public:
+    bool operator() (const FermionicState<>& s1, const FermionicState<>& s2) const
+    {
+        if (s1.count() != s2.count())
+            return s1.count() < s2.count();
+
+        if (s1.count() != s1.size()/2)
+            return false;
+
+        /*
+         * Special sorting rule for half-filling
+         */
+        for (size_t i=0; i<s1.size(); i+=4)
+            if (stateNumber(s1,i) != stateNumber(s2,i))
+                return stateNumber(s1,i) < stateNumber(s2,i);
+        return false;
+    }
+
+    int stateNumber (const FermionicState<>& s, int offset) const
+    {
+        const int o = offset;
+        if (s[0+o] && s[1+o]) return 1;
+        if (s[1+o] && s[2+o]) return 2;
+        if (s[2+o] && s[3+o]) return 3;
+        if (s[3+o] && s[0+o]) return 4;
+        if (s[0+o] && s[2+o]) return 5;
+        if (s[1+o] && s[3+o]) return 6;
+        return 0;
+    }
 };
 
 class QCABond : public System
 {
 public:
     QCABond (size_t N_plaquet_)
-    : System (4*N_plaquet_, FilterSelectAll(), SorterDontSort()), 
+    : System (4*N_plaquet_, FilterSelectAll(), SorterBond()), 
       N_plaquet(N_plaquet_), N_sites(4*N_plaquet_)
     {
         param.t = 1;
         param.td = 0;
         param.V0 = 1000;
-        param.a = 1.0/200;
+        param.a = 1.0;
         param.b = 3*param.a;
         param.Vext = 0;
     }
@@ -461,6 +519,64 @@ public:
             }
         }
         
+    }
+
+    /**
+     * Block method for sparse matrices. 
+     * 
+     * Eigen doesn't implement block() for sparse matrices, only for dense
+     * matrices. Hence this small helper function.
+     */
+    SMatrix sparseBlock (const SMatrix& om, int i, int j, int p, int q) const
+    {
+        SMatrix nm(p,q);
+        for (int l=0; l<q; l++)
+        {
+            nm.startVec(l);
+            for (SMatrix::InnerIterator it(om,l+j); it; ++it)
+                if (it.row()>=i && it.row()<i+p)
+                    nm.insertBack(it.row()-i,it.col()-j) = it.value();
+        }
+        nm.finalize();
+        return nm;
+        //H.resize(p,q);
+        //H = tmp;
+    }
+
+    template<class Pred>
+    void selectBlock (Pred filter)
+    {
+        int start = -1;
+        int end = -1;
+        for (size_t i=0; i<basis.size(); i++)
+        {
+            std::cerr << basis[i] << std::endl;
+            std::cerr << filter(basis[i]) << std::endl << std::endl;
+            if (start == -1 && end == -1)
+                if (filter(basis[i])) start = i;
+                else continue;
+            else if (start != -1 && end == -1)
+                if (!filter(basis[i])) end = i;
+                else continue;
+            else if (filter(basis[i]))
+            {
+                assert(start != -1 && end != -1);
+                //TODO: throw exception?
+                std::cerr << "Non-contiguous block selected." << std::endl;
+                std::exit(-1);
+            }
+        }
+        if (start == -1)
+        {
+            //TODO: throw exception?
+            std::cerr << "Zero-size block selected." << std::endl;
+            std::exit(-1);
+        }
+        if (end == -1) end = basis.size();
+
+        std::cerr << "--> " << H.cols() << "   " << H.rows() << std::endl;
+        H = sparseBlock(H, start, start, end-start, end-start);
+        std::cerr << "--> " << H.cols() << "   " << H.rows() << std::endl;
     }
 
     struct {
