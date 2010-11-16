@@ -1,6 +1,7 @@
 #ifndef __DIAGONALISER_HPP__
 #define __DIAGONALISER_HPP__
 
+#include <stdint.h>
 #include <algorithm>
 #include <numeric>
 #include <bitset>
