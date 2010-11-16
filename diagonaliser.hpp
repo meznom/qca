@@ -75,6 +75,18 @@ std::ostream& operator<< (std::ostream& o, const FermionicState<T>& fs)
     return o;
 }
 
+class FilterSelectAll
+{
+public:
+    bool operator() (const FermionicState<>&) {return true;}
+};
+
+class SorterDontSort
+{
+public:
+    bool operator() (const FermionicState<>&, const FermionicState<>&) {return false;}
+};
+
 class System
 {
 public:
@@ -85,10 +97,12 @@ public:
     typedef VectorXd DVector;
     typedef std::vector<State>::const_iterator CBIT;
 
-    System (size_t N_orbital_) 
+    template<class Pred, class BinPred>
+    System (size_t N_orbital_, Pred filter = FilterSelectAll(), BinPred sorter = SorterDontSort()) 
     : N_orbital(N_orbital_), cs(N_orbital_), as(N_orbital_), Emin(0)
     {
-        constructBasis(N_orbital, voidFilter, voidSorter);
+        //constructBasis(N_orbital, voidFilter, voidSorter);
+        constructBasis(N_orbital, filter, sorter);
 
         H = SMatrix(basis.size(), basis.size());
 
@@ -219,18 +233,6 @@ public:
         return Z;
     }
 
-    class FilterSelectAll
-    {
-    public:
-        bool operator() (const State&) {return true;}
-    };
-
-    class SorterDontSort
-    {
-    public:
-        bool operator() (const State&, const State&) {return false;}
-    };
-
 //private:
     std::vector<State> basis;
     num_t N_basis;
@@ -250,7 +252,7 @@ class AndersonModel : public System
 {
 public:
     AndersonModel (size_t N_bath_)
-        : System(2*N_bath_+ 2), N_bath(N_bath_), N_sites(N_bath_+1), t(1), mu(0), U(0), V(1), Ed(0)
+    : System(2*N_bath_+ 2, FilterSelectAll(), SorterDontSort()), N_bath(N_bath_), N_sites(N_bath_+1), t(1), mu(0), U(0), V(1), Ed(0)
     {}
     
     size_t I (size_t i, Spin s) const
@@ -340,6 +342,132 @@ public:
 
     double t, mu, U, V, Ed;
     size_t N_bath, N_sites;
+};
+
+class Hopping
+{
+public:
+    Hopping (double t_, double td_)
+    : t(t_), td(td_)
+    {}
+
+    double operator() (size_t i, size_t j) const
+    {
+        if (std::abs( static_cast<int>(i) - static_cast<int>(j) ) == 2)
+            return td;
+        return t;
+    }
+
+private:
+    const double t, td;
+};
+
+class Coulomb
+{
+public:
+    Coulomb (double V0_, double a_, double b_)
+    : V0(0), a(a), b(b)
+    {}
+
+    double operator() (size_t i, size_t j) const
+    {
+        if (i == j)
+            return V0;
+        return 1 / distance(i,j);
+
+    }
+
+    double distance (size_t i_, size_t j_) const
+    {
+        const int i = static_cast<int>(i_);
+        const int j = static_cast<int>(j_);
+        const double deltaY = a * ( (i/2-j/2)%2 );
+        assert( std::abs(deltaY==a) || deltaY==0 );
+
+        /*
+         * 0 1
+         * 3 2
+         */
+        //TODO: check if this is correct, can we optimise it?
+        const double deltaX = 
+            (a+b) * ( (i - j) / 4 ) + 
+            a * ( ( ((i%4)%3==0)?0:1 ) - ( ((j%4)%3==0)?0:1 ) );
+
+        return std::sqrt(deltaX*deltaX + deltaY*deltaY);
+    }
+
+private:
+    const double V0, a, b;
+};
+
+class External
+{
+public:
+    External (double Vext_)
+    : Vext(Vext_)
+    {}
+
+    double operator() (size_t i)
+    {
+        if (i==0)
+            return Vext;
+        if (i==3)
+            return -Vext;
+    }
+private:
+    const double Vext;
+};
+
+class QCABond : public System
+{
+public:
+    QCABond (size_t N_plaquet_)
+    : System (4*N_plaquet_, FilterSelectAll(), SorterDontSort()), 
+      N_plaquet(N_plaquet_), N_sites(4*N_plaquet_)
+    {
+        param.t = 1;
+        param.td = 0;
+        param.V0 = 1000;
+        param.a = 1.0/200;
+        param.b = 3*param.a;
+        param.Vext = 0;
+    }
+
+    SMatrix ca (size_t i, size_t j) const
+    {
+        return c(i) * a(j);
+    }
+
+    SMatrix n (size_t i) const
+    {
+        return ca(i,i);
+    }
+
+    void constructH ()
+    {
+        Hopping hopping(param.t, param.td);
+        Coulomb coulomb(param.V0, param.a, param.b);
+        External external(param.Vext);
+
+        H.setZero();
+        for (size_t i=0; i<N_sites; i++)
+        {
+            H += external(i) * n(i);
+            for (size_t j=i+1; j<N_sites; j++)
+            {
+                H += - hopping(i,j) * ca(i,j) - hopping(j,i) * ca(j,i);
+                H += coulomb(i,j) * n(i) * n(j);
+            }
+        }
+        
+    }
+
+    struct {
+        double t, td, V0, a, b, Vext;
+    } param;
+
+private:
+    size_t N_plaquet, N_sites;
 };
 
 template<class S>
