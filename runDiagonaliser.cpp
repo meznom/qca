@@ -32,14 +32,26 @@ int main (int argc, char** argv)
     */
 
     QCABond qca(1);
+    qca.param.t = 0.2;
+    qca.param.td= 0.2 * qca.param.t;
+    qca.param.Vext = 1;
+    qca.param.V0 = 10;
+    qca.param.a = 1;
+    qca.param.b = 3 * qca.param.a;
     qca.constructH();
     //qca.selectBlock();
     //std::cerr << qca.sparseBlock(qca.H, 2,2,4,4) << std::endl;
     //std::cerr << qca.H << std::endl;
-    qca.selectBlock(FilterNElectrons(2));
+    qca.selectBlock(qca.H, FilterNElectronsPerPlaquet(2));
     std::cerr << qca.H << std::endl;
     qca.diagonalise();
-    std::cerr << qca.eigenvalues << std::endl;
+    std::cerr << qca.eigenvalues.size() << std::endl;
+    //this is correct! compared with Mathematica
+
+    QCABond::SMatrix P = qca.polarisation(0);
+    qca.selectBlock(P, FilterNElectronsPerPlaquet(2));
+    //std::cerr << P << std::endl;
+    std::cerr << qca.ensembleAverage(1.0, P) << std::endl;
     
 
 

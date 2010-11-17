@@ -55,6 +55,14 @@ public:
         return N;
     }
 
+    size_t count(size_t fromPos, size_t toPos) const
+    {
+        size_t sum = 0;
+        for (size_t i=fromPos; i<toPos; i++)
+            sum += s[i];
+        return sum;
+    }
+
     size_t count(size_t toPos) const
     {
         size_t sum = 0;
@@ -428,16 +436,21 @@ private:
     double Vext;
 };
 
-class FilterNElectrons
+class FilterNElectronsPerPlaquet
 {
 public:
-    FilterNElectrons (size_t N_)
+    FilterNElectronsPerPlaquet (size_t N_)
     : N(N_)
     {}
 
     bool operator() (const FermionicState<>& s) const
     {
-        return s.count() == N;
+        if (s.count() != N*s.size()/4)
+            return false;
+        for (size_t i=0; i<s.size(); i+=4)
+            if (s.count(i, i+4) != N)
+                return false;
+        return true;
     }
 
 private:
@@ -447,21 +460,36 @@ private:
 class SorterBond
 {
 public:
+    SorterBond ()
+    : twoElectrons(2)
+    {}
+
     bool operator() (const FermionicState<>& s1, const FermionicState<>& s2) const
     {
+        /*
+         * Sort by particle number first
+         */
         if (s1.count() != s2.count())
             return s1.count() < s2.count();
 
-        if (s1.count() != s1.size()/2)
-            return false;
-
         /*
-         * Special sorting rule for half-filling
+         * Special sorting rule for half-filling, i.e. 2 electrons per plaquet.
          */
-        for (size_t i=0; i<s1.size(); i+=4)
-            if (stateNumber(s1,i) != stateNumber(s2,i))
-                return stateNumber(s1,i) < stateNumber(s2,i);
-        return false;
+        //if (s1.count() != s1.size()/2)
+        //    return false;
+        if (twoElectrons(s1) && twoElectrons(s2))
+        {
+            for (size_t i=0; i<s1.size(); i+=4)
+                if (stateNumber(s1,i) != stateNumber(s2,i))
+                    return stateNumber(s1,i) < stateNumber(s2,i);
+            return false;
+        }
+        /*
+         * Enforce a definite ordering of twoElectron vs non-twoElectron per
+         * plaquet systems
+         */
+        else
+            return twoElectrons(s1) && !twoElectrons(s2);
     }
 
     int stateNumber (const FermionicState<>& s, int offset) const
@@ -475,6 +503,9 @@ public:
         if (s[1+o] && s[3+o]) return 6;
         return 0;
     }
+
+private:
+    FilterNElectronsPerPlaquet twoElectrons;
 };
 
 class QCABond : public System
@@ -544,14 +575,14 @@ public:
     }
 
     template<class Pred>
-    void selectBlock (Pred filter)
+    void selectBlock (SMatrix& m, Pred filter)
     {
         int start = -1;
         int end = -1;
         for (size_t i=0; i<basis.size(); i++)
         {
-            std::cerr << basis[i] << std::endl;
-            std::cerr << filter(basis[i]) << std::endl << std::endl;
+            //std::cerr << basis[i] << std::endl;
+            //std::cerr << filter(basis[i]) << std::endl << std::endl;
             if (start == -1 && end == -1)
                 if (filter(basis[i])) start = i;
                 else continue;
@@ -574,9 +605,15 @@ public:
         }
         if (end == -1) end = basis.size();
 
-        std::cerr << "--> " << H.cols() << "   " << H.rows() << std::endl;
-        H = sparseBlock(H, start, start, end-start, end-start);
-        std::cerr << "--> " << H.cols() << "   " << H.rows() << std::endl;
+        //std::cerr << "--> " << m.cols() << "   " << m.rows() << std::endl;
+        m = sparseBlock(m, start, start, end-start, end-start);
+        //std::cerr << "--> " << m.cols() << "   " << m.rows() << std::endl;
+    }
+
+    SMatrix polarisation (size_t p)
+    {
+        const size_t o = 4*p;
+        return 1.0/4.0 * ( n(o+1)+n(o+3) - n(o+0)-n(o+2) );
     }
 
     struct {
