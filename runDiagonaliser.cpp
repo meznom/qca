@@ -1,4 +1,7 @@
-#include "diagonaliser.hpp"
+//#include "diagonaliser.hpp"
+
+#include "test.hpp"
+#include <cstdlib>
 
 int main (int argc, char** argv)
 {
@@ -61,6 +64,7 @@ int main (int argc, char** argv)
     /*
      * QCA quarter filling
      */
+    /*
     QCAQuarterFilling qca(2);
     std::cerr << "QCA constructed." << std::endl;
     qca.param.t = 1.0;
@@ -84,6 +88,13 @@ int main (int argc, char** argv)
     //qca.selectBlock(P2, f);
     std::cerr << qca.ensembleAverage(1000, P1) << std::endl;
     //std::cerr << qca.ensembleAverage(1000, P2) << std::endl;
+    */
+
+    System s;
+    s.testPolarisation();
+
+    System2 s2;
+    s2.testPolarisation();
 
 
     std::exit(0);
