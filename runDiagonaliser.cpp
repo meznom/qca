@@ -31,6 +31,10 @@ int main (int argc, char** argv)
     //std::cerr << am.H << std::endl;
     */
 
+    /*
+     * QCA bond
+     */
+    /*
     QCABond qca(1);
     qca.param.t = 0.2;
     qca.param.td= 0.2 * qca.param.t;
@@ -52,9 +56,34 @@ int main (int argc, char** argv)
     qca.selectBlock(P, FilterNElectronsPerPlaquet(2));
     //std::cerr << P << std::endl;
     std::cerr << qca.ensembleAverage(1.0, P) << std::endl;
-    
+    */
 
-
+    /*
+     * QCA quarter filling
+     */
+    QCAQuarterFilling qca(2);
+    std::cerr << "QCA constructed." << std::endl;
+    qca.param.t = 1.0;
+    qca.param.td= 0.2 * qca.param.t;
+    qca.param.Vext = 10;
+    qca.param.a = 1.0 / 50.0;
+    qca.param.b = 1.75 * qca.param.a;
+    qca.param.V0 = 10.0 * 1.0 / qca.param.a;
+    qca.constructH();
+    std::cerr << "H constructed." << std::endl;
+    //FilterAnd<FilterNElectronsPerPlaquet, FilterSpin> f(FilterNElectronsPerPlaquet(2,8), FilterSpin(0));
+    FilterNElectronsPerPlaquet f(2,8);
+    qca.selectBlock(qca.H, f);
+    std::cerr << qca.H.cols() << std::endl;
+    qca.diagonalise();
+    std::cerr << "H diagonalised." << std::endl;
+    std::cerr << qca.eigenvalues << std::endl;
+    QCAQuarterFilling::SMatrix P1 = qca.polarisation(0);
+    //QCAQuarterFilling::SMatrix P2 = qca.polarisation(1);
+    qca.selectBlock(P1, f);
+    //qca.selectBlock(P2, f);
+    std::cerr << qca.ensembleAverage(1000, P1) << std::endl;
+    //std::cerr << qca.ensembleAverage(1000, P2) << std::endl;
 
 
     std::exit(0);

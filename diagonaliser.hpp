@@ -6,6 +6,7 @@
 #include <numeric>
 #include <bitset>
 #include <vector>
+#include <map>
 #include <cassert>
 #include <cmath>
 #include <iostream>
@@ -76,6 +77,11 @@ public:
         return s.count();
     }
 
+    bool operator< (const FermionicState<T>& state2) const
+    {
+        return s.to_ulong() < state2.s.to_ulong();
+    }
+
 private:
     size_t N;
     bitset s;
@@ -117,6 +123,7 @@ public:
     {
         //constructBasis(N_orbital, voidFilter, voidSorter);
         constructBasis(N_orbital, filter, sorter);
+        std::cerr << "Basis constructed." << std::endl;
 
         H = SMatrix(basis.size(), basis.size());
 
@@ -124,6 +131,7 @@ public:
         for (size_t i=0; i<N_orbital; i++)
         {
             cs[i] = creatorMatrix(i);
+            std::cerr << "cs[" << i << "] constructed." << std::endl;
             as[i] = SMatrix(cs[i].transpose());
         }
     }
@@ -145,6 +153,8 @@ public:
             }
         }
         std::sort(basis.begin(), basis.end(), sorter);
+        for (size_t i=0; i<basis.size(); i++)
+            stateToIndex[basis[i]] = i;
     }
 
     State getStateFromIndex (num_t i) const
@@ -154,11 +164,19 @@ public:
 
     num_t getIndexFromState (const State& s) const
     {
-        for (CBIT i=basis.begin(); i!=basis.end(); i++)
-        {
-            if (*i == s)
-                return i-basis.begin();
-        }
+        //for (CBIT i=basis.begin(); i!=basis.end(); i++)
+        //{
+        //    if (*i == s)
+        //        return i-basis.begin();
+        //}
+        //for (size_t i=0; i<basis.size(); i++)
+        //    if (basis[i] == s)
+        //        return i;
+
+        std::map<State, num_t>::const_iterator i = stateToIndex.find(s);
+        if (i != stateToIndex.end())
+            return i->second;
+        
         //TODO: throw exception if not found!
         return 0;
     }
@@ -230,6 +248,64 @@ public:
         Emin = eigenvalues.minCoeff();
     }
 
+    /**
+     * Block method for sparse matrices. 
+     * 
+     * Eigen doesn't implement block() for sparse matrices, only for dense
+     * matrices. Hence this small helper function.
+     */
+    SMatrix sparseBlock (const SMatrix& om, int i, int j, int p, int q) const
+    {
+        SMatrix nm(p,q);
+        for (int l=0; l<q; l++)
+        {
+            nm.startVec(l);
+            for (SMatrix::InnerIterator it(om,l+j); it; ++it)
+                if (it.row()>=i && it.row()<i+p)
+                    nm.insertBack(it.row()-i,it.col()-j) = it.value();
+        }
+        nm.finalize();
+        return nm;
+        //H.resize(p,q);
+        //H = tmp;
+    }
+
+    template<class Pred>
+    void selectBlock (SMatrix& m, Pred filter)
+    {
+        int start = -1;
+        int end = -1;
+        for (size_t i=0; i<basis.size(); i++)
+        {
+            //std::cerr << basis[i] << std::endl;
+            //std::cerr << filter(basis[i]) << std::endl << std::endl;
+            if (start == -1 && end == -1)
+                if (filter(basis[i])) start = i;
+                else continue;
+            else if (start != -1 && end == -1)
+                if (!filter(basis[i])) end = i;
+                else continue;
+            else if (filter(basis[i]))
+            {
+                assert(start != -1 && end != -1);
+                //TODO: throw exception?
+                std::cerr << "Non-contiguous block selected." << std::endl;
+                std::exit(-1);
+            }
+        }
+        if (start == -1)
+        {
+            //TODO: throw exception?
+            std::cerr << "Zero-size block selected." << std::endl;
+            std::exit(-1);
+        }
+        if (end == -1) end = basis.size();
+
+        //std::cerr << "--> " << m.cols() << "   " << m.rows() << std::endl;
+        m = sparseBlock(m, start, start, end-start, end-start);
+        //std::cerr << "--> " << m.cols() << "   " << m.rows() << std::endl;
+    }
+
     double ensembleAverage (double beta, const SMatrix& O) const
     {
         double sum = 0;
@@ -250,6 +326,7 @@ public:
 
 //private:
     std::vector<State> basis;
+    std::map<State, num_t> stateToIndex;
     num_t N_basis;
     size_t N_orbital;
     FilterSelectAll voidFilter;
@@ -368,6 +445,8 @@ public:
 
     double operator() (size_t i, size_t j) const
     {
+        if (i == j)
+            return 0;
         if (std::abs( static_cast<int>(i) - static_cast<int>(j) ) == 2)
             return td;
         return t;
@@ -439,29 +518,29 @@ private:
 class FilterNElectronsPerPlaquet
 {
 public:
-    FilterNElectronsPerPlaquet (size_t N_)
-    : N(N_)
+    FilterNElectronsPerPlaquet (size_t N_, size_t plaquetSize_)
+    : N(N_), plaquetSize(plaquetSize_)
     {}
 
     bool operator() (const FermionicState<>& s) const
     {
-        if (s.count() != N*s.size()/4)
+        if (s.count() != N*s.size()/plaquetSize)
             return false;
-        for (size_t i=0; i<s.size(); i+=4)
-            if (s.count(i, i+4) != N)
+        for (size_t i=0; i<s.size(); i+=plaquetSize)
+            if (s.count(i, i+plaquetSize) != N)
                 return false;
         return true;
     }
 
 private:
-    size_t N;
+    size_t N, plaquetSize;
 };
 
 class SorterBond
 {
 public:
     SorterBond ()
-    : twoElectrons(2)
+    : twoElectrons(2,4)
     {}
 
     bool operator() (const FermionicState<>& s1, const FermionicState<>& s2) const
@@ -552,62 +631,152 @@ public:
         
     }
 
-    /**
-     * Block method for sparse matrices. 
-     * 
-     * Eigen doesn't implement block() for sparse matrices, only for dense
-     * matrices. Hence this small helper function.
-     */
-    SMatrix sparseBlock (const SMatrix& om, int i, int j, int p, int q) const
+    SMatrix polarisation (size_t p)
     {
-        SMatrix nm(p,q);
-        for (int l=0; l<q; l++)
-        {
-            nm.startVec(l);
-            for (SMatrix::InnerIterator it(om,l+j); it; ++it)
-                if (it.row()>=i && it.row()<i+p)
-                    nm.insertBack(it.row()-i,it.col()-j) = it.value();
-        }
-        nm.finalize();
-        return nm;
-        //H.resize(p,q);
-        //H = tmp;
+        const size_t o = 4*p;
+        return 1.0/4.0 * ( n(o+1)+n(o+3) - n(o+0)-n(o+2) );
     }
 
-    template<class Pred>
-    void selectBlock (SMatrix& m, Pred filter)
+    struct {
+        double t, td, V0, a, b, Vext;
+    } param;
+
+private:
+    size_t N_plaquet, N_sites;
+};
+
+class SorterParticleNumberAndSpin
+{
+public:
+    bool operator() (const FermionicState<>& s1, const FermionicState<>& s2) const
     {
-        int start = -1;
-        int end = -1;
-        for (size_t i=0; i<basis.size(); i++)
+        for (size_t i=0; i<s1.size(); i+=8)
+            if (s1.count(i,i+8) != s2.count(i,i+8))
+                return s1.count(i,i+8) < s2.count(i,i+8);
+
+        return spin(s1) < spin(s2);
+    }
+
+    int spin (const FermionicState<>& s) const
+    {
+        // N_down = N - N_up with N the total particle number
+        // spin = N_up - N_down = 2 N_up - N
+        const int N = s.count();
+        int N_up=0;
+        for (size_t i=0; i<s.size(); i+=2)
+            N_up += s[i];
+        return 2*N_up - N;
+    }
+};
+
+class FilterSpin
+{
+public:
+    FilterSpin (int S_)
+    : S(S_)
+    {}
+
+
+    bool operator() (const FermionicState<>& s) const
+    {
+        //TODO
+         return spin(s) == S;
+    }
+
+    
+    int spin (const FermionicState<>& s) const
+    {
+        // N_down = N - N_up with N the total particle number
+        // spin = N_up - N_down = 2 N_up - N
+        const int N = s.count();
+        int N_up=0;
+        for (size_t i=0; i<s.size(); i+=2)
+            N_up += s[i];
+        return 2*N_up - N;
+    }
+
+private:
+    const int S;
+};
+
+template<class Filter1, class Filter2>
+class FilterAnd
+{
+public:
+    FilterAnd (Filter1 f1_, Filter2 f2_)
+    : f1(f1_), f2(f2_)
+    {}
+
+    bool operator() (const FermionicState<>& s) const
+    {
+        return f1(s) && f2(s);
+    }
+private:
+    Filter1 f1;
+    Filter2 f2;
+};
+
+class QCAQuarterFilling : public System
+{
+public:
+    QCAQuarterFilling (size_t N_plaquet_)
+    : System (8*N_plaquet_, FilterSelectAll(), SorterParticleNumberAndSpin()),
+      N_plaquet(N_plaquet_), N_sites(4*N_plaquet_)
+    {}
+
+    size_t I (size_t i, Spin s) const
+    {
+        return 2*i + s;
+    }
+
+    const SMatrix& c (size_t i, Spin s) const
+    {
+        return creator(I(i,s));
+    }
+
+    const SMatrix& a (size_t i, Spin s) const
+    {
+        return annihilator(I(i,s));
+    }
+
+    SMatrix ca (size_t i, Spin s_i, size_t j, Spin s_j) const
+    {
+        return c(i, s_i) * a(j, s_j);
+    }
+
+    SMatrix ca (size_t i, size_t j) const
+    {
+        return ca(i,UP,j,UP) + ca(i,DOWN,j,DOWN);
+    }
+
+    SMatrix n (size_t i) const
+    {
+        return ca(i,UP,i,UP) + ca(i,DOWN,i,DOWN);
+    }
+
+    SMatrix n (size_t i, Spin s) const
+    {
+        return ca(i,s,i,s);
+    }
+
+    void constructH ()
+    {
+        Hopping hopping(param.t, param.td);
+        Coulomb coulomb(param.V0, param.a, param.b);
+        External external(param.Vext);
+
+        H.setZero();
+        for (size_t i=0; i<N_sites; i++)
         {
-            //std::cerr << basis[i] << std::endl;
-            //std::cerr << filter(basis[i]) << std::endl << std::endl;
-            if (start == -1 && end == -1)
-                if (filter(basis[i])) start = i;
-                else continue;
-            else if (start != -1 && end == -1)
-                if (!filter(basis[i])) end = i;
-                else continue;
-            else if (filter(basis[i]))
+            H += external(i) * n(i);
+            H += coulomb(i,i) * n(i,UP) * n(i,DOWN);
+            for (size_t j=i+1; j<N_sites; j++)
             {
-                assert(start != -1 && end != -1);
-                //TODO: throw exception?
-                std::cerr << "Non-contiguous block selected." << std::endl;
-                std::exit(-1);
+                H += - hopping(i,j) * ca(i,j) - hopping(j,i) * ca(j,i);
+                H += coulomb(i,j) * n(i) * n(j);
             }
         }
-        if (start == -1)
-        {
-            //TODO: throw exception?
-            std::cerr << "Zero-size block selected." << std::endl;
-            std::exit(-1);
-        }
-        if (end == -1) end = basis.size();
-
-        //std::cerr << "--> " << m.cols() << "   " << m.rows() << std::endl;
-        m = sparseBlock(m, start, start, end-start, end-start);
-        //std::cerr << "--> " << m.cols() << "   " << m.rows() << std::endl;
+        
     }
 
     SMatrix polarisation (size_t p)
