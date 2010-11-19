@@ -99,7 +99,6 @@ int main (int argc, char** argv)
     //System2 s2;
     //s2.testPolarisation();
 
-    // TODO: I get a segmentation fault with this:
     //AndersonModel am(7);
     // whereas the following works
     AndersonModel am(3);

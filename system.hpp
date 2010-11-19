@@ -111,6 +111,14 @@ public:
 
     void diagonalise ()
     {
+        /*
+         * TODO
+         * This assertion is somewhat arbitrary, just because my computers tend
+         * to have 4GB ~ 4 10^9 bytes of memory.
+         * Also, this is not the solution for the problem. I don't understand
+         * why Eigen gives a segfault instead of an exception.
+         */
+        assert(4E9 > s.basis.size()*s.basis.size()*sizeof(double));
         DMatrix m(H);
         SelfAdjointEigenSolver<DMatrix> es(m);
         eigenvalues = es.eigenvalues();
