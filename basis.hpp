@@ -19,7 +19,7 @@ public:
 
     FermionicState (size_t N_) : N(N_)
     {
-        assert(N<sizeof(T)*8);
+        assert(N<=sizeof(T)*8);
     }
 
     void operator= (const T& v)
@@ -87,7 +87,7 @@ std::ostream& operator<< (std::ostream& o, const FermionicState<T>& fs)
     return o;
 }
 
-typedef FermionicState<uint64_t> State;
+typedef FermionicState<uint16_t> State;
 
 class BasisException : public std::logic_error
 {
@@ -108,16 +108,23 @@ public:
     Basis (size_t N_orbital_, const Filter& filter, const Sorter& sorter)
     : N_orbital(N_orbital_)
     {
+        /*
+         * Note: N_basis must be bigger than num_t, because a
+         * FermionicState<num_t> can hold N = 2^(sizeof(num_t)) different
+         * states. However this number N is not representable in num_t (num_t's
+         * biggest number is N-1).
+         */
+        assert(sizeof(N_basis) > sizeof(num_t));
         N_basis = std::pow(2.0, static_cast<int>(N_orbital));
         states = std::vector<State>(N_basis, State(N_orbital));
         State s(N_orbital);
-        num_t i=0;
-        for (num_t num=0; num<N_basis; num++)
+        size_t i=0;
+        for (size_t num=0; num<N_basis; num++)
         {
-            s = num;
+            s = static_cast<num_t>(num);
             if (filter(s))
             {
-                states[i] = num;
+                states[i] = static_cast<num_t>(num);
                 i++;
             }
         }
@@ -152,8 +159,7 @@ public:
     }
 
 private:
-    size_t N_orbital;
-    num_t N_basis;
+    size_t N_orbital, N_basis;
     std::vector<State> states;
     std::map<State, num_t> indices;
 };

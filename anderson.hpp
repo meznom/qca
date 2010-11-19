@@ -1,7 +1,7 @@
 #ifndef __ANDERSON_HPP__
 #define __ANDERSON_HPP__
 
-#include "test.hpp"
+#include "system.hpp"
 
 template<class System>
 class DoubleOccupancy
@@ -98,11 +98,11 @@ public:
     const System& s;
 };
 
-class AndersonModel : public System<Filter::SelectAll, Sorter::DontSort>
+class AndersonModel : public BasicSystem<Filter::SelectAll, Sorter::DontSort>
 {
 public:
     AndersonModel (size_t N_bath_)
-    : System<Filter::SelectAll, Sorter::DontSort>(2 + 2*N_bath_, Filter::SelectAll(), Sorter::DontSort()),
+    : BasicSystem<Filter::SelectAll, Sorter::DontSort>(2 + 2*N_bath_, Filter::SelectAll(), Sorter::DontSort()),
       N_bath(N_bath_), N_sites(N_bath+1), H(*this), ensembleAverage(*this), 
       doubleOccupancy(*this), particleNumber(*this)
     {}

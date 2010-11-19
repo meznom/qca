@@ -51,7 +51,6 @@ public:
 private:
     void constructMatrix (size_t i)
     {
-        std::cerr << "Constructing creator matrix " << i << std::endl;
         cs[i] = SMatrix(s.basis.size(), s.basis.size());
         // we expect one entry per column
         cs[i].reserve(s.basis.size());
@@ -159,6 +158,32 @@ private:
 };
 
 template<class Filter, class Sorter>
+class MinimalSystem
+{
+public:
+    MinimalSystem (size_t N_orbital_, const Filter& filter, const Sorter& sorter)
+    : N_orbital(N_orbital_), basis(N_orbital, filter, sorter)
+    {}
+
+    size_t N_orbital;
+    Basis<Filter, Sorter> basis;
+};
+
+template<class Filter, class Sorter>
+class BasicSystem : public MinimalSystem<Filter, Sorter>
+{
+public:
+    BasicSystem (size_t N_orbital_, const Filter& filter, const Sorter& sorter)
+    : MinimalSystem<Filter, Sorter>(N_orbital_, filter, sorter), creator(*this), 
+      annihilator(*this)
+    {}
+
+    Creator<BasicSystem> creator;
+    Annihilator<BasicSystem> annihilator;
+};
+
+/*
+template<class Filter, class Sorter>
 class System
 {
 public:
@@ -171,64 +196,6 @@ public:
     Basis<Filter, Sorter> basis;
     Creator<System> creator;
     Annihilator<System> annihilator;
-};
-
-/*
-template<class System>
-class Polarisation
-{
-public:
-    Polarisation (System s_)
-    : s(s_)
-    {}
-
-    int operator() (int i) const
-    {
-        return s.c(i+5);
-    }
-
-private:
-    const System& s;
-};
-
-class System
-{
-public:
-    System ()
-    : polarisation(*this) 
-    {}
-
-    int c (int i) const
-    {
-        return 4+i;
-    }
-
-    void testPolarisation() const
-    {
-        std::cerr << polarisation(3) << std::endl;
-    }
-
-private:
-    Polarisation<System> polarisation;
-};
-
-class System2 : public Polarisation<System2>
-{
-public:
-    System2 ()
-    : Polarisation<System2>(*this)
-    {}
-
-    int c (int i) const
-    {
-        return 4+i;
-    }
-
-    void testPolarisation() const
-    {
-        std::cerr << operator()(3) << std::endl;
-    }
-
 };
 */
 

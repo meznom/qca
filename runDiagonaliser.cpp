@@ -1,6 +1,6 @@
 //#include "diagonaliser.hpp"
 
-#include "test.hpp"
+//#include "system.hpp"
 #include "anderson.hpp"
 #include <cstdlib>
 
@@ -99,7 +99,11 @@ int main (int argc, char** argv)
     //System2 s2;
     //s2.testPolarisation();
 
+    // TODO: I get a segmentation fault with this:
+    //AndersonModel am(7);
+    // whereas the following works
     AndersonModel am(3);
+    //std::cerr << am.c(0,UP).cols() << std::endl;
     am.H.t = 1;
     am.H.V = 1;
     am.H.mu = 0;
