@@ -1,6 +1,7 @@
 //#include "diagonaliser.hpp"
 
 #include "test.hpp"
+#include "anderson.hpp"
 #include <cstdlib>
 
 int main (int argc, char** argv)
@@ -16,7 +17,7 @@ int main (int argc, char** argv)
      * Test Anderson model
      */
     /*
-    AndersonModel am(3);
+    AndersonModel am(1);
     am.t = 1;
     am.V = 1;
     am.mu = 0;
@@ -90,11 +91,29 @@ int main (int argc, char** argv)
     //std::cerr << qca.ensembleAverage(1000, P2) << std::endl;
     */
 
-    System s;
-    s.testPolarisation();
+    //System<Filter::SelectAll, Sorter::DontSort> s(4, Filter::SelectAll(), Sorter::DontSort());
+    //s.basis.dump();
+    //std::cerr << s.creator(0) << std::endl;
+    //s.testPolarisation();
 
-    System2 s2;
-    s2.testPolarisation();
+    //System2 s2;
+    //s2.testPolarisation();
+
+    AndersonModel am(3);
+    am.H.t = 1;
+    am.H.V = 1;
+    am.H.mu = 0;
+    am.H.Ed = 0;
+    am.H.U = 2;
+    am.H.construct();
+    am.H.diagonalise();
+    std::cerr << am.H.eigenvalues << std::endl;
+
+    //DoubleOccupancy<AndersonModel> d(am);
+    //std::cerr << am.eigenvectors.col(2).dot( d(0) * am.eigenvectors.col(2) ) << std::endl;
+
+    std::cerr << am.ensembleAverage(1, am.doubleOccupancy(0)) << std::endl;
+    std::cerr << am.ensembleAverage(1, am.particleNumber()) << std::endl;
 
 
     std::exit(0);
