@@ -27,3 +27,7 @@ endif (NOT CMAKE_BUILD_TYPE)
 add_executable(runDiagonaliser
     runDiagonaliser.cpp 
 )
+
+add_executable(runQca
+    runQca.cpp
+)
