@@ -3,16 +3,6 @@
 
 #include <iostream>
 #include "basis.hpp"
-#include <Eigen/Sparse>
-#include <Eigen/Dense>
-using namespace Eigen;
-
-
-typedef SparseMatrix<double> SMatrix;
-typedef MatrixXd DMatrix;
-typedef VectorXd DVector;
-
-enum Spin {UP=0, DOWN=1};
 
 namespace Filter
 {

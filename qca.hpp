@@ -169,7 +169,9 @@ public:
     SMatrix operator() (size_t p) const
     {
         const size_t o = 4*p;
-        return 1.0/4.0 * ( s.n(o+1)+s.n(o+3) - s.n(o+0)-s.n(o+2) );
+        return s.basis.applyMask(
+            1.0/4.0 * ( s.n(o+1)+s.n(o+3) - s.n(o+0)-s.n(o+2) )
+        );
     }
 
 private:
@@ -203,6 +205,8 @@ public:
                 H += coulomb(i,j) * s.n(i) * s.n(j);
             }
         }
+
+        s.basis.applyMask(H);
     }
 
     double t, td, V0, a, b, Vext;
@@ -241,6 +245,55 @@ public:
     EnsembleAverage<QCABond> ensembleAverage;
     Polarisation<QCABond> P;
 };
+
+namespace Filter {
+class Spin
+{
+public:
+    Spin (int S_)
+    : S(S_)
+    {}
+
+
+    bool operator() (const State& s) const
+    {
+        //TODO
+         return spin(s) == S;
+    }
+
+    
+    int spin (const State& s) const
+    {
+        // N_down = N - N_up with N the total particle number
+        // spin = N_up - N_down = 2 N_up - N
+        const int N = s.count();
+        int N_up=0;
+        for (size_t i=0; i<s.size(); i+=2)
+            N_up += s[i];
+        return 2*N_up - N;
+    }
+
+private:
+    const int S;
+};
+
+template<class Filter1, class Filter2>
+class And
+{
+public:
+    And (Filter1 f1_, Filter2 f2_)
+    : f1(f1_), f2(f2_)
+    {}
+
+    bool operator() (const State& s) const
+    {
+        return f1(s) && f2(s);
+    }
+private:
+    Filter1 f1;
+    Filter2 f2;
+};
+}; /* namespace Filter */
 
 namespace Sorter {
 class ParticleNumberAndSpin

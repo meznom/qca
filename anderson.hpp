@@ -14,7 +14,9 @@ public:
     SMatrix operator() (size_t i) const
     {
         //return s.c(i,UP)*s.a(i,UP) * s.c(i,DOWN)*s.a(i,DOWN);
-        return s.n(i,UP) * s.n(i,DOWN);
+        return s.basis.applyMask(
+            s.n(i,UP) * s.n(i,DOWN)
+        );
     }
 private:
     const System& s;
@@ -33,6 +35,7 @@ public:
         SMatrix m(s.basis.size(), s.basis.size());
         for (size_t i=0; i<s.N_sites; i++)
             m += s.n(i);
+        s.basis.applyMask(m);
         return m;
     }
 private:
@@ -90,6 +93,8 @@ public:
         }
         Id.finalize();
         H += U * (s.c(0,UP)*s.a(0,UP) - 0.5*Id) * (s.c(0,DOWN)*s.a(0,DOWN) - 0.5*Id);
+
+        s.basis.applyMask(H);
     }
 
     double t, mu, U, V, Ed;

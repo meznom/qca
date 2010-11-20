@@ -9,6 +9,16 @@
 #include <stdexcept>
 #include <cassert>
 #include <cmath>
+#include <Eigen/Sparse>
+#include <Eigen/Dense>
+using namespace Eigen;
+
+
+typedef SparseMatrix<double> SMatrix;
+typedef MatrixXd DMatrix;
+typedef VectorXd DVector;
+
+enum Spin {UP=0, DOWN=1};
 
 template<typename T=uint64_t>
 class FermionicState
@@ -106,7 +116,7 @@ public:
     typedef State::num_t num_t;
 
     Basis (size_t N_orbital_, const Filter& filter, const Sorter& sorter)
-    : N_orbital(N_orbital_)
+    : N_orbital(N_orbital_), maskStart(-1), maskEnd(-1)
     {
         /*
          * Note: N_basis must be bigger than num_t, because a
@@ -158,10 +168,74 @@ public:
             std::cerr << states[i] << std::endl;
     }
 
+    template<class MaskFilter>
+    void mask (const MaskFilter& filter)
+    {
+        maskStart = -1;
+        maskEnd = -1;
+        for (size_t i=0; i<states.size(); i++)
+        {
+            if (maskStart == -1 && maskEnd == -1)
+                if (filter(states[i])) maskStart = i;
+                else continue;
+            else if (maskStart != -1 && maskEnd == -1)
+                if (!filter(states[i])) maskEnd = i;
+                else continue;
+            else if (filter(states[i]))
+            {
+                assert(maskStart != -1 && maskEnd != -1);
+                throw BasisException("Non-contiguous block selected.");
+            }
+        }
+        if (maskStart == -1) throw BasisException("Zero-size block selected.");
+        if (maskEnd == -1) maskEnd = states.size();
+    }
+
+    void unmask () 
+    {
+        maskStart = -1;
+        maskEnd = -1;
+    }
+
+    void applyMask (SMatrix& m) const
+    {
+        if (maskStart == -1 || maskEnd == -1)
+            return;
+        m = sparseBlock(m, maskStart, maskStart, maskEnd-maskStart, maskEnd-maskStart);
+    }
+
+    SMatrix applyMask (const SMatrix& m) const
+    {
+        if (maskStart == -1 || maskEnd == -1)
+            return m;
+        return sparseBlock(m, maskStart, maskStart, maskEnd-maskStart, maskEnd-maskStart);
+    }
+
+    /**
+     * Block method for sparse matrices. 
+     * 
+     * Eigen doesn't implement block() for sparse matrices, only for dense
+     * matrices. Hence this small helper function.
+     */
+    SMatrix sparseBlock (const SMatrix& om, int i, int j, int p, int q) const
+    {
+        SMatrix nm(p,q);
+        for (int l=0; l<q; l++)
+        {
+            nm.startVec(l);
+            for (SMatrix::InnerIterator it(om,l+j); it; ++it)
+                if (it.row()>=i && it.row()<i+p)
+                    nm.insertBack(it.row()-i,it.col()-j) = it.value();
+        }
+        nm.finalize();
+        return nm;
+    }
+
 private:
     size_t N_orbital, N_basis;
     std::vector<State> states;
     std::map<State, num_t> indices;
+    int maskStart, maskEnd;
 };
 
 #endif // __BASIS_HPP__
