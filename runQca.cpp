@@ -3,12 +3,12 @@
 int main(int argc, const char *argv[])
 {
 
-    QCABond qca(1);
-    //QCAQuarterFilling qca(1);
+    //QCABond qca(1);
+    QCAQuarterFilling qca(1);
     //Filter::And<Filter::NElectronsPerPlaquet, Filter::Spin> f(Filter::NElectronsPerPlaquet(2,8), Filter::Spin(0));
     //Filter::NElectronsPerPlaquet f(2,8);
-    Filter::NElectronsPerPlaquet f(2,4);
-    qca.basis.mask(f);
+    //Filter::NElectronsPerPlaquet f(2,4);
+    //qca.basis.mask(f);
     
     qca.H.t = 0.2;
     qca.H.td= 0.2 * qca.H.t;

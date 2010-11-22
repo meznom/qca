@@ -179,6 +179,63 @@ private:
 };
 
 template<class System>
+class CreatorAnnihilator
+{
+public:
+    CreatorAnnihilator (const System& s_)
+    : s(s_), cas(s.N_orbital * s.N_orbital)
+    {
+        //TODO: optimise - c_i a_j = (c_j a_i)^{\dag}
+        for (size_t i=0; i<s.N_orbital; i++)
+            for (size_t j=0; j<s.N_orbital; j++)
+                constructMatrix(i,j);
+    }
+
+    const SMatrix& operator() (size_t i, size_t j) const
+    {
+        return cas[I(i,j)];
+    }
+
+
+private:
+    void constructMatrix (size_t i, size_t j)
+    {
+        SMatrix& m = cas[I(i,j)];
+        m = SMatrix(s.basis.size(), s.basis.size());
+        // we expect one entry per column
+        m.reserve(s.basis.size());
+        for (size_t col=0; col<s.basis.size(); col++)
+        {
+            m.startVec(col);
+            if (i==j && s.basis(col)[i] == 1)
+            {
+                m.insertBack(col, col) = 1;
+                continue;
+            }
+            if (s.basis(col)[i] == 1 || s.basis(col)[j] == 0)
+                continue;
+            State state(s.basis(col));
+            state[i] = 1;
+            state[j] = 0;
+            const size_t row = s.basis(state);
+            size_t sum = state.count(i,j); //TODO: is this correct?
+            if (i<j) sum -= 1; //works, because for i<j we always have sum>=1
+            const double sign = (sum%2==0)?1:-1; // probably faster than using (-1)^sum
+            m.insertBack(row, col) = sign;
+        }
+        m.finalize();
+    }
+
+    size_t I (size_t i, size_t j) const
+    {
+        return s.N_orbital * i + j;
+    }
+
+    const System& s;
+    std::vector<SMatrix> cas;
+};
+
+template<class System>
 class QCAHamiltonian : public Hamiltonian<System>
 {
 public:
@@ -215,19 +272,21 @@ public:
     const System& s;
 };
 
-typedef BasicSystem<Filter::SelectAll, Sorter::Bond> QCABondBase;
+typedef MinimalSystem<Filter::NElectronsPerPlaquet, Sorter::Bond> QCABondBase;
 class QCABond : public QCABondBase
 {
 public:
     QCABond (size_t N_p_)
-    : QCABondBase(4*N_p_, Filter::SelectAll(), Sorter::Bond()), N_p(N_p_), 
-      N_sites(4*N_p), H(*this), ensembleAverage(*this), P(*this)
+    : QCABondBase(4*N_p_, Filter::NElectronsPerPlaquet(2,4), Sorter::Bond()), N_p(N_p_), 
+      N_sites(4*N_p), ca(*this), H(*this), ensembleAverage(*this), P(*this)
     {}
 
+    /*
     SMatrix ca (size_t i, size_t j) const
     {
         return creator(i) * annihilator(j);
     }
+    */
 
     SMatrix n (size_t i) const
     {
@@ -241,6 +300,7 @@ public:
     }
 
     size_t N_p, N_sites;
+    CreatorAnnihilator<QCABond> ca;
     QCAHamiltonian<QCABond> H;
     EnsembleAverage<QCABond> ensembleAverage;
     Polarisation<QCABond> P;
@@ -321,13 +381,14 @@ public:
 };
 }; /* namespace Sorter */
 
-typedef BasicSystem<Filter::SelectAll, Sorter::ParticleNumberAndSpin> QCAQuarterFillingBase;
+typedef MinimalSystem<Filter::NElectronsPerPlaquet, Sorter::ParticleNumberAndSpin> QCAQuarterFillingBase;
 class QCAQuarterFilling : public QCAQuarterFillingBase
 {
 public:
     QCAQuarterFilling (size_t N_p_)
-    : QCAQuarterFillingBase(8*N_p_, Filter::SelectAll(), Sorter::ParticleNumberAndSpin()), 
-      N_p(N_p_), N_sites(4*N_p), H(*this), ensembleAverage(*this), P(*this)
+    : QCAQuarterFillingBase(8*N_p_, Filter::NElectronsPerPlaquet(2,8), Sorter::ParticleNumberAndSpin()), 
+      N_p(N_p_), N_sites(4*N_p), creatorAnnihilator(*this), H(*this), 
+      ensembleAverage(*this), P(*this)
     {}
 
     size_t I (size_t i, Spin s) const
@@ -335,9 +396,16 @@ public:
         return 2*i + s;
     }
 
+    /*
     SMatrix ca (size_t i, Spin s_i, size_t j, Spin s_j) const
     {
         return creator(I(i, s_i))*annihilator(I(j, s_j));
+    }
+    */
+
+    SMatrix ca (size_t i, Spin s_i, size_t j, Spin s_j) const
+    {
+        return creatorAnnihilator(I(i, s_i), I(j, s_j));
     }
 
     SMatrix ca (size_t i, size_t j) const
@@ -361,6 +429,7 @@ public:
     }
 
     size_t N_p, N_sites;
+    CreatorAnnihilator<QCAQuarterFilling> creatorAnnihilator;
     QCAHamiltonian<QCAQuarterFilling> H;
     EnsembleAverage<QCAQuarterFilling> ensembleAverage;
     Polarisation<QCAQuarterFilling> P;

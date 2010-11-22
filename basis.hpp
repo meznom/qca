@@ -60,6 +60,8 @@ public:
 
     size_t count(size_t fromPos, size_t toPos) const
     {
+        if (toPos<fromPos) std::swap(toPos,fromPos);
+        assert (fromPos <= toPos);
         size_t sum = 0;
         for (size_t i=fromPos; i<toPos; i++)
             sum += s[i];
@@ -119,25 +121,21 @@ public:
     : N_orbital(N_orbital_), maskStart(-1), maskEnd(-1)
     {
         /*
-         * Note: N_basis must be bigger than num_t, because a
+         * Note: sizeof(N_basis) must be bigger than sizeof(num_t), because a
          * FermionicState<num_t> can hold N = 2^(sizeof(num_t)) different
          * states. However this number N is not representable in num_t (num_t's
          * biggest number is N-1).
          */
         assert(sizeof(N_basis) > sizeof(num_t));
         N_basis = std::pow(2.0, static_cast<int>(N_orbital));
-        states = std::vector<State>(N_basis, State(N_orbital));
         State s(N_orbital);
-        size_t i=0;
         for (size_t num=0; num<N_basis; num++)
         {
             s = static_cast<num_t>(num);
             if (filter(s))
-            {
-                states[i] = static_cast<num_t>(num);
-                i++;
-            }
+                states.push_back(s);
         }
+        N_basis = states.size();
         std::sort(states.begin(), states.end(), sorter);
         for (size_t i=0; i<states.size(); i++)
             indices[states[i]] = i;
