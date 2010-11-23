@@ -79,7 +79,8 @@ CommandLineOptions setupCLOptions ()
      .add("V0", "V0", "On-site coulomb repulsion (Hubbard U).")
      .add("Vext", "Vext", "External potential.")
      .add("a", "a", "Intra-plaquet spacing.")
-     .add("b", "b", "Inter-plaquet spacing.");
+     .add("b", "b", "Inter-plaquet spacing.")
+     .add("test-list", "Test list parsing.");
     o["N_p"] = 1;
 
     return o;
@@ -134,6 +135,16 @@ int main(int argc, const char** argv)
     if (opts["help"])
     {
         printUsage(opts);
+        std::exit(EXIT_SUCCESS);
+    }
+
+    //TODO --test-list '' does not work as expected
+    if (opts["test-list"])
+    {
+        std::vector<double> tv = opts["test-list"];
+        std::cerr << "Testing list parsing: " << std::endl;
+        for (size_t i=0; i<tv.size(); i++)
+            std::cerr << tv[i] << std::endl;
         std::exit(EXIT_SUCCESS);
     }
 
