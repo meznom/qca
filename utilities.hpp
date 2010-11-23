@@ -115,6 +115,9 @@ using namespace Helpers;
 
 class ConversionException : public std::exception {};
 
+/*
+ * TODO: more detailed error messages
+ */
 class DescriptionItem
 {
 public:
@@ -221,7 +224,15 @@ public:
         return value;
     }
     
-    //TODO: obviously, std::vector won't scale up indefinitely
+    /*
+     * TODO: obviously, std::vector won't scale up indefinitely
+     */
+    /*
+     * TODO: would be nice to implement an alternative syntax
+     * 1,2,3,4,5 for a simple list
+     * 1:2:0.2 for a generated list
+     * hence we would not need escaping on the shell
+     */
     template<typename T>
     operator std::vector<T> () const
     {
@@ -509,6 +520,13 @@ public:
         : std::runtime_error(message) {}
 };
 
+/*
+ * TODO: keep order of command line arguments as they were specified (for
+ * printing usage notice) 
+ * TODO: properly format usage notice 
+ * TODO: maybe make DescriptionItems available with both the long and the short
+ * name, e.g. opts["hopping"] and ["t"]
+ */
 class CommandLineOptions: public Description
 {
 public:

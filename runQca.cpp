@@ -80,8 +80,13 @@ CommandLineOptions setupCLOptions ()
      .add("Vext", "Vext", "External potential.")
      .add("a", "a", "Intra-plaquet spacing.")
      .add("b", "b", "Inter-plaquet spacing.")
-     .add("test-list", "Test list parsing.");
+     .add("beta", "beta", "Inverse temperature.")
+     .add("test-list", "Test list parsing.")
+     .add("energy-spectrum", "E", "Calculate the energy spectrum.")
+     .add("polarisation", "P", "Calculate the polarisation for specified plaquet(s).");
+    
     o["N_p"] = 1;
+    o["beta"] = 1;
 
     return o;
 }
@@ -95,11 +100,48 @@ void printUsage (CommandLineOptions& o)
 template<class System>
 void run (CommandLineOptions& opts)
 {
+    std::vector<double> Vexts = opts["Vext"];
+    //TODO: opts["Vext"] = 0 does not work
+    if (Vexts.size() > 1) opts["Vext"] = "0"; 
+
     System qca(opts);
+
+    for (size_t j=0; j<Vexts.size(); j++)
+    {
+        qca.H.Vext = Vexts[j];
     
-    qca.H.construct();
-    qca.H.diagonalise();
-    //printEnergySpectrum(qca);
+        qca.H.construct();
+        qca.H.diagonalise();
+
+        if (opts["energy-spectrum"])
+        {
+            printEnergySpectrum(qca);
+            std::cout << std::endl;
+        }
+
+        /*
+         * TODO: -P 0 is a valid specification for the polarisation, but does not
+         * work (yields false below) -> fix this in DescriptionItem
+         */
+        if (opts["polarisation"])
+        {
+            std::vector<size_t> ps = opts["polarisation"];
+            for (size_t i=0; i<ps.size(); i++)
+            {
+                if (ps[i] >= qca.N_p) 
+                {
+                    std::cerr << std::endl << "Polarisation: There is no plaquet " 
+                        << ps[i] << " in this system." << std::endl;
+                    std::exit(EXIT_FAILURE);
+                }
+                if (i>0) std::cout << "\t";
+                std::cout << qca.ensembleAverage(opts["beta"], qca.P(ps[i]));
+            }
+            std::cout << std::endl;
+        }
+    }
+            
+    /*
     std::cout << qca.ensembleAverage(1, qca.P(0)) << std::endl;
     if (qca.N_p > 1)
         std::cout << qca.ensembleAverage(1, qca.P(1)) << std::endl;
@@ -117,6 +159,7 @@ void run (CommandLineOptions& opts)
         std::vector<double> vVexts(Vexts, Vexts + sizeof(Vexts)/sizeof(double));
         printPolarisationPolarisation(qca, 0, 1, 1.0, vVexts);
     }
+    */
 }
 
 int main(int argc, const char** argv)
