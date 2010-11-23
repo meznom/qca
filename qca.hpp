@@ -182,17 +182,22 @@ template<class System>
 class CreatorAnnihilator
 {
 public:
-    CreatorAnnihilator (const System& s_)
-    : s(s_), cas(s.N_orbital * s.N_orbital)
+    CreatorAnnihilator (const System& s_, size_t plaquetSize_)
+    : s(s_), plaquetSize(plaquetSize_), cas(s.N_p * plaquetSize * plaquetSize), 
+      zeroMatrix(s.basis.size(), s.basis.size())
     {
         //TODO: optimise - c_i a_j = (c_j a_i)^{\dag}
-        for (size_t i=0; i<s.N_orbital; i++)
-            for (size_t j=0; j<s.N_orbital; j++)
-                constructMatrix(i,j);
+        for (size_t p=0; p<s.N_p; p++)
+            for (size_t i=0; i<plaquetSize; i++)
+                for (size_t j=0; j<plaquetSize; j++)
+                    constructMatrix(plaquetSize*p + i, plaquetSize*p + j);
     }
 
     const SMatrix& operator() (size_t i, size_t j) const
     {
+        // no interplaquet hopping => return a 0-matrix
+        if (i/plaquetSize != j/plaquetSize)
+            return zeroMatrix;
         return cas[I(i,j)];
     }
 
@@ -228,11 +233,17 @@ private:
 
     size_t I (size_t i, size_t j) const
     {
-        return s.N_orbital * i + j;
+        const size_t p = i/plaquetSize;
+        assert(p == j/plaquetSize);
+        const size_t ii = i%plaquetSize;
+        const size_t jj = j%plaquetSize;
+        return plaquetSize * plaquetSize * p + plaquetSize * ii + jj;
     }
 
     const System& s;
+    const size_t plaquetSize;
     std::vector<SMatrix> cas;
+    SMatrix zeroMatrix;
 };
 
 template<class System>
@@ -278,7 +289,7 @@ class QCABond : public QCABondBase
 public:
     QCABond (size_t N_p_)
     : QCABondBase(4*N_p_, Filter::NElectronsPerPlaquet(2,4), Sorter::Bond()), N_p(N_p_), 
-      N_sites(4*N_p), ca(*this), H(*this), ensembleAverage(*this), P(*this)
+      N_sites(4*N_p), ca(*this,4), H(*this), ensembleAverage(*this), P(*this)
     {}
 
     /*
@@ -387,7 +398,7 @@ class QCAQuarterFilling : public QCAQuarterFillingBase
 public:
     QCAQuarterFilling (size_t N_p_)
     : QCAQuarterFillingBase(8*N_p_, Filter::NElectronsPerPlaquet(2,8), Sorter::ParticleNumberAndSpin()), 
-      N_p(N_p_), N_sites(4*N_p), creatorAnnihilator(*this), H(*this), 
+      N_p(N_p_), N_sites(4*N_p), creatorAnnihilator(*this,8), H(*this), 
       ensembleAverage(*this), P(*this)
     {}
 
