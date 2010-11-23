@@ -10,9 +10,11 @@ include_directories(
 	${EIGEN_INCLUDE_DIR}
 )
 
-set(CMAKE_CXX_FLAGS "-Wall")
-
-set(CMAKE_CXX_FLAGS_DEBUG "-ggdb")
+set(CMAKE_CXX_FLAGS_DEBUG "-O0 -Wall -ggdb")
+# TODO: why is there no -march=native on mac?
+# TODO: use newer gcc on mac
+#set(CMAKE_CXX_FLAGS_RELEASE "-O3 -Wall -march=native -DNDEBUG")
+set(CMAKE_CXX_FLAGS_RELEASE "-O3 -Wall -fopenmp -mtune=native -DNDEBUG")
 
 # make sure that the default is a Release
 if (NOT CMAKE_BUILD_TYPE)
