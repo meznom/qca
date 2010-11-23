@@ -1,4 +1,5 @@
 #include "qca.hpp"
+#include "utilities.hpp"
 #include <map>
 
 /*
@@ -56,38 +57,98 @@ void printPolarisationPolarisation (System& s, size_t i, size_t j,
     }
 }
 
-int main(int argc, const char *argv[])
+CommandLineOptions setupCLOptions ()
 {
+    CommandLineOptions o;
+    /*
+    o.add("help", "h", "Print this help message.")
+     .add("model", "m", "Which QCA model to use.")
+     .add("N_p", "p", "Number of plaquets.")
+     .add("hopping", "t", "Hopping parameter.")
+     .add("hopping-diagonal", "t_d", "Diagonal hopping parameter.")
+     .add("on-site", "V_0", "On-site coulomb repulsion (Hubbard U).")
+     .add("external", "V_ext", "External potential.")
+     .add("intra-plaquet-spacing", "a", "Intra-plaquet spacing.")
+     .add("inter-plaquet-spacing", "b", "Inter-plaquet spacing.");
+     */
+    o.add("help", "h", "Print this help message.")
+     .add("model", "m", "Which QCA model to use.")
+     .add("N_p", "p", "Number of plaquets.")
+     .add("t", "t", "Hopping parameter.")
+     .add("td", "td", "Diagonal hopping parameter.")
+     .add("V0", "V0", "On-site coulomb repulsion (Hubbard U).")
+     .add("Vext", "Vext", "External potential.")
+     .add("a", "a", "Intra-plaquet spacing.")
+     .add("b", "b", "Inter-plaquet spacing.");
+    o["N_p"] = 1;
 
-    //QCABond qca(2);
-    QCAQuarterFilling qca(2);
-    //Filter::And<Filter::NElectronsPerPlaquet, Filter::Spin> f(Filter::NElectronsPerPlaquet(2,8), Filter::Spin(0));
-    //Filter::NElectronsPerPlaquet f(2,8);
-    //Filter::NElectronsPerPlaquet f(2,4);
-    //qca.basis.mask(f);
+    return o;
+}
+
+void printUsage (CommandLineOptions& o)
+{
+    std::cerr << "Usage: " << std::endl;
+    std::cerr << o.optionsDescription();
+}
+
+template<class System>
+void run (CommandLineOptions& opts)
+{
+    System qca(opts);
     
-    qca.H.t = 0.2;
-    qca.H.td= 0.2 * qca.H.t;
-    qca.H.Vext = 1;
-    qca.H.V0 = 10;
-    qca.H.a = 1;
-    qca.H.b = 3 * qca.H.a;
-
     qca.H.construct();
     qca.H.diagonalise();
     //printEnergySpectrum(qca);
     std::cout << qca.ensembleAverage(1, qca.P(0)) << std::endl;
-    std::cout << qca.ensembleAverage(1, qca.P(1)) << std::endl;
+    if (qca.N_p > 1)
+        std::cout << qca.ensembleAverage(1, qca.P(1)) << std::endl;
     
     qca.H.Vext = -1;
     qca.H.construct();
     qca.H.diagonalise();
     std::cerr << qca.ensembleAverage(1, qca.P(0)) << std::endl;
-    std::cerr << qca.ensembleAverage(1, qca.P(1)) << std::endl;
+    if (qca.N_p > 1)
+        std::cerr << qca.ensembleAverage(1, qca.P(1)) << std::endl;
     
-    double Vexts[] = {-1,0,1};
-    std::vector<double> vVexts(Vexts, Vexts + sizeof(Vexts)/sizeof(double));
-    printPolarisationPolarisation(qca, 0, 1, 1.0, vVexts);
-    
-    return 0;
+    if (qca.N_p > 1)
+    {
+        double Vexts[] = {-1,0,1};
+        std::vector<double> vVexts(Vexts, Vexts + sizeof(Vexts)/sizeof(double));
+        printPolarisationPolarisation(qca, 0, 1, 1.0, vVexts);
+    }
+}
+
+int main(int argc, const char** argv)
+{
+    CommandLineOptions opts = setupCLOptions();
+    try {
+        opts.parse(argc, argv);
+    }
+    catch (CommandLineOptionsException e)
+    {
+        std::cerr << e.what() << std::endl << std::endl;
+        printUsage(opts);
+        std::exit(EXIT_FAILURE);
+    }
+
+    if (opts["help"])
+    {
+        printUsage(opts);
+        std::exit(EXIT_SUCCESS);
+    }
+
+    if (opts["model"] == "bond")
+        run<DQcaBond>(opts);
+    else if (opts["model"] == "quarterfilling" || opts["model"] == "qf")
+        run<DQcaQuarterFilling>(opts);
+    else
+    {
+        std::cerr 
+            << "Please specify a model. Options are: " << std::endl 
+            << "\t" << "'bond'" << std::endl
+            << "\t" << "'quarterfilling' or 'qf'" << std::endl;
+        std::exit(EXIT_FAILURE);
+    }
+
+    return EXIT_SUCCESS;
 }

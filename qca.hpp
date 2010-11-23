@@ -2,6 +2,7 @@
 #define __QCA_HPP__
 
 #include "system.hpp"
+#include "utilities.hpp"
 
 class Hopping
 {
@@ -247,10 +248,10 @@ private:
 };
 
 template<class System>
-class QCAHamiltonian : public Hamiltonian<System>
+class QcaHamiltonian : public Hamiltonian<System>
 {
 public:
-    QCAHamiltonian (const System& s_)
+    QcaHamiltonian (const System& s_)
     : Hamiltonian<System>(s_), 
       t(1), td(0), V0(1000), a(1.0), b(3*a), Vext(0), 
       H(Hamiltonian<System>::H), s(Hamiltonian<System>::s)
@@ -283,12 +284,12 @@ public:
     const System& s;
 };
 
-typedef MinimalSystem<Filter::NElectronsPerPlaquet, Sorter::Bond> QCABondBase;
-class QCABond : public QCABondBase
+typedef MinimalSystem<Filter::NElectronsPerPlaquet, Sorter::Bond> QcaBondBase;
+class QcaBond : public QcaBondBase
 {
 public:
-    QCABond (size_t N_p_)
-    : QCABondBase(4*N_p_, Filter::NElectronsPerPlaquet(2,4), Sorter::Bond()), N_p(N_p_), 
+    QcaBond (size_t N_p_)
+    : QcaBondBase(4*N_p_, Filter::NElectronsPerPlaquet(2,4), Sorter::Bond()), N_p(N_p_), 
       N_sites(4*N_p), ca(*this,4), H(*this), ensembleAverage(*this), P(*this)
     {}
 
@@ -311,10 +312,10 @@ public:
     }
 
     size_t N_p, N_sites;
-    CreatorAnnihilator<QCABond> ca;
-    QCAHamiltonian<QCABond> H;
-    EnsembleAverage<QCABond> ensembleAverage;
-    Polarisation<QCABond> P;
+    CreatorAnnihilator<QcaBond> ca;
+    QcaHamiltonian<QcaBond> H;
+    EnsembleAverage<QcaBond> ensembleAverage;
+    Polarisation<QcaBond> P;
 };
 
 namespace Filter {
@@ -392,12 +393,12 @@ public:
 };
 }; /* namespace Sorter */
 
-typedef MinimalSystem<Filter::NElectronsPerPlaquet, Sorter::ParticleNumberAndSpin> QCAQuarterFillingBase;
-class QCAQuarterFilling : public QCAQuarterFillingBase
+typedef MinimalSystem<Filter::NElectronsPerPlaquet, Sorter::ParticleNumberAndSpin> QcaQuarterFillingBase;
+class QcaQuarterFilling : public QcaQuarterFillingBase
 {
 public:
-    QCAQuarterFilling (size_t N_p_)
-    : QCAQuarterFillingBase(8*N_p_, Filter::NElectronsPerPlaquet(2,8), Sorter::ParticleNumberAndSpin()), 
+    QcaQuarterFilling (size_t N_p_)
+    : QcaQuarterFillingBase(8*N_p_, Filter::NElectronsPerPlaquet(2,8), Sorter::ParticleNumberAndSpin()), 
       N_p(N_p_), N_sites(4*N_p), creatorAnnihilator(*this,8), H(*this), 
       ensembleAverage(*this), P(*this)
     {}
@@ -440,11 +441,46 @@ public:
     }
 
     size_t N_p, N_sites;
-    CreatorAnnihilator<QCAQuarterFilling> creatorAnnihilator;
-    QCAHamiltonian<QCAQuarterFilling> H;
-    EnsembleAverage<QCAQuarterFilling> ensembleAverage;
-    Polarisation<QCAQuarterFilling> P;
+    CreatorAnnihilator<QcaQuarterFilling> creatorAnnihilator;
+    QcaHamiltonian<QcaQuarterFilling> H;
+    EnsembleAverage<QcaQuarterFilling> ensembleAverage;
+    Polarisation<QcaQuarterFilling> P;
 };
 
+class DQcaBond : public QcaBond
+{
+public:
+    DQcaBond (Description desc_)
+    : QcaBond(desc_["N_p"]), desc(desc_)
+    {
+        H.t = desc["t"].get<double>(1.0);
+        H.td = desc["td"].get<double>(0); 
+        H.a = desc["a"].get<double>(1.0); 
+        H.b = desc["b"].get<double>(3);
+        H.Vext = desc["Vext"].get<double>(0);
+        H.V0 = 0; 
+    }
+
+private:
+    Description desc;
+};
+
+class DQcaQuarterFilling: public QcaQuarterFilling
+{
+public:
+    DQcaQuarterFilling (Description desc_)
+    : QcaQuarterFilling(desc_["N_p"]), desc(desc_)
+    {
+        H.t = desc["t"].get<double>(1.0);
+        H.td = desc["td"].get<double>(0); 
+        H.a = desc["a"].get<double>(1.0); 
+        H.b = desc["b"].get<double>(3);
+        H.Vext = desc["Vext"].get<double>(0);
+        H.V0 = desc["V0"].get<double>(1000); 
+    }
+
+private:
+    Description desc;
+};
 
 #endif // __QCA_HPP__
