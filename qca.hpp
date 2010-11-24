@@ -47,12 +47,13 @@ public:
         assert( std::abs(deltaY-a) < 10E-20 || deltaY < 10E-20 );
 
         /*
-         * 0 1
-         * 3 2
+         * 0 1   4 5   ...
+         * 3 2   7 6   ...
+         *
+         * verified for 1, 2 and 3 plaquets, so seems to work correctly
          */
-        //TODO: check if this is correct, can we optimise it?
         const double deltaX = 
-            (a+b) * ( (i - j) / 4 ) + 
+            (a+b) * (i/4 - j/4) + 
             a * ( ( ((i%4)%3==0)?0:1 ) - ( ((j%4)%3==0)?0:1 ) );
 
         //std::cerr << i << "   " << j << "    " << deltaX << "   " << deltaY << std::endl;
