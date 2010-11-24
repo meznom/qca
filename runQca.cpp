@@ -39,7 +39,7 @@ void printEnergySpectrum (const System& s)
     for (int i=0; i<s.H.eigenvalues.size(); i++)
         evs[s.H.eigenvalues(i)]++;
     for (mapIt i=evs.begin(); i!=evs.end(); i++)
-        std::cout << i->first << "\t" << i->second << std::endl;
+        std::cout << i->first << "\t" << i->first - s.H.Emin << "\t" << i->second << std::endl;
 }
 
 template<class System>
@@ -125,6 +125,7 @@ void run (CommandLineOptions& opts)
          */
         if (opts["polarisation"])
         {
+            std::cout << qca.H.Vext;
             std::vector<size_t> ps = opts["polarisation"];
             for (size_t i=0; i<ps.size(); i++)
             {
@@ -134,8 +135,7 @@ void run (CommandLineOptions& opts)
                         << ps[i] << " in this system." << std::endl;
                     std::exit(EXIT_FAILURE);
                 }
-                if (i>0) std::cout << "\t";
-                std::cout << qca.ensembleAverage(opts["beta"], qca.P(ps[i]));
+                std::cout << "\t" << qca.ensembleAverage(opts["beta"], qca.P(ps[i]));
             }
             std::cout << std::endl;
         }
