@@ -11,6 +11,7 @@
 #define __UTILITIES_HPP__
 
 #include <map>
+#include <vector>
 #include <string>
 #include <fstream>
 #include <sstream>
@@ -121,21 +122,19 @@ class ConversionException : public std::exception {};
 class DescriptionItem
 {
 public:
-    DescriptionItem(): value(), initialised(false) {}
-    DescriptionItem(std::string value): value(value), initialised(true) {}
-    DescriptionItem(int value): initialised(true) {setValue(value);}
-    DescriptionItem(size_t value): initialised(true) {setValue(value);}
-    DescriptionItem(double value): initialised(true) {setValue(value);}
+    DescriptionItem(): value(), set(false) {}
+    DescriptionItem(std::string value_, bool set_ = true): value(value_), set(set_) {}
+    DescriptionItem(int value_, bool set_ = true): set(set_) {setValue(value_);}
+    DescriptionItem(size_t value_, bool set_ = true): set(set_) {setValue(value_);}
+    DescriptionItem(double value_, bool set_ = true): set(set_) {setValue(value_);}
 
     virtual ~DescriptionItem() {}
 
-    //TODO: trim value. 
-    //Also, throw exception for int and double if value is empty! -- this might
-    //already be the case
-    void operator= (const std::string& v)
+    template<typename T>
+    void operator= (const T& v)
     {
-        value = v;
-        initialised = true;
+        setValue(v);
+        set = true;
     }
 
     operator double() const
@@ -143,7 +142,7 @@ public:
         double returnValue;
         std::stringstream s(value);
         s >> returnValue;
-        if (!s.eof()) {
+        if (!s.eof() || value.empty()) {
             throw ConversionException();
         }
         return returnValue;
@@ -176,7 +175,7 @@ public:
         s >> returnValue;
         //check if the stream is empty - it should be if it only contained an
         //integer
-        if (!s.eof()) {
+        if (!s.eof() || value.empty()) {
             throw ConversionException();
         }
         return returnValue;
@@ -187,7 +186,7 @@ public:
         size_t returnValue;
         std::stringstream s(value);
         s >> returnValue;
-        if (!s.eof()) {
+        if (!s.eof() || value.empty()) {
             throw ConversionException();
         }
         return returnValue;
@@ -208,11 +207,9 @@ public:
 
     operator bool() const
     {
-        if (
-            !initialised || value == "" ||
-            value == "0" || value == "no" || value == "No" || value == "NO"
-            || value == "false" || value == "False" || value == "FALSE"
-        ) {
+        if (!set || value == "no" || value == "No" || value == "NO"
+            || value == "false" || value == "False" || value == "FALSE")
+        {
             return false;
         }
 
@@ -237,7 +234,7 @@ public:
     operator std::vector<T> () const
     {
         if (value.size() == 0)
-            throw ConversionException();
+            return std::vector<T>(); //throw ConversionException();
 
         if (value[0] == '[')
         {
@@ -265,12 +262,12 @@ public:
             return std::vector<T>(1, get<T>());
     }
 
-    bool operator== (std::string s) const
+    bool operator== (const std::string& s) const
     {
         return value == s;
     }
 
-    bool operator!= (std::string s) const
+    bool operator!= (const std::string& s) const
     {
         return value != s;
     }
@@ -283,18 +280,16 @@ public:
      * T blub = instanceOfIniValue.get();
      * should be equivalent.
      */
-    template<class T>
+    template<typename T>
     T get() const
     {
         return *this;
     }
 
-    template<class T>
-    T get(T defaultValue) const
+    template<typename T>
+    T get(const T& defaultValue) const
     {
-        if (!initialised) {
-            return defaultValue;
-        }
+        if (!set) return defaultValue;
         return *this;
     }
 
@@ -304,12 +299,15 @@ public:
      *
      * @param defaultValue
      */
-    void setDefault(const std::string& defaultValue)
+    template<typename T>
+    void setDefault(const T& defaultValue)
     {
-        if (!initialised) {
-            value = defaultValue;
-            initialised = true;
-        }
+        if (!set) setValue(defaultValue);
+    }
+
+    bool isSet () const
+    {
+        return set;
     }
 
     const std::string& getValue() const {return value;}
@@ -320,7 +318,7 @@ private:
     {
         std::stringstream s;
         s << v;
-        value = s.str();
+        value = trim(s.str());
     }
 
     template<typename T>
@@ -344,7 +342,7 @@ private:
     }
 
     std::string value;
-    bool initialised;
+    bool set;
 };
 
 inline std::ostream& operator<< (std::ostream& o, const DescriptionItem& v)
