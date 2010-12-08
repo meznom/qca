@@ -34,10 +34,6 @@ add_dependencies(check buildtest)
 add_subdirectory(tests EXCLUDE_FROM_ALL)
 
 ### our executables ###
-add_executable(runDiagonaliser
-    runDiagonaliser.cpp 
-)
-
 add_executable(runQca
     runQca.cpp
 )
