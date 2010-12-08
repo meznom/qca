@@ -16,6 +16,8 @@
 #include <fstream>
 #include <sstream>
 #include <stdexcept>
+#include <algorithm>
+#include <cctype>
 namespace System {
     #include <sys/types.h>
     #include <sys/stat.h>
@@ -107,6 +109,12 @@ inline std::string trim(std::string s)
     else {
         s = s.substr(pos1, pos2-pos1+1);
     }
+    return s;
+}
+
+inline std::string toLower (std::string s)
+{
+    std::transform(s.begin(), s.end(), s.begin(), tolower);
     return s;
 }
 
@@ -207,13 +215,13 @@ public:
 
     operator bool() const
     {
-        if (!set || value == "no" || value == "No" || value == "NO"
-            || value == "false" || value == "False" || value == "FALSE")
-        {
+        std::string lvalue = toLower(value);
+        if (lvalue == "no" || lvalue == "false")
             return false;
-        }
+        else if (lvalue == "yes" || lvalue == "true")
+            return true;
 
-        return true;
+        throw ConversionException();
     }
 
     operator std::string() const
@@ -319,6 +327,15 @@ private:
         std::stringstream s;
         s << v;
         value = trim(s.str());
+    }
+
+    //TODO: could we also use template specialisation?
+    //template<>
+    //void setValue<bool>(const bool& v)
+    void setValue(const bool& v)
+    {
+        if (v) value = "true";
+        else value = "false";
     }
 
     template<typename T>
