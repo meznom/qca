@@ -72,7 +72,7 @@ public:
     : Vext(Vext_)
     {}
 
-    double operator() (size_t i) 
+    double operator() (size_t i) const
     {
         if (i==0)
             return Vext;
@@ -82,6 +82,25 @@ public:
     }
 private:
     double Vext;
+};
+
+class ExternalDeadPlaquet
+{
+public:
+    ExternalDeadPlaquet (double V0, double a, double b, double P_)
+    : coulomb(V0, a, b), P(P_)
+    {}
+
+    double operator() (size_t i) const
+    {
+        double V = 0;
+        for (int j=0; j>-4; j--)
+            V += 1/coulomb.distance(j,i) * ...; //TODO: incorporate P
+        return V;
+    }
+private:
+    const Coulomb& coulomb;
+    double P;
 };
 
 namespace Filter {
@@ -172,7 +191,7 @@ public:
     {
         const size_t o = 4*p;
         return s.basis.applyMask(
-            1.0/4.0 * ( s.n(o+1)+s.n(o+3) - s.n(o+0)-s.n(o+2) )
+            1.0/2.0 * ( s.n(o+1)+s.n(o+3) - s.n(o+0)-s.n(o+2) )
         );
     }
 

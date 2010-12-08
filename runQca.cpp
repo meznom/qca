@@ -7,12 +7,15 @@
  * ----
  * 
  * * Dead Cell Systems
- * * functions to measure / output energy spectra (over various parameters)
- * * function to output polarisation (over Vext or for dead cell's P)
- * * polarisation-polarisation response function
- * * set system, parameters from command line or configuration file
- * * nice / meaningful output functions
  * * grand canonical system
+ * * P-P for three plaquets (bond system)
+ * * P-P with dead cell (bond and qf)
+ * * energies with dead cell? -- shouldn't make much difference
+ * * grand canonical
+ *    * number of electrons per cell for different a and b
+ *    * number of electrons, considering Vext or dead cell
+ *    * P-P
+ * * compare energy, P-P for bond, qf, gc
  */
 
 class EpsilonLess
@@ -60,17 +63,6 @@ void printPolarisationPolarisation (System& s, size_t i, size_t j,
 CommandLineOptions setupCLOptions ()
 {
     CommandLineOptions o;
-    /*
-    o.add("help", "h", "Print this help message.")
-     .add("model", "m", "Which QCA model to use.")
-     .add("N_p", "p", "Number of plaquets.")
-     .add("hopping", "t", "Hopping parameter.")
-     .add("hopping-diagonal", "t_d", "Diagonal hopping parameter.")
-     .add("on-site", "V_0", "On-site coulomb repulsion (Hubbard U).")
-     .add("external", "V_ext", "External potential.")
-     .add("intra-plaquet-spacing", "a", "Intra-plaquet spacing.")
-     .add("inter-plaquet-spacing", "b", "Inter-plaquet spacing.");
-     */
     o.add("help", "h", "Print this help message.")
      .add("model", "m", "Which QCA model to use.")
      .add("N_p", "p", "Number of plaquets.")
@@ -81,12 +73,13 @@ CommandLineOptions setupCLOptions ()
      .add("a", "a", "Intra-plaquet spacing.")
      .add("b", "b", "Inter-plaquet spacing.")
      .add("beta", "beta", "Inverse temperature.")
-     .add("test-list", "Test list parsing.")
      .add("energy-spectrum", "E", "Calculate the energy spectrum.")
      .add("polarisation", "P", "Calculate the polarisation for specified plaquet(s).");
     
-    o["N_p"] = 1;
-    o["beta"] = 1;
+    o["N_p"].setDefault(1);
+    o["beta"].setDefault(1);
+    o["energy-spectrum"].setDefault(false);
+    o["help"].setDefault(false);
 
     return o;
 }
@@ -101,8 +94,7 @@ template<class System>
 void run (CommandLineOptions& opts)
 {
     std::vector<double> Vexts = opts["Vext"];
-    //TODO: opts["Vext"] = 0 does not work
-    if (Vexts.size() > 1) opts["Vext"] = "0"; 
+    if (Vexts.size() > 1) opts["Vext"] = 0; 
 
     System qca(opts);
 
@@ -119,11 +111,7 @@ void run (CommandLineOptions& opts)
             std::cout << std::endl;
         }
 
-        /*
-         * TODO: -P 0 is a valid specification for the polarisation, but does not
-         * work (yields false below) -> fix this in DescriptionItem
-         */
-        if (opts["polarisation"])
+        if (opts["polarisation"].isSet())
         {
             std::cout << qca.H.Vext;
             std::vector<size_t> ps = opts["polarisation"];
@@ -140,26 +128,6 @@ void run (CommandLineOptions& opts)
             std::cout << std::endl;
         }
     }
-            
-    /*
-    std::cout << qca.ensembleAverage(1, qca.P(0)) << std::endl;
-    if (qca.N_p > 1)
-        std::cout << qca.ensembleAverage(1, qca.P(1)) << std::endl;
-    
-    qca.H.Vext = -1;
-    qca.H.construct();
-    qca.H.diagonalise();
-    std::cerr << qca.ensembleAverage(1, qca.P(0)) << std::endl;
-    if (qca.N_p > 1)
-        std::cerr << qca.ensembleAverage(1, qca.P(1)) << std::endl;
-    
-    if (qca.N_p > 1)
-    {
-        double Vexts[] = {-1,0,1};
-        std::vector<double> vVexts(Vexts, Vexts + sizeof(Vexts)/sizeof(double));
-        printPolarisationPolarisation(qca, 0, 1, 1.0, vVexts);
-    }
-    */
 }
 
 int main(int argc, const char** argv)
@@ -178,16 +146,6 @@ int main(int argc, const char** argv)
     if (opts["help"])
     {
         printUsage(opts);
-        std::exit(EXIT_SUCCESS);
-    }
-
-    //TODO --test-list '' does not work as expected
-    if (opts["test-list"])
-    {
-        std::vector<double> tv = opts["test-list"];
-        std::cerr << "Testing list parsing: " << std::endl;
-        for (size_t i=0; i<tv.size(); i++)
-            std::cerr << tv[i] << std::endl;
         std::exit(EXIT_SUCCESS);
     }
 
