@@ -5,7 +5,7 @@
 #define BOOST_TEST_MODULE utilities test
 #include <boost/test/unit_test.hpp>
 
-#include "../utilities.hpp"
+#include "utilities.hpp"
 
 BOOST_AUTO_TEST_CASE ( empty_DescriptionItem )
 {
@@ -34,7 +34,6 @@ BOOST_AUTO_TEST_CASE ( DescriptionItem_type_conversion )
     BOOST_CHECK (vd.size() == 1);
     BOOST_CHECK (vd[0] == 4.2);
     BOOST_CHECK_THROW (std::vector<int> vi = i, ConversionException);
-    //static_cast< std::vector<int> >(i)
 
     i = -7.2;
     BOOST_CHECK (i == "-7.2");
@@ -101,4 +100,92 @@ BOOST_AUTO_TEST_CASE ( DescriptionItem_default_value_and_isSet )
 
 BOOST_AUTO_TEST_CASE ( DescriptionItem_lists )
 {
+    DescriptionItem i;
+    std::vector<double> v;
+
+    i = "[]";
+    v = i;
+    BOOST_CHECK (v.size() == 0);
+
+    i = "";
+    v = i;
+    BOOST_CHECK (v.size() == 0);
+
+    i = "()";
+    BOOST_CHECK_THROW (v = i, ConversionException);
+
+    i = "[1]";
+    v = i;
+    BOOST_CHECK (v.size() == 1);
+    BOOST_CHECK (v[0] == 1);
+
+    i = "1";
+    v = i;
+    BOOST_CHECK (v.size() == 1);
+    BOOST_CHECK (v[0] == 1);
+
+    i = "[10,20,30,40,50]";
+    v = i;
+    BOOST_CHECK (v.size() == 5);
+    BOOST_CHECK (v[3] == 40);
+
+    /*
+     * TODO: not yet implemented
+     */
+    /*
+    i = "10,20,30,40,50";
+    v = i;
+    BOOST_CHECK (v.size() == 5);
+    BOOST_CHECK (v[3] == 40);
+
+    i = "[10,20,30,40,50,]";
+    BOOST_CHECK_THROW (v = i, ConversionException);
+    i = "10,20,30,40,50,";
+    BOOST_CHECK_THROW (v = i, ConversionException);
+    i = "10,20,30,40,,50";
+    BOOST_CHECK_THROW (v = i, ConversionException);
+    i = "10,20,30,4 0,50";
+    BOOST_CHECK_THROW (v = i, ConversionException);
+
+    i = "10, 20,30,40 ,50";
+    v = i;
+    BOOST_CHECK (v.size() == 5);
+    BOOST_CHECK (v[3] == 40);
+
+    i = "(10)";
+    BOOST_CHECK_THROW (v = i, ConversionException);
+    i = "(10,20)";
+    BOOST_CHECK_THROW (v = i, ConversionException);
+    i = "(10,20,30,40)";
+    BOOST_CHECK_THROW (v = i, ConversionException);
+    i = "10:20:30:40";
+    BOOST_CHECK_THROW (v = i, ConversionException);
+
+    i = "(2,1,0.1)";
+    BOOST_CHECK_THROW (v = i, ConversionException);
+    i = "(1,2,-0.1)";
+    BOOST_CHECK_THROW (v = i, ConversionException);
+    i = "1:2:-0.1";
+    BOOST_CHECK_THROW (v = i, ConversionException);
+    
+    i = "(1,2.01,0.1)";
+    v = i;
+    BOOST_CHECK (v.size() == 11);
+    BOOST_CHECK (v[2] == 1.2);
+    
+    i = "1:2.01:0.1";
+    v = i;
+    BOOST_CHECK (v.size() == 11);
+    BOOST_CHECK (v[2] == 1.2);
+    
+    i = "(2,0.999,0.1)";
+    v = i;
+    BOOST_CHECK (v.size() == 11);
+    BOOST_CHECK (v[2] == 1.8);
+    
+    i = "2:0.999:0.1";
+    v = i;
+    BOOST_CHECK (v.size() == 11);
+    BOOST_CHECK (v[2] == 1.8);
+    */
 }

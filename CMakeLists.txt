@@ -25,6 +25,14 @@ if (NOT CMAKE_BUILD_TYPE)
     )
 endif (NOT CMAKE_BUILD_TYPE)
 
+
+#### tests ###
+enable_testing()
+add_custom_target(buildtest)
+add_custom_target(check COMMAND ${CMAKE_CTEST_COMMAND})
+add_dependencies(check buildtest)
+add_subdirectory(tests EXCLUDE_FROM_ALL)
+
 ### our executables ###
 add_executable(runDiagonaliser
     runDiagonaliser.cpp 

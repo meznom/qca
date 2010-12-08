@@ -10,6 +10,8 @@
 #ifndef __UTILITIES_HPP__
 #define __UTILITIES_HPP__
 
+#include <iostream>
+
 #include <map>
 #include <vector>
 #include <string>
@@ -150,68 +152,28 @@ public:
         double returnValue;
         std::stringstream s(value);
         s >> returnValue;
-        if (!s.eof() || value.empty()) {
+        if (!s.eof() || value.empty())
             throw ConversionException();
-        }
         return returnValue;
     }
 
     operator int() const
     {
-        /*
-        //both, sscanf as well as as atoi don't work reliably
-        //they don't give errors when you try to convert, say, 2.4 to int
-        //in this case they just return 2
-        int returnValue;
-        if (std::sscanf(value.c_str(), "%d", &returnValue) == 1) {
-            return returnValue;
-        }
-
-        //this is using boost::lexical_cast and works very well, but we get the
-        //boost dependency
-        try {
-            return boost::lexical_cast<int>(value);
-        }
-        catch(boost::bad_lexical_cast& e) {
-            throw ConversionException();
-        }
-        */
-
-        //this works and avoids the boost dependency
         int returnValue;
         std::stringstream s(value);
         s >> returnValue;
-        //check if the stream is empty - it should be if it only contained an
-        //integer
-        if (!s.eof() || value.empty()) {
+        if (!s.eof() || value.empty())
             throw ConversionException();
-        }
         return returnValue;
     }
 
     operator size_t() const
     {
-        size_t returnValue;
-        std::stringstream s(value);
-        s >> returnValue;
-        if (!s.eof() || value.empty()) {
+        int returnValue = get<int>();
+        if (returnValue < 0)
             throw ConversionException();
-        }
         return returnValue;
     }
-
-    /*
-    operator unsigned int()
-    {
-        uint32_t returnValue;
-        std::stringstream s(value);
-        s >> returnValue;
-        if (!s.eof()) {
-            throw ConversionException();
-        }
-        return returnValue;
-    }
-    */
 
     operator bool() const
     {
@@ -242,7 +204,7 @@ public:
     operator std::vector<T> () const
     {
         if (value.size() == 0)
-            return std::vector<T>(); //throw ConversionException();
+            return std::vector<T>();
 
         if (value[0] == '[')
         {
