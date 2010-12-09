@@ -7,21 +7,38 @@
 class Hopping
 {
 public:
-    Hopping (double t_, double td_)
-    : t(t_), td(td_)
+    Hopping (double t_, double td_, double ti_)
+    : t(t_), td(td_), ti(ti_)
     {}
 
     double operator() (size_t i, size_t j) const
     {
-        if (i == j)
-            return 0;
-        if (std::abs( static_cast<int>(i) - static_cast<int>(j) ) == 2)
-            return td;
-        return t;
+        /*
+         * Same plaquet
+         */
+        if (i/4 == j/4)
+        {
+            if (std::abs( static_cast<int>(i) - static_cast<int>(j) ) == 2)
+                return td;
+            else if (i != j)
+                return t;
+        }
+        /*
+         * Neighbouring plaquets
+         */
+        else if (std::abs( static_cast<int>(i/4) - static_cast<int>(j/4) ) == 1)
+        {
+            //TODO: this is untested
+            const size_t l = std::min(i, j); //left plaquet
+            const size_t r = std::max(i, j); //right plaquet
+            if ( (l%4 == 1 && r%4 == 0) || (l%4 == 2 && r%4 == 3) )
+                return ti;
+        }
+        return 0;
     }
 
 private:
-    const double t, td;
+    const double t, td, ti;
 };
 
 class Coulomb
@@ -208,6 +225,34 @@ private:
 };
 
 template<class System>
+class ParticleNumber
+{
+public:
+    ParticleNumber (const System& s_)
+    : s(s_)
+    {}
+
+    SMatrix operator() (size_t p) const
+    {
+        const size_t o = 4*p;
+        return s.basis.applyMask(
+            s.n(0) + s.n(1) + s.n(2) + s.n(3)
+        );
+    }
+
+    SMatrix operator() () const
+    {
+        SMatrix N;
+        for (size_t i=0; i<s.N_sites; i++)
+            N += s.n(i);
+        return N;
+    }
+
+private:
+    const System& s;
+};
+
+template<class System>
 class CreatorAnnihilator
 {
 public:
@@ -281,7 +326,7 @@ class QcaHamiltonian : public Hamiltonian<System>
 public:
     QcaHamiltonian (const System& s_)
     : Hamiltonian<System>(s_), 
-      t(1), td(0), V0(1000), a(1.0), b(3*a), Vext(0), Pext(0), 
+      t(1), td(0), ti(0), V0(1000), a(1.0), b(3*a), Vext(0), Pext(0), mu(0), 
       H(Hamiltonian<System>::H), s(Hamiltonian<System>::s)
     {}
 
@@ -293,7 +338,7 @@ public:
          * then the user's responsibility to set either Vext or Pext, but not
          * both.
          */
-        Hopping hopping(t, td);
+        Hopping hopping(t, td, ti);
         Coulomb coulomb(V0, a, b);
         ExternalPlain externalPlain(Vext);
         ExternalDeadPlaquet externalDP(V0, a, b, Pext);
@@ -302,7 +347,7 @@ public:
         for (size_t i=0; i<s.N_sites; i++)
         {
             H += coulomb(i,i) * s.n_updown(i);
-            H += (externalPlain(i) + externalDP(i)) * s.n(i);
+            H += (externalPlain(i) + externalDP(i) + mu) * s.n(i);
             for (size_t j=i+1; j<s.N_sites; j++)
             {
                 H += - hopping(i,j) * s.ca(i,j) - hopping(j,i) * s.ca(j,i);
@@ -313,7 +358,7 @@ public:
         s.basis.applyMask(H);
     }
 
-    double t, td, V0, a, b, Vext, Pext;
+    double t, td, ti, V0, a, b, Vext, Pext, mu;
 
     SMatrix& H;
     const System& s;
@@ -325,7 +370,7 @@ class QcaBond : public QcaBondBase
 public:
     QcaBond (size_t N_p_)
     : QcaBondBase(4*N_p_, Filter::NElectronsPerPlaquet(2,4), Sorter::Bond()), N_p(N_p_), 
-      N_sites(4*N_p), ca(*this,4), H(*this), ensembleAverage(*this), P(*this)
+      N_sites(4*N_p), ca(*this,4), H(*this), ensembleAverage(*this), P(*this), N(*this)
     {}
 
     /*
@@ -351,6 +396,7 @@ public:
     QcaHamiltonian<QcaBond> H;
     EnsembleAverage<QcaBond> ensembleAverage;
     Polarisation<QcaBond> P;
+    ParticleNumber<QcaBond> N;
 };
 
 namespace Filter {
@@ -435,7 +481,7 @@ public:
     QcaQuarterFilling (size_t N_p_)
     : QcaQuarterFillingBase(8*N_p_, Filter::NElectronsPerPlaquet(2,8), Sorter::ParticleNumberAndSpin()), 
       N_p(N_p_), N_sites(4*N_p), creatorAnnihilator(*this,8), H(*this), 
-      ensembleAverage(*this), P(*this)
+      ensembleAverage(*this), P(*this), N(*this)
     {}
 
     size_t I (size_t i, Spin s) const
@@ -480,6 +526,53 @@ public:
     QcaHamiltonian<QcaQuarterFilling> H;
     EnsembleAverage<QcaQuarterFilling> ensembleAverage;
     Polarisation<QcaQuarterFilling> P;
+    ParticleNumber<QcaQuarterFilling> N;
+};
+
+typedef BasicSystem<Filter::SelectAll, Sorter::ParticleNumberAndSpin> QcaGrandCanonicalBase;
+class QcaGrandCanonical : public QcaGrandCanonicalBase
+{
+public:
+    QcaGrandCanonical (size_t N_p_)
+    : QcaGrandCanonicalBase(8*N_p_, Filter::SelectAll(), Sorter::ParticleNumberAndSpin()),
+      N_p(N_p_), N_sites(4*N_p_), H(*this), ensembleAverage(*this), P(*this), N(*this)
+    {}
+    
+    size_t I (size_t i, Spin s) const
+    {
+        return 2*i + s;
+    }
+
+    SMatrix ca (size_t i, Spin s_i, size_t j, Spin s_j) const
+    {
+        return creator(I(i, s_i))*annihilator(I(j, s_j));
+    }
+
+    SMatrix ca (size_t i, size_t j) const
+    {
+        return ca(i,UP,j,UP) + ca(i,DOWN,j,DOWN);
+    }
+
+    SMatrix n (size_t i, Spin s) const
+    {
+        return ca(i,s,i,s);
+    }
+
+    SMatrix n (size_t i) const
+    {
+        return n(i,UP) + n(i,DOWN);
+    }
+
+    SMatrix n_updown (size_t i) const
+    {
+        return n(i,UP) * n(i,DOWN);
+    }
+
+    size_t N_p, N_sites;
+    QcaHamiltonian<QcaGrandCanonical> H;
+    EnsembleAverage<QcaGrandCanonical> ensembleAverage;
+    Polarisation<QcaGrandCanonical> P;
+    ParticleNumber<QcaGrandCanonical> N;
 };
 
 class DQcaBond : public QcaBond
@@ -490,11 +583,13 @@ public:
     {
         H.t = desc["t"].get<double>(1.0);
         H.td = desc["td"].get<double>(0); 
+        H.ti = 0;
         H.a = desc["a"].get<double>(1.0); 
         H.b = desc["b"].get<double>(3);
         H.Vext = desc["Vext"].get<double>(0);
         H.Pext = desc["Pext"].get<double>(0);
         H.V0 = 0; 
+        H.mu = 0;
     }
 
 private:
@@ -509,11 +604,34 @@ public:
     {
         H.t = desc["t"].get<double>(1.0);
         H.td = desc["td"].get<double>(0); 
+        H.ti = 0;
         H.a = desc["a"].get<double>(1.0); 
         H.b = desc["b"].get<double>(3);
         H.Vext = desc["Vext"].get<double>(0);
         H.Pext = desc["Pext"].get<double>(0);
         H.V0 = desc["V0"].get<double>(1000); 
+        H.mu  = 0;
+    }
+
+private:
+    Description desc;
+};
+
+class DQcaGrandCanonical: public QcaGrandCanonical
+{
+public:
+    DQcaGrandCanonical (Description desc_)
+    : QcaGrandCanonical (desc_["N_p"]), desc(desc_)
+    {
+        H.t = desc["t"].get<double>(1.0);
+        H.td = desc["td"].get<double>(0); 
+        H.ti = desc["ti"].get<double>(0); 
+        H.a = desc["a"].get<double>(1.0); 
+        H.b = desc["b"].get<double>(3);
+        H.Vext = desc["Vext"].get<double>(0);
+        H.Pext = desc["Pext"].get<double>(0);
+        H.V0 = desc["V0"].get<double>(1000); 
+        H.mu = desc["mu"].get<double>(0);
     }
 
 private:

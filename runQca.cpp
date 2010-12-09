@@ -8,6 +8,7 @@
  * 
  * * Dead Cell Systems
  * * grand canonical system
+ * * thoroughly test dead plaquet and grand canonical / new hopping etc; compare with Mathematica
  * * P-P for three plaquets (bond system)
  * * P-P with dead cell (bond and qf)
  * * energies with dead cell? -- shouldn't make much difference
@@ -68,7 +69,9 @@ CommandLineOptions setupCLOptions ()
      .add("N_p", "p", "Number of plaquets.")
      .add("t", "t", "Hopping parameter.")
      .add("td", "td", "Diagonal hopping parameter.")
+     .add("ti", "ti", "Inter-plaquet hopping parameter.")
      .add("V0", "V0", "On-site coulomb repulsion (Hubbard U).")
+     .add("mu", "mu", "Chemical potential.")
      .add("Vext", "Vext", "External potential.")
      .add("Pext", "Pext", "External, 'driving' polarisation of a 'dead plaquet' to the left of the linear chain system.")
      .add("a", "a", "Intra-plaquet spacing.")
@@ -152,14 +155,18 @@ int main(int argc, const char** argv)
 
     if (opts["model"] == "bond")
         run<DQcaBond>(opts);
-    else if (opts["model"] == "quarterfilling" || opts["model"] == "qf")
+    else if (opts["model"] == "quarterfilling" || opts["model"] == "quarter" || 
+             opts["model"] == "qf")
         run<DQcaQuarterFilling>(opts);
+    else if (opts["model"] == "grandcanonical" || opts["model"] == "grand")
+        run<DQcaGrandCanonical>(opts);
     else
     {
         std::cerr 
             << "Please specify a model. Options are: " << std::endl 
             << "\t" << "'bond'" << std::endl
-            << "\t" << "'quarterfilling' or 'qf'" << std::endl;
+            << "\t" << "'quarterfilling' or 'quarter'" << std::endl
+            << "\t" << "'grandcanonical' or 'grand'" << std::endl;
         std::exit(EXIT_FAILURE);
     }
 
