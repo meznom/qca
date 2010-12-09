@@ -20,6 +20,7 @@
 #include <stdexcept>
 #include <algorithm>
 #include <cctype>
+#include <cstring>
 namespace System {
     #include <sys/types.h>
     #include <sys/stat.h>
@@ -551,16 +552,22 @@ public:
                     }
                     optionName = getOptionName(optionName);
                 }
-                //if there is a next argument and this argument isn't an option
-                //specifier (i.e. not starting with '-') then this argument is the
-                //value for our option
-                if (i+1 < argc && argv[i+1][0] != '-') {
+                /*
+                 * if there is a next argument and this argument isn't an
+                 * option specifier (i.e. not a '-' followed by a non-digit)
+                 * then this argument is the value for our option
+                 */
+                if (i+1 < argc &&   
+                    ( (std::strlen(argv[i+1]) > 0 && argv[i+1][0] != '-') || 
+                      (std::strlen(argv[i+1]) > 1 && std::isdigit(argv[i+1][1])) 
+                    )
+                   )
+                {
                     items[optionName] = DescriptionItem(std::string(argv[i+1]));
                     i++;
                 }
-                else {
+                else
                     items[optionName] = DescriptionItem("true");
-                }
             }
             else {
                 //we throw an error on unrecognised options / arguments

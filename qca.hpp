@@ -65,10 +65,10 @@ private:
     const double V0, a, b;
 };
 
-class External
+class ExternalPlain
 {
 public:
-    External (double Vext_)
+    ExternalPlain (double Vext_)
     : Vext(Vext_)
     {}
 
@@ -93,14 +93,22 @@ public:
 
     double operator() (size_t i) const
     {
+        /*
+         * Physically the dead plaquet sits to the left of the linear chain
+         * system, at -4,-3,-2,-1. To use our Coulomb distance method we shift
+         * the whole system one plaquet to the right (and thus all sites are
+         * positive).
+         */
         double V = 0;
-        for (int j=0; j>-4; j--)
-            V += 1/coulomb.distance(j,i) * ...; //TODO: incorporate P
+        for (int j=1; j<4; j+=2)
+            V += (P+1)/2 * 1/coulomb.distance(j,i+4);
+        for (int j=0; j<4; j+=2)
+            V += (1-P)/2 * 1/coulomb.distance(j,i+4);
         return V;
     }
 private:
-    const Coulomb& coulomb;
-    double P;
+    const Coulomb coulomb;
+    const double P;
 };
 
 namespace Filter {
@@ -273,21 +281,28 @@ class QcaHamiltonian : public Hamiltonian<System>
 public:
     QcaHamiltonian (const System& s_)
     : Hamiltonian<System>(s_), 
-      t(1), td(0), V0(1000), a(1.0), b(3*a), Vext(0), 
+      t(1), td(0), V0(1000), a(1.0), b(3*a), Vext(0), Pext(0), 
       H(Hamiltonian<System>::H), s(Hamiltonian<System>::s)
     {}
 
     void construct() 
     {
+        /*
+         * For the time being, to keep it simple we include both conceivable
+         * external potentials, ExternalPlain and ExternalDeadPlaquet. It's
+         * then the user's responsibility to set either Vext or Pext, but not
+         * both.
+         */
         Hopping hopping(t, td);
         Coulomb coulomb(V0, a, b);
-        External external(Vext);
+        ExternalPlain externalPlain(Vext);
+        ExternalDeadPlaquet externalDP(V0, a, b, Pext);
 
         H.setZero();
         for (size_t i=0; i<s.N_sites; i++)
         {
             H += coulomb(i,i) * s.n_updown(i);
-            H += external(i) * s.n(i);
+            H += (externalPlain(i) + externalDP(i)) * s.n(i);
             for (size_t j=i+1; j<s.N_sites; j++)
             {
                 H += - hopping(i,j) * s.ca(i,j) - hopping(j,i) * s.ca(j,i);
@@ -298,7 +313,7 @@ public:
         s.basis.applyMask(H);
     }
 
-    double t, td, V0, a, b, Vext;
+    double t, td, V0, a, b, Vext, Pext;
 
     SMatrix& H;
     const System& s;
@@ -478,6 +493,7 @@ public:
         H.a = desc["a"].get<double>(1.0); 
         H.b = desc["b"].get<double>(3);
         H.Vext = desc["Vext"].get<double>(0);
+        H.Pext = desc["Pext"].get<double>(0);
         H.V0 = 0; 
     }
 
@@ -496,6 +512,7 @@ public:
         H.a = desc["a"].get<double>(1.0); 
         H.b = desc["b"].get<double>(3);
         H.Vext = desc["Vext"].get<double>(0);
+        H.Pext = desc["Pext"].get<double>(0);
         H.V0 = desc["V0"].get<double>(1000); 
     }
 
