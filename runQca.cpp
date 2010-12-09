@@ -154,19 +154,29 @@ int main(int argc, const char** argv)
     }
 
     if (opts["model"] == "bond")
-        run<DQcaBond>(opts);
+        run<DQcaBondPlain>(opts);
     else if (opts["model"] == "quarterfilling" || opts["model"] == "quarter" || 
              opts["model"] == "qf")
-        run<DQcaQuarterFilling>(opts);
+        run<DQcaQuarterFillingPlain>(opts);
     else if (opts["model"] == "grandcanonical" || opts["model"] == "grand")
-        run<DQcaGrandCanonical>(opts);
+        run<DQcaGrandCanonicalPlain>(opts);
+    else if (opts["model"] == "bondDP")
+        run<DQcaBondDeadPlaquet>(opts);
+    else if (opts["model"] == "quarterfillingDP" || opts["model"] == "quarterDP" || 
+             opts["model"] == "qfDP")
+        run<DQcaQuarterFillingDeadPlaquet>(opts);
+    else if (opts["model"] == "grandcanonicalDP" || opts["model"] == "grandDP")
+        run<DQcaGrandCanonicalDeadPlaquet>(opts);
     else
     {
         std::cerr 
             << "Please specify a model. Options are: " << std::endl 
             << "\t" << "'bond'" << std::endl
+            << "\t" << "'bondDP'" << std::endl
             << "\t" << "'quarterfilling' or 'quarter'" << std::endl
-            << "\t" << "'grandcanonical' or 'grand'" << std::endl;
+            << "\t" << "'quarterfillingDP' or 'quarterDP'" << std::endl
+            << "\t" << "'grandcanonical' or 'grand'" << std::endl
+            << "\t" << "'grandcanonicalDP' or 'grandDP'" << std::endl;
         std::exit(EXIT_FAILURE);
     }
 

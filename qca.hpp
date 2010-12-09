@@ -82,11 +82,12 @@ private:
     const double V0, a, b;
 };
 
+template<class ParameterContainer>
 class ExternalPlain
 {
 public:
-    ExternalPlain (double Vext_)
-    : Vext(Vext_)
+    ExternalPlain (const ParameterContainer& c)
+    : Vext(c.Vext)
     {}
 
     double operator() (size_t i) const
@@ -101,11 +102,12 @@ private:
     double Vext;
 };
 
+template<class ParameterContainer>
 class ExternalDeadPlaquet
 {
 public:
-    ExternalDeadPlaquet (double V0, double a, double b, double P_)
-    : coulomb(V0, a, b), P(P_)
+    ExternalDeadPlaquet (const ParameterContainer& c)
+    : coulomb(c.V0, c.a, c.b), P(c.Pext)
     {}
 
     double operator() (size_t i) const
@@ -128,6 +130,44 @@ private:
     const double P;
 };
 
+template<class System, template <typename> class External>
+class QcaHamiltonian : public Hamiltonian<System>
+{
+public:
+    QcaHamiltonian (const System& s_)
+    : Hamiltonian<System>(s_), 
+      t(1), td(0), ti(0), V0(1000), a(1.0), b(3*a), Vext(0), Pext(0), mu(0), 
+      H(Hamiltonian<System>::H), s(Hamiltonian<System>::s)
+    {}
+
+    void construct() 
+    {
+        Hopping hopping(t, td, ti);
+        Coulomb coulomb(V0, a, b);
+        External<QcaHamiltonian> external(*this);
+
+        H.setZero();
+        for (size_t i=0; i<s.N_sites; i++)
+        {
+            H += coulomb(i,i) * s.n_updown(i);
+            //H += (externalPlain(i) + externalDP(i) + mu) * s.n(i);
+            H += (external(i) + mu) * s.n(i);
+            for (size_t j=i+1; j<s.N_sites; j++)
+            {
+                H += - hopping(i,j) * s.ca(i,j) - hopping(j,i) * s.ca(j,i);
+                H += coulomb(i,j) * s.n(i) * s.n(j);
+            }
+        }
+
+        s.basis.applyMask(H);
+    }
+
+    double t, td, ti, V0, a, b, Vext, Pext, mu;
+
+    SMatrix& H;
+    const System& s;
+};
+
 namespace Filter {
 class NElectronsPerPlaquet
 {
@@ -148,6 +188,53 @@ public:
 
 private:
     size_t N, plaquetSize;
+};
+
+class Spin
+{
+public:
+    Spin (int S_)
+    : S(S_)
+    {}
+
+
+    bool operator() (const State& s) const
+    {
+        //TODO
+         return spin(s) == S;
+    }
+
+    
+    int spin (const State& s) const
+    {
+        // N_down = N - N_up with N the total particle number
+        // spin = N_up - N_down = 2 N_up - N
+        const int N = s.count();
+        int N_up=0;
+        for (size_t i=0; i<s.size(); i+=2)
+            N_up += s[i];
+        return 2*N_up - N;
+    }
+
+private:
+    const int S;
+};
+
+template<class Filter1, class Filter2>
+class And
+{
+public:
+    And (Filter1 f1_, Filter2 f2_)
+    : f1(f1_), f2(f2_)
+    {}
+
+    bool operator() (const State& s) const
+    {
+        return f1(s) && f2(s);
+    }
+private:
+    Filter1 f1;
+    Filter2 f2;
 };
 }; /* namespace Filter */
 
@@ -201,6 +288,30 @@ public:
 
 private:
     Filter::NElectronsPerPlaquet twoElectrons;
+};
+    
+class ParticleNumberAndSpin
+{
+public:
+    bool operator() (const State& s1, const State& s2) const
+    {
+        for (size_t i=0; i<s1.size(); i+=8)
+            if (s1.count(i,i+8) != s2.count(i,i+8))
+                return s1.count(i,i+8) < s2.count(i,i+8);
+
+        return spin(s1) < spin(s2);
+    }
+
+    int spin (const State& s) const
+    {
+        // N_down = N - N_up with N the total particle number
+        // spin = N_up - N_down = 2 N_up - N
+        const int N = s.count();
+        int N_up=0;
+        for (size_t i=0; i<s.size(); i+=2)
+            N_up += s[i];
+        return 2*N_up - N;
+    }
 };
 }; /* namespace Sorter */
 
@@ -320,51 +431,8 @@ private:
     SMatrix zeroMatrix;
 };
 
-template<class System>
-class QcaHamiltonian : public Hamiltonian<System>
-{
-public:
-    QcaHamiltonian (const System& s_)
-    : Hamiltonian<System>(s_), 
-      t(1), td(0), ti(0), V0(1000), a(1.0), b(3*a), Vext(0), Pext(0), mu(0), 
-      H(Hamiltonian<System>::H), s(Hamiltonian<System>::s)
-    {}
-
-    void construct() 
-    {
-        /*
-         * For the time being, to keep it simple we include both conceivable
-         * external potentials, ExternalPlain and ExternalDeadPlaquet. It's
-         * then the user's responsibility to set either Vext or Pext, but not
-         * both.
-         */
-        Hopping hopping(t, td, ti);
-        Coulomb coulomb(V0, a, b);
-        ExternalPlain externalPlain(Vext);
-        ExternalDeadPlaquet externalDP(V0, a, b, Pext);
-
-        H.setZero();
-        for (size_t i=0; i<s.N_sites; i++)
-        {
-            H += coulomb(i,i) * s.n_updown(i);
-            H += (externalPlain(i) + externalDP(i) + mu) * s.n(i);
-            for (size_t j=i+1; j<s.N_sites; j++)
-            {
-                H += - hopping(i,j) * s.ca(i,j) - hopping(j,i) * s.ca(j,i);
-                H += coulomb(i,j) * s.n(i) * s.n(j);
-            }
-        }
-
-        s.basis.applyMask(H);
-    }
-
-    double t, td, ti, V0, a, b, Vext, Pext, mu;
-
-    SMatrix& H;
-    const System& s;
-};
-
 typedef MinimalSystem<Filter::NElectronsPerPlaquet, Sorter::Bond> QcaBondBase;
+template<template <typename> class External>
 class QcaBond : public QcaBondBase
 {
 public:
@@ -393,88 +461,14 @@ public:
 
     size_t N_p, N_sites;
     CreatorAnnihilator<QcaBond> ca;
-    QcaHamiltonian<QcaBond> H;
+    QcaHamiltonian<QcaBond, External> H;
     EnsembleAverage<QcaBond> ensembleAverage;
     Polarisation<QcaBond> P;
     ParticleNumber<QcaBond> N;
 };
 
-namespace Filter {
-class Spin
-{
-public:
-    Spin (int S_)
-    : S(S_)
-    {}
-
-
-    bool operator() (const State& s) const
-    {
-        //TODO
-         return spin(s) == S;
-    }
-
-    
-    int spin (const State& s) const
-    {
-        // N_down = N - N_up with N the total particle number
-        // spin = N_up - N_down = 2 N_up - N
-        const int N = s.count();
-        int N_up=0;
-        for (size_t i=0; i<s.size(); i+=2)
-            N_up += s[i];
-        return 2*N_up - N;
-    }
-
-private:
-    const int S;
-};
-
-template<class Filter1, class Filter2>
-class And
-{
-public:
-    And (Filter1 f1_, Filter2 f2_)
-    : f1(f1_), f2(f2_)
-    {}
-
-    bool operator() (const State& s) const
-    {
-        return f1(s) && f2(s);
-    }
-private:
-    Filter1 f1;
-    Filter2 f2;
-};
-}; /* namespace Filter */
-
-namespace Sorter {
-class ParticleNumberAndSpin
-{
-public:
-    bool operator() (const State& s1, const State& s2) const
-    {
-        for (size_t i=0; i<s1.size(); i+=8)
-            if (s1.count(i,i+8) != s2.count(i,i+8))
-                return s1.count(i,i+8) < s2.count(i,i+8);
-
-        return spin(s1) < spin(s2);
-    }
-
-    int spin (const State& s) const
-    {
-        // N_down = N - N_up with N the total particle number
-        // spin = N_up - N_down = 2 N_up - N
-        const int N = s.count();
-        int N_up=0;
-        for (size_t i=0; i<s.size(); i+=2)
-            N_up += s[i];
-        return 2*N_up - N;
-    }
-};
-}; /* namespace Sorter */
-
 typedef MinimalSystem<Filter::NElectronsPerPlaquet, Sorter::ParticleNumberAndSpin> QcaQuarterFillingBase;
+template<template <typename> class External>
 class QcaQuarterFilling : public QcaQuarterFillingBase
 {
 public:
@@ -523,13 +517,14 @@ public:
 
     size_t N_p, N_sites;
     CreatorAnnihilator<QcaQuarterFilling> creatorAnnihilator;
-    QcaHamiltonian<QcaQuarterFilling> H;
+    QcaHamiltonian<QcaQuarterFilling, External> H;
     EnsembleAverage<QcaQuarterFilling> ensembleAverage;
     Polarisation<QcaQuarterFilling> P;
     ParticleNumber<QcaQuarterFilling> N;
 };
 
 typedef BasicSystem<Filter::SelectAll, Sorter::ParticleNumberAndSpin> QcaGrandCanonicalBase;
+template<template <typename> class External>
 class QcaGrandCanonical : public QcaGrandCanonicalBase
 {
 public:
@@ -569,17 +564,57 @@ public:
     }
 
     size_t N_p, N_sites;
-    QcaHamiltonian<QcaGrandCanonical> H;
+    QcaHamiltonian<QcaGrandCanonical, External> H;
     EnsembleAverage<QcaGrandCanonical> ensembleAverage;
     Polarisation<QcaGrandCanonical> P;
     ParticleNumber<QcaGrandCanonical> N;
 };
 
-class DQcaBond : public QcaBond
+template<class QcaSystem>
+class DQcaGeneric : public QcaSystem
+{
+public:
+    DQcaGeneric (Description desc_)
+    : QcaSystem (desc_["N_p"]), desc(desc_)
+    {
+        QcaSystem::H.t = desc["t"].get<double>(1.0);
+        QcaSystem::H.td = desc["td"].get<double>(0); 
+        QcaSystem::H.ti = desc["ti"].get<double>(0); 
+        QcaSystem::H.a = desc["a"].get<double>(1.0); 
+        QcaSystem::H.b = desc["b"].get<double>(3);
+        QcaSystem::H.Vext = desc["Vext"].get<double>(0);
+        QcaSystem::H.Pext = desc["Pext"].get<double>(0);
+        QcaSystem::H.V0 = desc["V0"].get<double>(1000); 
+        QcaSystem::H.mu = desc["mu"].get<double>(0);
+    }
+
+private:
+    Description desc;
+};
+
+/*
+ * Useful typedefs
+ */
+typedef QcaBond<ExternalPlain> QcaBondPlain;
+typedef QcaBond<ExternalDeadPlaquet> QcaBondDeadPlaquet;
+typedef QcaQuarterFilling<ExternalPlain> QcaQuarterFillingPlain;
+typedef QcaQuarterFilling<ExternalDeadPlaquet> QcaQuarterFillingDeadPlaquet;
+typedef QcaGrandCanonical<ExternalPlain> QcaGrandCanonicalPlain;
+typedef QcaGrandCanonical<ExternalDeadPlaquet> QcaGrandCanonicalDeadPlaquet;
+
+typedef DQcaGeneric<QcaBond<ExternalPlain> > DQcaBondPlain;
+typedef DQcaGeneric<QcaBond<ExternalDeadPlaquet> > DQcaBondDeadPlaquet;
+typedef DQcaGeneric<QcaQuarterFilling<ExternalPlain> > DQcaQuarterFillingPlain;
+typedef DQcaGeneric<QcaQuarterFilling<ExternalDeadPlaquet> > DQcaQuarterFillingDeadPlaquet;
+typedef DQcaGeneric<QcaGrandCanonical<ExternalPlain> > DQcaGrandCanonicalPlain;
+typedef DQcaGeneric<QcaGrandCanonical<ExternalDeadPlaquet> > DQcaGrandCanonicalDeadPlaquet;
+
+/*
+class DQcaBond : public QcaBondPlain
 {
 public:
     DQcaBond (Description desc_)
-    : QcaBond(desc_["N_p"]), desc(desc_)
+    : QcaBondPlain(desc_["N_p"]), desc(desc_)
     {
         H.t = desc["t"].get<double>(1.0);
         H.td = desc["td"].get<double>(0); 
@@ -637,5 +672,6 @@ public:
 private:
     Description desc;
 };
+*/
 
 #endif // __QCA_HPP__
