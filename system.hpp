@@ -4,8 +4,6 @@
 #include <iostream>
 #include "basis.hpp"
 
-#include <unsupported/Eigen/SparseExtra>
-
 namespace Filter
 {
     class SelectAll
@@ -104,7 +102,6 @@ public:
     void diagonalise ()
     {
         /*
-         * TODO
          * This assertion is somewhat arbitrary, just because my computers tend
          * to have 4GB ~ 4 10^9 bytes of memory.
          * Also, this is not the solution for the problem. I don't understand
@@ -116,20 +113,6 @@ public:
         eigenvalues = es.eigenvalues();
         eigenvectors = es.eigenvectors();
         Emin = eigenvalues.minCoeff();
-
-        /*
-         * Playing around with sparse solvers
-         */
-        typedef SparseMatrix<double,Upper|SelfAdjoint> SparseSelfAdjointMatrix;
-        //SparseLDLT<SMatrix> ldlt(H);
-        SparseLDLT<SparseSelfAdjointMatrix> ldlt(H);
-        if (ldlt.succeeded())
-        {
-            std::cerr << "Juhu!" << std::endl;
-            std::cerr << "Dense: " << std::endl << eigenvalues << std::endl;
-            std::cerr << "Sparse: " << std::endl << ldlt.diag() << std::endl;
-        }
-        std::cerr << "Dense LDLT: " << H.toDense().ldlt().matrixLDLT() << std::endl;
     }
 
     DMatrix eigenvectors;

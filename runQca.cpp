@@ -78,11 +78,13 @@ CommandLineOptions setupCLOptions ()
      .add("b", "b", "Inter-plaquet spacing.")
      .add("beta", "beta", "Inverse temperature.")
      .add("energy-spectrum", "E", "Calculate the energy spectrum.")
-     .add("polarisation", "P", "Calculate the polarisation for specified plaquet(s).");
+     .add("polarisation", "P", "Calculate the polarisation for specified plaquet(s).")
+     .add("particle-number", "N", "Calculate the particle number for the specified plaquet or the total particle number.");
     
     o["N_p"].setDefault(1);
     o["beta"].setDefault(1);
     o["energy-spectrum"].setDefault(false);
+    o["particle-number"].setDefault(false);
     o["help"].setDefault(false);
 
     return o;
@@ -130,6 +132,27 @@ void run (CommandLineOptions& opts)
                 std::cout << "\t" << qca.ensembleAverage(opts["beta"], qca.P(ps[i]));
             }
             std::cout << std::endl;
+        }
+
+        if (opts["particle-number"].isSet())
+        {
+            //TODO opts["particle-number"].isSize_t() or isBool() would be uselful
+            size_t p;
+            try
+            {
+                p = opts["particle-number"];
+                if (p >= qca.N_p) 
+                {
+                    std::cerr << std::endl << "Particle number: There is no plaquet " 
+                        << p << " in this system." << std::endl;
+                    std::exit(EXIT_FAILURE);
+                }
+                std::cout << qca.ensembleAverage(opts["beta"], qca.N(p)) << std::endl;
+            }
+            catch (ConversionException e)
+            {
+                std::cout << qca.ensembleAverage(opts["beta"], qca.N()) << std::endl;
+            }
         }
     }
 }

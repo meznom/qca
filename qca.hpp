@@ -159,7 +159,7 @@ public:
             }
         }
 
-        std::cerr << "Number of non-zero elements on H: " << H.nonZeros() << std::endl;
+        //std::cerr << "Number of non-zero elements on H: " << H.nonZeros() << std::endl;
 
         s.basis.applyMask(H);
     }
@@ -349,13 +349,13 @@ public:
     {
         const size_t o = 4*p;
         return s.basis.applyMask(
-            s.n(0) + s.n(1) + s.n(2) + s.n(3)
+            s.n(o+0) + s.n(o+1) + s.n(o+2) + s.n(o+3)
         );
     }
 
     SMatrix operator() () const
     {
-        SMatrix N;
+        SMatrix N(s.basis.size(), s.basis.size());
         for (size_t i=0; i<s.N_sites; i++)
             N += s.n(i);
         return N;
