@@ -287,3 +287,185 @@ tested the two-plaquet bond system most thoroughly. This is suggested by the
 fact that my runQca bond eigenenergies match the eigenenergies of runQca
 quartfilled as well as Mathematica quarterfilled (see section 5 above) for the
 same parameter set.
+
+
+
+
+
+
+
+
+
+
+Burkhard, December 9 2010
+
+Testing against older version of the diagonaliser
+=================================================
+
+old version: cde7d8f8097f4eec90f959986afd48f23978128f
+new version: 14d0c4d3fe11e16c21a89bf5fc403f1ca8530220
+
+testing bond basis and energy spectrum (can't easily test polarisation as I
+changed the the normalisation)
+ 1 plaquet works (with and without td, for different Vext)
+ 2 plaquets work (with and without td, for different Vext)
+
+testing quarterfilled basis and energy spectrum (can't easily test polarisation
+as I changed the the normalisation)
+ 1 plaquet works (with and without td, for different Vext)
+ 2 plaquets work (with and without td, for different Vext)
+
+
+
+Testing against Mathematica
+===========================
+
+For dead plaquet / dead cell systems.
+
+commit 14d0c4d3fe11e16c21a89bf5fc403f1ca8530220
+
+
+1. One plaquet, Quarterfilled, Pext=0
+-------------------------------------
+
+$ a=`echo 1/250|bc -l`; b=`echo 1.75*$a|bc -l`; V0=`echo 10*1/$a|bc -l`;\
+  ./runQca -P 0 -beta 1000 -m quarterDP -p 1 -Pext 0 -Vext 0 -t 1 -td 0.2 -a $a -b $b -V0 $V0
+0	-1.59489e-12
+
+From "QCA Test.pdf" page 5:
+5.1593 * 10^-14
+
+=> matches (both values are basically zero)
+
+
+2. One plaquet, Quarterfilled, Pext=0.1
+---------------------------------------
+
+$ a=`echo 1/250|bc -l`; b=`echo 1.75*$a|bc -l`; V0=`echo 10*1/$a|bc -l`;\ 
+  ./runQca -P 0 -beta 1000 -m quarterDP -p 1 -Pext 0.1 -Vext 0 -t 1 -td 0.2 -a $a -b $b -V0 $V0
+0	0.895166
+
+From "QCA Test.pdf" page 5:
+0.895166
+
+=> matches
+
+
+3. Two plaquets, quarterfilled, Pext=0
+--------------------------------------
+
+$ a=`echo 1/250|bc -l`; b=`echo 1.75*$a|bc -l`; V0=`echo 10*1/$a|bc -l`;\
+  ./runQca -P '[0,1]' -beta 1000 -m quarterDP -p 2 -Pext 0 -Vext 0 -t 1 -td 0.2 -a $a -b $b -V0 $V0
+0	3.01196e-11	5.9962e-13
+
+In Mathematica (on num.srv.ualberta.ca):
+    In[45]:= QcaDeadCellConstructor[s2, 2];
+    In[56]:= params = {a -> 1/250, b -> 1.75 a, V0 -> 10*1/a, td -> 0.2 t,
+        t -> 1, ti -> 0, P -> 0};
+    es = QcaGetEigensystem[s2, params];
+    {expectationValue[s2["P"][1], es[[1]][[2]]],
+     expectationValue[s2["P"][2], es[[1]][[2]]]}
+{9.16392*10^-12,1.8161*10^-13}
+
+=> matches, more or less
+
+
+Mathematica code is in a file called "QCA Test Polarisation.nb", though it's
+not in Mercurial at the moment.
+
+
+4. Two plaquets, quarterfilled, Pext>0 (1)
+------------------------------------------
+
+Commands are the same as above. Except that now beta=1000000.
+
+Pext=0.1
+0	0.992819	0.0199309
+{0.992819,0.0199309}
+
+Pext=0.2
+0	0.99756	0.0201398
+{0.99756,0.0201398}
+
+Pext=0.01
+0	0.662126	0.0132277
+{0.662126,0.0132277}
+
+=> matches
+
+
+5. Two plaquets, quarterfilled, Pext>0 (2)
+------------------------------------------
+
+Use a different parameter set. 
+$ a=`echo 1/100|bc -l`; b=`echo 3*$a|bc -l`; V0=`echo 10*1/$a|bc -l`;\
+  ./runQca -P '[0,1]' -beta 1000000 -m quarterDP -p 2 -Pext 0.01 -Vext 0 -t 1 -td 0 -a $a -b $b -V0 $V0
+
+Pext=0.01
+0	0.0458749	0.0420448
+{0.0458749,0.0420448}
+
+Pext=0.1
+0	0.414424	0.379367
+{0.414424,0.379367}
+
+Pext=-0.8
+0	-0.944481	-0.849892
+{-0.944481,-0.849892}
+
+=> matches
+
+
+6. One plaquet, bond
+--------------------
+
+$ a=`echo 1/250|bc -l`; b=`echo 1.75*$a|bc -l`; V0=`echo 10*1/$a|bc -l`;\
+  ./runQca -P '[0]' -beta 1000000 -m bondDP -p 1 -Pext 0 -Vext 0 -t 1 -td 0.2 -a $a -b $b -V0 $V0
+
+Pext=0
+0   -5.57882e-12
+{0.998701}
+
+Pext=0.01
+0	0.291808
+{0.9987}
+
+Pext=0.05
+0	0.820737
+{0.998693}
+
+Pext=0.1
+0	0.928389
+{0.998675}
+
+=> doesn't match
+
+
+As observed earlier, there seems to be something wrong with bond system. Let's
+assume for the moment that my C++ code is correct (definitely looks more
+reasonable) and that the Mathematica code is wrong. And postpone looking for
+the source of the error until after the deadline of the term project.
+
+
+Testing grand canonical system
+==============================
+
+Simplest testing scheme: Test whether the quarterfilled energy eigenvalues are
+contained within the energy spectrum of the grand canonical system (for mu=0).
+
+$ a=`echo 1/250|bc -l`; b=`echo 1.75*$a|bc -l`; V0=`echo 10*1/$a|bc -l`;\
+  ./runQca -E -beta 1000000 -m quarter -p 1 -Pext 0 -Vext 0 -t 1 -td 0 -a $a -b $b -V0 $V0
+
+One plaquet. Tested grand against quarter for Vext=0,0.1,1 and for Vext=1 also
+with td=0 and td=0.2. Matches. Also tested grandDP against quarterDP for
+Pext=0,0.1. Matches.
+
+Two plaquets. grand gives a segfault. Debug version fails an assertion. And the
+assertion checks that the matrix is not too big for my computer's memory. No
+surprises here: For the grand canonical system the dense Hamiltonian matrix is
+2^16*2^16*8 = 32GB. So I have to implement the diagonalisation part with sparse
+matrices.
+
+After the construction of H for the two plaquet grand canonical system the
+number of non-zero elements in the matrix is: 589823. That's 4.5MB in memory
+which is not too much at all.

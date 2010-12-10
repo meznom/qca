@@ -159,6 +159,8 @@ public:
             }
         }
 
+        std::cerr << "Number of non-zero elements on H: " << H.nonZeros() << std::endl;
+
         s.basis.applyMask(H);
     }
 
