@@ -1,0 +1,48 @@
+ExactDiagonalisation
+====================
+
+Installation
+------------
+
+Requirements:
+ * cmake[1], version 2.6 or greater.
+ * Eigen[2], version 2.92.0 (Eigen 3.0-beta2) or greater.
+ * Boost[3] to build the unit tests. I'm using version 1.42, but older versions
+   will probably work as well.
+ * Doxygen[4] to generate the documentation.
+
+Build:
+ $ mkdir build_dir
+ $ cd build_dir
+ $ ccmake source_dir
+ $ make
+To build and run the unit tests:
+ $ make check
+To generate the documentation:
+ $ make doc
+
+Note: CMAKE_BUILD_TYPE and EIGEN_INCLUDE_DIR need to be set with cmake. Build
+type can be either Release or Debug. The latter builds with debugging
+information (surprise), assertions and is much, much slower.
+
+Note: On Mac OS X a ncurses related bug makes ccmake unusable. Use 
+ $ cmake -DCMAKE_BUILD_TYPE=... -DEIGEN_INCLUDE_DIR=... source_dir
+instead.
+
+
+Running
+-------
+
+After compilation a file runQca should be in the build_dir. Run
+ $ ./runQca --help
+to get startet.
+
+
+Burkhard Ritter (burkhard@ualberta.ca), December 2010
+
+
+
+[1] http://www.cmake.org
+[2] http://eigen.tuxfamily.org
+[3] http://www.boost.org
+[4] http://www.doxygen.org

@@ -1,3 +1,11 @@
+/**
+ * @file system.hpp
+ * Exact diagonaliser base classes.
+ * @author Burkhard Ritter
+ * @version 
+ * @date 2010-12-10
+ */
+
 #ifndef __TEST_HPP__
 #define __TEST_HPP__
 
@@ -22,6 +30,13 @@ namespace Sorter
     };
 };
 
+/**
+ * Caching creator. 
+ *
+ * Constructs one creator martrix for each orbital of the system and caches them.
+ *
+ * @tparam System
+ */
 template<class System>
 class Creator
 {
