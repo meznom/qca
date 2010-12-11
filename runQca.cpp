@@ -321,7 +321,7 @@ template<class Measurement>
 void runMeasurement (Measurement& M, CommandLineOptions& opts, const std::vector<std::pair<std::string, size_t> >& params, size_t pos)
 {
     const std::string pName = params[pos].first;
-    if (pos+1 == params.size())
+    if (pos+1 == params.size() && params[pos].second > 1)
         M.setOutputMode(pName, Line);
 
     std::vector<double> v = opts[pName];
