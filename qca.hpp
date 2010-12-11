@@ -576,8 +576,13 @@ template<class QcaSystem>
 class DQcaGeneric : public QcaSystem
 {
 public:
-    DQcaGeneric (Description desc_)
-    : QcaSystem (desc_["N_p"]), desc(desc_)
+    DQcaGeneric (Description desc)
+    : QcaSystem (desc["N_p"])
+    {
+        setParameters(desc);
+    }
+
+    void setParameters (Description desc)
     {
         QcaSystem::H.t = desc["t"].get<double>(1.0);
         QcaSystem::H.td = desc["td"].get<double>(0); 
@@ -589,9 +594,6 @@ public:
         QcaSystem::H.V0 = desc["V0"].get<double>(1000); 
         QcaSystem::H.mu = desc["mu"].get<double>(0);
     }
-
-private:
-    Description desc;
 };
 
 /*
