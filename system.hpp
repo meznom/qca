@@ -12,8 +12,17 @@
 #include <iostream>
 #include "basis.hpp"
 
+/**
+ * Filters to filter the basis states.
+ */
 namespace Filter
 {
+    /**
+     * Selects all states.
+     *
+     * Thus it's a filter that doesn't filter at all. It's the default Filter
+     * used.
+     */
     class SelectAll
     {
     public:
@@ -21,8 +30,17 @@ namespace Filter
     };
 };
 
+/**
+ * Sorters to sort the basis states.
+ */
 namespace Sorter
 {
+    /**
+     * Does not sort the states.
+     *
+     * Thus it's a sorter that doesn't sort at all. It's the default Sorter
+     * used.
+     */
     class DontSort
     {
     public:
@@ -33,7 +51,8 @@ namespace Sorter
 /**
  * Caching creator. 
  *
- * Constructs one creator martrix for each orbital of the system and caches them.
+ * Constructs one creator martrix for each orbital of the system and caches
+ * them.
  *
  * @tparam System
  */
@@ -48,6 +67,15 @@ public:
             constructMatrix(i);
     }
 
+    /**
+     * Creator matrix for the given orbital.
+     *
+     * \f$c^{\dag}_i\f$
+     *
+     * @param i orbital of the system
+     *
+     * @return 
+     */
     const SMatrix& operator() (size_t i) const
     {
         return cs[i];
@@ -78,6 +106,14 @@ private:
     std::vector<SMatrix> cs;
 };
 
+/**
+ * Caching annihilator.
+ *
+ * Constructs one annihilator matrix for each orbital of the system and caches
+ * them.
+ *
+ * @tparam System
+ */
 template<class System>
 class Annihilator
 {
@@ -89,6 +125,15 @@ public:
             as[i] = SMatrix(s.creator(i).transpose());
     }
 
+    /**
+     * Annihilator matrix for the given orbital.
+     *
+     * \f$c_i\f$
+     *
+     * @param i orbital of the system
+     *
+     * @return 
+     */
     const SMatrix& operator() (size_t i) const
     {
         return as[i];
@@ -99,6 +144,23 @@ private:
     std::vector<SMatrix> as;
 };
 
+/**
+ * Hamiltonian of the system.
+ *
+ * The heart of the fermionic quantum system. Although it is an
+ * operator it behaves a little bit different than the other operators, which
+ * maybe doesn't entirely come as a surprise. It is
+ * not a function object. It has to be subclassed and
+ * overwritten for each different physical system. Typical usage:
+ * @code
+ * Hamiltonian H(mySystem);
+ * H.construct();
+ * H.diagonalise(); //here the real work happens
+ * H.eigenvalues(); //use eigenenergies
+ * @endcode
+ *
+ * @tparam System
+ */
 template<class System>
 class Hamiltonian
 {
@@ -114,6 +176,11 @@ public:
      */
     void construct() {}
 
+    /**
+     * Diagonalises the Hamiltonian matrix.
+     *
+     * Uses a dense matrix. Relies on Eigen for the eigenvalue decomposition.
+     */
     void diagonalise ()
     {
         /*
@@ -139,6 +206,20 @@ protected:
     SMatrix H;
 };
 
+/**
+ * Calculate the ensemble average.
+ *
+ * An operator. Example usage:
+ * @code
+ * EnsembleAverage ensembleAverage(mySystem);
+ * MyFunkyOperator O(mySystem);
+ * ensembleAverage(beta, O); //will expect and use mySystem.H
+ * @endcode
+ *
+ * Dependencies: System.basis and System.H (Hamiltonian)
+ *
+ * @tparam System
+ */
 template<class System>
 class EnsembleAverage
 {
@@ -147,6 +228,14 @@ public:
     : s(s_)
     {}
 
+    /**
+     * Calculate the ensemble average for the given operator.
+     *
+     * @param beta = 1/T (temperature)
+     * @param O operator matrix
+     *
+     * @return 
+     */
     double operator() (double beta, const SMatrix& O) const
     {
         double sum = 0;
@@ -157,6 +246,13 @@ public:
         return sum / partitionFunction(beta);
     }
 
+    /**
+     * Calculate the partition function at the given temperature.
+     *
+     * @param beta = 1/T (temperature)
+     *
+     * @return 
+     */
     double partitionFunction (double beta) const
     {
         double Z = 0;
@@ -169,10 +265,30 @@ private:
     const System& s;
 };
 
+/**
+ * Minimal base class for a fermionic quantum system.
+ *
+ * Only contains the basis. Filter and Sorter are passed on to the basis
+ * and are used to filter and sort the basis states.
+ *
+ * Typical usage is to subclass and specify a custom Hamiltonian (subclassed
+ * from Hamiltonian) as mySystem.H and probably some observables of interest
+ * (say the particle number) as well as the EnsembleAverage.
+ *
+ * @tparam Filter
+ * @tparam Sorter
+ */
 template<class Filter, class Sorter>
 class MinimalSystem
 {
 public:
+    /**
+     * Construct the minimal system. 
+     *
+     * @param N_orbital number of orbitals
+     * @param filter filter to filter basis states
+     * @param sorter sorter to sort basis states
+     */
     MinimalSystem (size_t N_orbital_, const Filter& filter, const Sorter& sorter)
     : N_orbital(N_orbital_), basis(N_orbital, filter, sorter)
     {}
@@ -181,10 +297,26 @@ public:
     Basis<Filter, Sorter> basis;
 };
 
+/**
+ * Basic base class for fermionic quantum systems.
+ *
+ * In addition to the basis the basic system conveniently defines creator and
+ * annihilator.
+ *
+ * @tparam Filter
+ * @tparam Sorter
+ */
 template<class Filter, class Sorter>
 class BasicSystem : public MinimalSystem<Filter, Sorter>
 {
 public:
+    /**
+     * Construct the basic system.
+     *
+     * @param N_orbital_
+     * @param filter
+     * @param sorter
+     */
     BasicSystem (size_t N_orbital_, const Filter& filter, const Sorter& sorter)
     : MinimalSystem<Filter, Sorter>(N_orbital_, filter, sorter), creator(*this), 
       annihilator(*this)
@@ -193,22 +325,5 @@ public:
     Creator<BasicSystem> creator;
     Annihilator<BasicSystem> annihilator;
 };
-
-/*
-template<class Filter, class Sorter>
-class System
-{
-public:
-    System (size_t N_orbital_, const Filter& filter, const Sorter& sorter)
-    : N_orbital(N_orbital_), basis(N_orbital, filter, sorter), creator(*this), 
-      annihilator(*this)
-    {}
-
-    size_t N_orbital;
-    Basis<Filter, Sorter> basis;
-    Creator<System> creator;
-    Annihilator<System> annihilator;
-};
-*/
 
 #endif // __TEST_HPP__
