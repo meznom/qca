@@ -1,5 +1,5 @@
 ### generic ###
-project(diagonaliser)
+project(ExactDiagonalisation)
 cmake_minimum_required(VERSION 2.6)
 #set(CMAKE_VERBOSE_MAKEFILE ON)
 
@@ -26,12 +26,15 @@ if (NOT CMAKE_BUILD_TYPE)
 endif (NOT CMAKE_BUILD_TYPE)
 
 
-#### tests ###
+### tests ###
 enable_testing()
 add_custom_target(buildtest)
 add_custom_target(check COMMAND ${CMAKE_CTEST_COMMAND})
 add_dependencies(check buildtest)
 add_subdirectory(tests EXCLUDE_FROM_ALL)
+
+### documentation ###
+add_subdirectory(doc EXCLUDE_FROM_ALL)
 
 ### our executables ###
 add_executable(runQca
