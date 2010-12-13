@@ -6,9 +6,6 @@
  * TODO
  * ----
  * 
- * * Dead Cell Systems
- * * grand canonical system
- * * thoroughly test dead plaquet and grand canonical / new hopping etc; compare with Mathematica
  * * P-P for three plaquets (bond system)
  * * P-P with dead cell (bond and qf)
  * * energies with dead cell? -- shouldn't make much difference
@@ -208,79 +205,82 @@ public:
         // always print energy spectrum as a separate block
         if (o["energy-spectrum"].isSet())
         {
-            printHeader();
+            printHeaderAll();
             std::cout << "# " << std::endl << "# E\tE-Emin\tDegeneracy" << std::endl;
             for (size_t i=0; i<E.size(); i++)
                 std::cout << E[i][0] << "\t" << E[i][1] << "\t" << E[i][2] << std::endl;
             std::cout << std::endl;
         }
 
-        if (needHeader)
+        if (o["polarisation"].isSet() || o["particle-number"].isSet())
         {
-            printHeader();
+            if (needHeader)
+            {
+                printHeader();
 
-            std::cout << "# " << std::endl << "# ";
+                std::cout << "# " << std::endl << "# ";
+                bool first = true;
+                for (typename OutputMap::const_iterator i=outputConfig.begin(); i!=outputConfig.end(); i++)
+                    if (i->second == Line)
+                    {
+                        if (!first) std::cout << "\t";
+                        else first = false;
+                        std::cout << i->first;
+                    }
+                if (o["polarisation"].isSet())
+                {
+                    std::vector<size_t> ps = o["polarisation"];
+                    for (size_t i=0; i<ps.size(); i++)
+                    {
+                        if (!first) std::cout << "\t";
+                        else first = false;
+                        std::cout << "P" << ps[i];
+                    }
+                }
+                if (o["particle-number"].isSet())
+                {
+                    if (!first) std::cout << "\t";
+                    else first = false;
+                    
+                    try
+                    {
+                        size_t p;
+                        p = o["particle-number"];
+                        std::cout << "N" << N;
+                    }
+                    catch (ConversionException e)
+                    {
+                        std::cout << "N";
+                    }
+                }
+                std::cout << std::endl;
+                
+                needHeader = false;
+            }
+            
             bool first = true;
             for (typename OutputMap::const_iterator i=outputConfig.begin(); i!=outputConfig.end(); i++)
                 if (i->second == Line)
                 {
                     if (!first) std::cout << "\t";
                     else first = false;
-                    std::cout << i->first;
+                    std::cout << o[i->first];
                 }
             if (o["polarisation"].isSet())
-            {
-                std::vector<size_t> ps = o["polarisation"];
-                for (size_t i=0; i<ps.size(); i++)
+                for (size_t j=0; j<P.size(); j++)
                 {
                     if (!first) std::cout << "\t";
                     else first = false;
-                    std::cout << "P" << ps[i];
+                    std::cout << P[j];
                 }
-            }
             if (o["particle-number"].isSet())
             {
                 if (!first) std::cout << "\t";
                 else first = false;
-                
-                try
-                {
-                    size_t p;
-                    p = o["particle-number"];
-                    std::cout << "N" << N;
-                }
-                catch (ConversionException e)
-                {
-                    std::cout << "N";
-                }
+                std::cout << N;
             }
             std::cout << std::endl;
-            
-            needHeader = false;
         }
-        
-        bool first = true;
-        for (typename OutputMap::const_iterator i=outputConfig.begin(); i!=outputConfig.end(); i++)
-            if (i->second == Line)
-            {
-                if (!first) std::cout << "\t";
-                else first = false;
-                std::cout << o[i->first];
-            }
-        if (o["polarisation"].isSet())
-            for (size_t j=0; j<P.size(); j++)
-            {
-                if (!first) std::cout << "\t";
-                else first = false;
-                std::cout << P[j];
-            }
-        if (o["particle-number"].isSet())
-        {
-            if (!first) std::cout << "\t";
-            else first = false;
-            std::cout << N;
-        }
-        std::cout << std::endl;
     }
 
     void printHeader ()
@@ -289,6 +289,15 @@ public:
         else globalFirst = false;
         for (Description::ItemsType::const_iterator i=o.items.begin(); i!=o.items.end(); i++)
             if (outputConfig[i->first] == Header)
+                std::cout << "# " << i->first << " = " << i->second << std::endl;
+    }
+
+    void printHeaderAll ()
+    {
+        if (!globalFirst) std::cout << std::endl;
+        else globalFirst = false;
+        for (Description::ItemsType::const_iterator i=o.items.begin(); i!=o.items.end(); i++)
+            if (outputConfig[i->first] != None)
                 std::cout << "# " << i->first << " = " << i->second << std::endl;
     }
 
@@ -353,7 +362,6 @@ void run (CommandLineOptions& opts)
     std::sort(params.begin(), params.end(), comparePair);
 
     Description cOpts(opts);
-    cOpts["N_p"] = 1;
     cOpts["t"] = 1;
     cOpts["td"] = 0;
     cOpts["ti"] = 0;
