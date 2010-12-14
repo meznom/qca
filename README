@@ -30,12 +30,22 @@ Note: On Mac OS X a ncurses related bug makes ccmake unusable. Use
 instead.
 
 
-Running
--------
+Usage
+-----
 
 After compilation a file runQca should be in the build_dir. Run
  $ ./runQca --help
 to get startet.
+
+For example,
+ $ runQca -E -m grandDP -p 1 -t 1 -td 0 -V0 1000 -a 0.01 -b 1000
+calculates the energy spectrum for the one plaquet grand-canonical system (with
+a dead plaquet) and the given parameters, whereas
+ $ runQca -P '[0,1]' -m quarterDP -p 2 -t 1 -td 0 -V0 1000 \
+          -beta '[0.01,0.1,1,10]' -a 0.01 -b '[0.0175,0.025]' -Pext 1
+computes the polarisation of the first and second plaquet over beta, for the
+two plaquet quarter-filled system (again, the dead plaquet variant) and for two
+different values of b, the inter-plaquet spacing.
 
 
 Burkhard Ritter (burkhard@ualberta.ca), December 2010
