@@ -6,6 +6,12 @@
 #include <boost/test/unit_test.hpp>
 
 #include "utilities.hpp"
+#include <cmath>
+
+bool epsilonEqual (double a, double b)
+{
+    return std::fabs(a-b)<10E-10;
+}
 
 BOOST_AUTO_TEST_CASE ( empty_DescriptionItem )
 {
@@ -104,17 +110,21 @@ BOOST_AUTO_TEST_CASE ( DescriptionItem_lists )
     std::vector<double> v;
 
     i = "[]";
-    v = i;
+    BOOST_CHECK_THROW (v = i, ConversionException);
     BOOST_CHECK (v.size() == 0);
 
+    i = "[10,20,30,40,50]";
+    BOOST_CHECK_THROW (v = i, ConversionException);
+    
     i = "";
     v = i;
     BOOST_CHECK (v.size() == 0);
 
     i = "()";
-    BOOST_CHECK_THROW (v = i, ConversionException);
+    v = i;
+    BOOST_CHECK (v.size() == 0);
 
-    i = "[1]";
+    i = "(1)";
     v = i;
     BOOST_CHECK (v.size() == 1);
     BOOST_CHECK (v[0] == 1);
@@ -124,21 +134,20 @@ BOOST_AUTO_TEST_CASE ( DescriptionItem_lists )
     BOOST_CHECK (v.size() == 1);
     BOOST_CHECK (v[0] == 1);
 
-    i = "[10,20,30,40,50]";
-    v = i;
-    BOOST_CHECK (v.size() == 5);
-    BOOST_CHECK (v[3] == 40);
-
-    /*
-     * TODO: not yet implemented
-     */
-    /*
     i = "10,20,30,40,50";
     v = i;
     BOOST_CHECK (v.size() == 5);
     BOOST_CHECK (v[3] == 40);
 
-    i = "[10,20,30,40,50,]";
+    i = "(10,20,30,40,50,)";
+    BOOST_CHECK_THROW (v = i, ConversionException);
+    i = "(10,20,30,40,50";
+    BOOST_CHECK_THROW (v = i, ConversionException);
+    i = "10,20,30,40,50)";
+    BOOST_CHECK_THROW (v = i, ConversionException);
+    i = "10,20,(30,40,50)";
+    BOOST_CHECK_THROW (v = i, ConversionException);
+    i = "(10,20),30,40,50";
     BOOST_CHECK_THROW (v = i, ConversionException);
     i = "10,20,30,40,50,";
     BOOST_CHECK_THROW (v = i, ConversionException);
@@ -152,40 +161,32 @@ BOOST_AUTO_TEST_CASE ( DescriptionItem_lists )
     BOOST_CHECK (v.size() == 5);
     BOOST_CHECK (v[3] == 40);
 
-    i = "(10)";
-    BOOST_CHECK_THROW (v = i, ConversionException);
-    i = "(10,20)";
-    BOOST_CHECK_THROW (v = i, ConversionException);
-    i = "(10,20,30,40)";
+    i = "10:20";
     BOOST_CHECK_THROW (v = i, ConversionException);
     i = "10:20:30:40";
     BOOST_CHECK_THROW (v = i, ConversionException);
 
-    i = "(2,1,0.1)";
-    BOOST_CHECK_THROW (v = i, ConversionException);
-    i = "(1,2,-0.1)";
+    i = "2:1:0.1";
     BOOST_CHECK_THROW (v = i, ConversionException);
     i = "1:2:-0.1";
     BOOST_CHECK_THROW (v = i, ConversionException);
+    i = "(1:2:-0.1)";
+    BOOST_CHECK_THROW (v = i, ConversionException);
+    i = "2:1:0.1:";
+    BOOST_CHECK_THROW (v = i, ConversionException);
     
-    i = "(1,2.01,0.1)";
+    i = "(1:2:0.1)";
     v = i;
     BOOST_CHECK (v.size() == 11);
-    BOOST_CHECK (v[2] == 1.2);
+    BOOST_CHECK (epsilonEqual(v[2], 1.2));
     
-    i = "1:2.01:0.1";
+    i = "1:2:0.1";
     v = i;
     BOOST_CHECK (v.size() == 11);
-    BOOST_CHECK (v[2] == 1.2);
+    BOOST_CHECK (epsilonEqual(v[2], 1.2));
     
-    i = "(2,0.999,0.1)";
+    i = "2:1:-0.1";
     v = i;
     BOOST_CHECK (v.size() == 11);
-    BOOST_CHECK (v[2] == 1.8);
-    
-    i = "2:0.999:0.1";
-    v = i;
-    BOOST_CHECK (v.size() == 11);
-    BOOST_CHECK (v[2] == 1.8);
-    */
+    BOOST_CHECK (epsilonEqual(v[2], 1.8));
 }

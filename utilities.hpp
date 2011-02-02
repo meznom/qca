@@ -125,11 +125,13 @@ inline std::string toLower (std::string s)
 
 using namespace Helpers;
 
-class ConversionException : public std::exception {};
+class ConversionException : public std::runtime_error
+{
+public:
+    explicit ConversionException (const std::string& message)
+        : std::runtime_error(message) {}
+};
 
-/*
- * TODO: more detailed error messages
- */
 class DescriptionItem
 {
 public:
@@ -154,7 +156,7 @@ public:
         std::stringstream s(value);
         s >> returnValue;
         if (!s.eof() || value.empty())
-            throw ConversionException();
+            throw ConversionException("Can't convert '" + value + "' to double.");
         return returnValue;
     }
 
@@ -164,7 +166,7 @@ public:
         std::stringstream s(value);
         s >> returnValue;
         if (!s.eof() || value.empty())
-            throw ConversionException();
+            throw ConversionException("Can't convert '" + value + "' to int.");
         return returnValue;
     }
 
@@ -172,7 +174,7 @@ public:
     {
         int returnValue = get<int>();
         if (returnValue < 0)
-            throw ConversionException();
+            throw ConversionException("Can't convert '" + value + "' to size_t.");
         return returnValue;
     }
 
@@ -184,7 +186,7 @@ public:
         else if (lvalue == "yes" || lvalue == "true")
             return true;
 
-        throw ConversionException();
+        throw ConversionException("Can't convert '" + value + "' to bool.");
     }
 
     operator std::string() const
@@ -192,45 +194,60 @@ public:
         return value;
     }
     
-    /*
-     * TODO: obviously, std::vector won't scale up indefinitely
-     */
-    /*
-     * TODO: would be nice to implement an alternative syntax
-     * 1,2,3,4,5 for a simple list
-     * 1:2:0.2 for a generated list
-     * hence we would not need escaping on the shell
+    /**
+     * Access DescriptionItem as a list. 
+     *
+     * Convert DescriptionItem to a list (vector). Understands the formats
+     * '1,2,3,4', '(1,2,3,4)', '1:2:0.1', '(1:2:0.1)' and also '1' (a list with
+     * only one entry). Brackets are optional. A comma separated list is really
+     * only a list, whereas three colon separated numbers constitute a
+     * 'generator'. '1:2:0.1' generates a list starting at '1', ending at '2'
+     * with '0.1' increments. Thus this example is equivalent to
+     * '1.0,1.1,1.2,...,1.8,1.9,2.0'.
+     *
+     * @tparam T type of list
+     *
+     * @return list of type T
      */
     template<typename T>
-    operator std::vector<T> () const
+    operator std::vector<T> ()
     {
+        /*
+         * TODO: obviously, std::vector won't scale up indefinitely; we could
+         * use something similar to Python's generators instead
+         */
+        // brackets () are optional
+        if (value.size() > 0 && value[0] == '(')
+        {
+            if (value.find(")") != value.size()-1)
+                throw ConversionException("Missing closing bracket ')' in '" + value + "'.");
+            value = value.substr(1, value.size()-2);
+        }
+
         if (value.size() == 0)
             return std::vector<T>();
 
-        if (value[0] == '[')
+        if (value.find(',') != std::string::npos)
+            return getList<T>(value, ',');
+        
+        if (value.find(':') != std::string::npos)
         {
-            if (value.find_first_of("]") != value.size()-1)
-                throw ConversionException();
-            return getList<T>(value.substr(1, value.size()-2));
-        }
-        if (value[0] == '(')
-        {
-            if (value.find_first_of(")") != value.size()-1)
-                throw ConversionException();
-            std::vector<T> tuple = getList<T>(value.substr(1, value.size()-2));
-            if (tuple.size() != 3) throw ConversionException();
+            std::vector<T> tuple = getList<T>(value, ':');
+            if (tuple.size() != 3) throw ConversionException("Invalid generator specification: '" + value + "'.");
             T begin = tuple[0];
             T end = tuple[1];
             T inc = tuple[2];
+            T epsilon = inc * 0.0001;
             if (inc==0 || (begin<=end && inc<0) || (end<=begin && inc>0)) 
-                throw ConversionException();
+                throw ConversionException("Invalid generator specification: '" + value + "'.");
             std::vector<T> generated;
-            for (T i=begin; (begin<=end && i<=end) || (end<=begin && i>=end); i+=inc)
+            for (T i=begin; (begin<=end && i<=end+epsilon) || 
+                            (end<=begin && i>=end+epsilon); i+=inc)
                 generated.push_back(i);
             return generated;
         }
-        else
-            return std::vector<T>(1, get<T>());
+        
+        return std::vector<T>(1, get<T>());
     }
 
     bool operator== (const std::string& s) const
@@ -302,7 +319,7 @@ private:
     }
 
     template<typename T>
-    std::vector<T> getList (const std::string& v) const
+    std::vector<T> getList (const std::string& v, const char sep) const
     {
         if (v.size() == 0) return std::vector<T>();
         std::vector<T> list;
@@ -311,9 +328,9 @@ private:
         size_t pos2=0;
         while (pos1 <= v.size())
         {
-            pos2 = v.find_first_of(',', pos1);
+            pos2 = v.find(sep, pos1);
             if (pos2 == std::string::npos) pos2 = v.size();
-            if (pos2 == pos1) throw ConversionException();
+            if (pos2 == pos1) throw ConversionException("Error parsing list: '" + v + "'.");
             item = v.substr(pos1, pos2-pos1);
             list.push_back(item);
             pos1 = pos2+1;
