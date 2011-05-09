@@ -132,6 +132,7 @@ public:
         : std::runtime_error(message) {}
 };
 
+//TODO: name is misleading; this really is a generic untyped value
 class DescriptionItem
 {
 public:
@@ -348,6 +349,7 @@ inline std::ostream& operator<< (std::ostream& o, const DescriptionItem& v)
     return o;
 }
 
+//TODO: probably use a better name, maybe: Option, Parameter, etc
 class Description
 {
 public:
@@ -411,7 +413,7 @@ public:
     }
 
     std::string name;
-    SectionsType sections;
+    SectionsType sections; //TODO: again, misleading name
     ItemsType items;
 };
 
@@ -594,15 +596,43 @@ public:
 
     }
 
+    //TODO: Test this some more. Can we do unit testing for this?
     std::string optionsDescription()
     {
         std::stringstream s;
         typedef SectionsType::iterator SIT;
-        for (SIT i=sections.begin(); i!=sections.end(); i++) {
+        for (SIT i=sections.begin(); i!=sections.end(); i++) 
+        {
+            size_t length = 0;
             if (i->second.hasItem("shortName")) {
-                s << "-" << i->second.items["shortName"] << ", ";
+                s << "  -" << i->second.items["shortName"] << ", ";
+                length += i->second.items["shortName"].getValue().size() + 5;
             }
-            s << "--" << i->second.name << "\t" << i->second.items["description"] << std::endl;
+            
+            s << "--" << i->second.name;
+            length += i->second.name.size() + 2;
+            
+            const std::string dString = i->second.items["description"].getValue();
+            const std::vector<std::string> dWords = words(dString);
+            if (30-length <= 0) 
+            {
+                s << std::endl;
+                length = 0;
+            }
+            padStream(s, 30-length);
+            length = 30;
+            for (size_t j=0; j<dWords.size(); j++)
+            {
+                if (length + dWords[j].size() + 1 > 80)
+                {
+                    s << std::endl;
+                    padStream(s, 30);
+                    length = 30;
+                }
+                s << dWords[j] << " ";
+                length += dWords[j].size() + 1;
+            }
+            s << std::endl;
         }
         return s.str();
     }
@@ -633,6 +663,28 @@ private:
             }
         }
         return "";
+    }
+
+    void padStream (std::ostream& s, size_t n) const
+    {
+        for (size_t i=0; i<n; i++) 
+            s.put(' ');
+    }
+
+    std::vector<std::string> words(const std::string& s) const
+    {
+        std::vector<std::string> ws;
+        size_t pos = 0;
+        while (pos < s.size())
+        {
+            size_t next = s.find(' ', pos);
+            if (next == std::string::npos)
+                next = s.size();
+            const std::string w = s.substr(pos, next-pos);
+            ws.push_back(w);
+            pos = next+1;
+        }
+        return ws;
     }
 };
 
