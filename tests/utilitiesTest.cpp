@@ -13,9 +13,9 @@ bool epsilonEqual (double a, double b)
     return std::fabs(a-b)<10E-10;
 }
 
-BOOST_AUTO_TEST_CASE ( empty_DescriptionItem )
+BOOST_AUTO_TEST_CASE ( empty_OptionValue )
 {
-    DescriptionItem i;
+    OptionValue i;
     BOOST_CHECK (i.getValue() == "");
 
     BOOST_CHECK_THROW (static_cast<double>(i), ConversionException);
@@ -28,9 +28,9 @@ BOOST_AUTO_TEST_CASE ( empty_DescriptionItem )
     BOOST_CHECK (v.size() == 0);
 }
 
-BOOST_AUTO_TEST_CASE ( DescriptionItem_type_conversion )
+BOOST_AUTO_TEST_CASE ( OptionValue_type_conversion )
 {
-    DescriptionItem i("4.2");
+    OptionValue i("4.2");
 
     BOOST_CHECK (i == "4.2");
     BOOST_CHECK (static_cast<double>(i) == 4.2);
@@ -78,9 +78,9 @@ BOOST_AUTO_TEST_CASE ( DescriptionItem_type_conversion )
     //size_t, etc
 }
 
-BOOST_AUTO_TEST_CASE ( DescriptionItem_default_value_and_isSet )
+BOOST_AUTO_TEST_CASE ( OptionValue_default_value_and_isSet )
 {
-    DescriptionItem i;
+    OptionValue i;
 
     BOOST_CHECK (i.isSet() == false);
     BOOST_CHECK_THROW (static_cast<bool>(i), ConversionException);
@@ -104,9 +104,9 @@ BOOST_AUTO_TEST_CASE ( DescriptionItem_default_value_and_isSet )
     BOOST_CHECK (i.isSet() == true);
 }
 
-BOOST_AUTO_TEST_CASE ( DescriptionItem_lists )
+BOOST_AUTO_TEST_CASE ( OptionValue_lists )
 {
-    DescriptionItem i;
+    OptionValue i;
     std::vector<double> v;
 
     i = "[]";
@@ -189,4 +189,17 @@ BOOST_AUTO_TEST_CASE ( DescriptionItem_lists )
     v = i;
     BOOST_CHECK (v.size() == 11);
     BOOST_CHECK (epsilonEqual(v[2], 1.8));
+}
+
+BOOST_AUTO_TEST_CASE ( OptionSection )
+{
+    OptionSection os("Main");
+    os.addSection("Part1");
+    os.addSection("Part2");
+
+    BOOST_CHECK (os.hasSection("Part1") == true);
+    BOOST_CHECK (os.hasSection("Part2") == true);
+
+    os.s("Part1").o("a") = 0.1;
+    BOOST_CHECK (os.s("Part1")["a"] == 0.1);
 }
