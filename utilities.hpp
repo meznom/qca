@@ -664,12 +664,6 @@ public:
         : std::runtime_error(message) {}
 };
 
-/*
- * TODO: keep order of command line arguments as they were specified (for
- * printing usage notice) 
- * TODO: maybe make DescriptionItems available with both the long and the short
- * name, e.g. opts["hopping"] and ["t"]
- */
 class CommandLineOptions: public OptionSection
 {
 public:
@@ -740,6 +734,12 @@ public:
                     optionName = getOptionName(shortName);
                 }
                 /*
+                 * No duplicate arguments 
+                 */
+                if (getOption(optionName).getValue().isSet())
+                    throw CommandLineOptionsException("Duplicate option: '" +
+                                                      optionName + "'.");
+                /*
                  * if there is a next argument and this argument isn't an
                  * option specifier (i.e. not a '-' followed by a non-digit)
                  * then this argument is the value for our option
@@ -761,52 +761,58 @@ public:
                 throw CommandLineOptionsException("Can't parse command line arguments.");
             }
         }
-
     }
 
-    //TODO: Test this some more. Can we do unit testing for this?
-//    std::string optionsDescription()
-//    {
-//        std::stringstream s;
-//        typedef SectionsType::iterator SIT;
-//        for (SIT i=sections.begin(); i!=sections.end(); i++) 
-//        {
-//            size_t length = 0;
-//            if (i->second.hasItem("shortName")) {
-//                //s << "  -" << i->second.items["shortName"] << ", ";
-//                //length += i->second.items["shortName"].getValue().size() + 5;
-//                s << "  -" << i->second["shortName"] << ", ";
-//                length += i->second["shortName"].getValue().size() + 5;
-//            }
-//            
-//            s << "--" << i->second.name;
-//            length += i->second.name.size() + 2;
-//            
-//            //const std::string dString = i->second.items["description"].getValue();
-//            const std::string dString = i->second["description"].getValue();
-//            const std::vector<std::string> dWords = words(dString);
-//            if (30-length <= 0) 
-//            {
-//                s << std::endl;
-//                length = 0;
-//            }
-//            padStream(s, 30-length);
-//            length = 30;
-//            for (size_t j=0; j<dWords.size(); j++)
-//            {
-//                if (length + dWords[j].size() + 1 > 80)
-//                {
-//                    s << std::endl;
-//                    padStream(s, 30);
-//                    length = 30;
-//                }
-//                s << dWords[j] << " ";
-//                length += dWords[j].size() + 1;
-//            }
-//            s << std::endl;
-//        }
-//        return s.str();
-//    }
+    std::string usage()
+    {
+        std::stringstream s;
+        typedef SectionsType::iterator SIT;
+        for (SIT i=getSections().begin(); i!=getSections().end(); i++) 
+        {
+            size_t length = 0;
+            s << "  ";
+            length += 2;
+            if (i->hasOption("shortName") && i->o("shortName") != "")
+            {
+                s << "-" << i->o("shortName");
+                length += i->o("shortName").getValue().size() + 1;
+                if (!i->o("shortOnly"))
+                {
+                    s << ", ";
+                    length += 2;
+                }
+            }
+
+            if (!i->o("shortOnly")) 
+            {
+                s << "--" << i->getName();
+                length += i->getName().size() + 2;
+            }
+            
+            const std::string dString = i->o("description").getValue();
+            const std::vector<std::string> dWords = words(dString);
+            if (30-static_cast<int>(length) <= 0) 
+            {
+                s << std::endl;
+                length = 0;
+            }
+            padStream(s, 30-length);
+            length = 30;
+            for (size_t j=0; j<dWords.size(); j++)
+            {
+                if (length + dWords[j].size() + 1 > 80)
+                {
+                    s << std::endl;
+                    padStream(s, 30);
+                    length = 30;
+                }
+                s << dWords[j] << " ";
+                length += dWords[j].size() + 1;
+            }
+            s << std::endl;
+        }
+        return s.str();
+    }
 
 private:
     bool hasShortOption(const std::string& shortName)

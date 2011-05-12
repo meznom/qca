@@ -253,8 +253,11 @@ CommandLineOptions setupCLOptions ()
      .add("", "t", "Hopping parameter.") // only short option, i.e. -t, but not --t
      .add("", "a", "Intra-plaquet spacing.")
      .add("", "b", "Inter-plaquet spacing.")
-     .add("energy-spectrum", "E", "Calculate the energy spectrum.")
-     .add("polarisation", "P", "Calculate the polarisation for specified plaquet(s).");
+     .add("Vext", "", "External potential.")
+     .add("ridiculously-long-option-name", "r", "A way too long parameter name.")
+     .add("ridiculously-long-option-name-2", "r2", "A way too long parameter name with a lengthy description.")
+     .add("polarisation", "P", "Calculate the polarisation for specified plaquet(s).")
+     .add("energy-spectrum", "E", "Calculate the energy spectrum.");
     
     o["N_p"].setDefault(1);
     o["t"].setDefault(1);
@@ -313,32 +316,6 @@ void fillArgv (char** argv, const char* s0="", const char* s1="", const char* s2
     strcpy(argv[9], s9);
 }
 
-//void fillArgv (char** argv, const char* s0="", const char* s1="", const char* s2="", 
-//                const char* s3="", const char* s4="", const char* s5="", 
-//                const char* s6="", const char* s7="", const char* s8="", 
-//                const char* s9="")
-//{
-//    strcpy(*argv, s0);
-//    argv += std::strlen(s0) + 1;
-//    strcpy(*argv, s1);
-//    argv += std::strlen(s0) + 1;
-//    strcpy(*argv, s2);
-//    argv += std::strlen(s0) + 1;
-//    strcpy(*argv, s3);
-//    argv += std::strlen(s0) + 1;
-//    strcpy(*argv, s4);
-//    argv += std::strlen(s0) + 1;
-//    strcpy(*argv, s5);
-//    argv += std::strlen(s0) + 1;
-//    strcpy(*argv, s6);
-//    argv += std::strlen(s0) + 1;
-//    strcpy(*argv, s7);
-//    argv += std::strlen(s0) + 1;
-//    strcpy(*argv, s8);
-//    argv += std::strlen(s0) + 1;
-//    strcpy(*argv, s9);
-//}
-
 BOOST_AUTO_TEST_CASE ( CommandLineOptions_parser )
 {
     int argc;
@@ -367,6 +344,11 @@ BOOST_AUTO_TEST_CASE ( CommandLineOptions_parser )
     BOOST_CHECK_THROW (o.parse(argc, const_cast<const char**>(argv)), CommandLineOptionsException);
 
     o = setupCLOptions();
+    fillArgv(argv, "", "-Vext", "2.1");
+    argc = 3;
+    BOOST_CHECK_THROW (o.parse(argc, const_cast<const char**>(argv)), CommandLineOptionsException);
+
+    o = setupCLOptions();
     fillArgv(argv, "", "--bogus");
     argc = 2;
     BOOST_CHECK_THROW (o.parse(argc, const_cast<const char**>(argv)), CommandLineOptionsException);
@@ -377,8 +359,8 @@ BOOST_AUTO_TEST_CASE ( CommandLineOptions_parser )
     BOOST_CHECK_THROW (o.parse(argc, const_cast<const char**>(argv)), CommandLineOptionsException);
 
     o = setupCLOptions();
-    fillArgv(argv, "", "-m", "blub", "-t", "4.3", "-P", "--N_p", "1");
-    argc = 8;
+    fillArgv(argv, "", "-m", "blub", "-t", "4.3", "-P", "--N_p", "1", "--Vext", "1.1");
+    argc = 10;
     o.parse(argc, const_cast<const char**>(argv));
     BOOST_CHECK (o.hasOption("model") == true);
     BOOST_CHECK (o["model"] == "blub");
@@ -390,10 +372,11 @@ BOOST_AUTO_TEST_CASE ( CommandLineOptions_parser )
     BOOST_CHECK (o.hasOption("a") == false);
     BOOST_CHECK (o.hasOption("b") == true);
     BOOST_CHECK (epsilonEqual(o["b"], 1.75));
+    BOOST_CHECK (epsilonEqual(o["Vext"], 1.1));
 
     o = setupCLOptions();
-    fillArgv(argv, "", "--model", "blub", "-t", "4.3", "--polarisation", "-p", "1");
-    argc = 8;
+    fillArgv(argv, "", "--model", "blub", "-t", "4.3", "--polarisation", "-p", "1", "--Vext", "1.1");
+    argc = 10;
     o.parse(argc, const_cast<const char**>(argv));
     BOOST_CHECK (o.hasOption("model") == true);
     BOOST_CHECK (o["model"] == "blub");
@@ -405,10 +388,19 @@ BOOST_AUTO_TEST_CASE ( CommandLineOptions_parser )
     BOOST_CHECK (o.hasOption("a") == false);
     BOOST_CHECK (o.hasOption("b") == true);
     BOOST_CHECK (epsilonEqual(o["b"], 1.75));
+    BOOST_CHECK (epsilonEqual(o["Vext"], 1.1));
 
-    //TODO: how do we handle duplicate command line options? i.e. -t 2 -t 4
+    o = setupCLOptions();
+    fillArgv(argv, "", "-t", "2.1", "-a", "3.2", "-t", "1.1");
+    argc = 7;
+    BOOST_CHECK_THROW (o.parse(argc, const_cast<const char**>(argv)), CommandLineOptionsException);
 }
+
 
 BOOST_AUTO_TEST_CASE ( CommandLineOptions_usage_message )
 {
+
+    std::string sampleUsageMessage = "  -h, --help                  Print this help message. \n  -m, --model                 Which QCA model to use. \n  -p, --N_p                   Number of plaquets. \n  -t                          Hopping parameter. \n  -a                          Intra-plaquet spacing. \n  -b                          Inter-plaquet spacing. \n  --Vext                      External potential. \n  -r, --ridiculously-long-option-name\n                              A way too long parameter name. \n  -r2, --ridiculously-long-option-name-2\n                              A way too long parameter name with a lengthy \n                              description. \n  -P, --polarisation          Calculate the polarisation for specified \n                              plaquet(s). \n  -E, --energy-spectrum       Calculate the energy spectrum. \n";
+    CommandLineOptions o = setupCLOptions();
+    BOOST_CHECK (o.usage() == sampleUsageMessage);
 }
