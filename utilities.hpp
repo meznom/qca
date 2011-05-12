@@ -309,9 +309,11 @@ private:
         value = trim(s.str());
     }
 
-    //TODO: could we also use template specialisation?
-    //template<>
-    //void setValue<bool>(const bool& v)
+    /*
+     * could we also use template specialisation?
+     * template<>
+     * void setValue<bool>(const bool& v)
+     */
     void setValue(const bool& v)
     {
         if (v) value = "true";
@@ -380,7 +382,6 @@ public:
         : std::runtime_error(message) {}
 };
 
-//TODO: We probably need section and option iterators
 class OptionSection
 {
 public:

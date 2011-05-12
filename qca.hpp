@@ -576,23 +576,23 @@ template<class QcaSystem>
 class DQcaGeneric : public QcaSystem
 {
 public:
-    DQcaGeneric (Description desc)
-    : QcaSystem (desc["N_p"])
+    DQcaGeneric (OptionSection os)
+    : QcaSystem (os["p"])
     {
-        setParameters(desc);
+        setParameters(os);
     }
 
-    void setParameters (Description desc)
+    void setParameters (OptionSection os)
     {
-        QcaSystem::H.t = desc["t"].get<double>(1.0);
-        QcaSystem::H.td = desc["td"].get<double>(0); 
-        QcaSystem::H.ti = desc["ti"].get<double>(0); 
-        QcaSystem::H.a = desc["a"].get<double>(1.0); 
-        QcaSystem::H.b = desc["b"].get<double>(3);
-        QcaSystem::H.Vext = desc["Vext"].get<double>(0);
-        QcaSystem::H.Pext = desc["Pext"].get<double>(0);
-        QcaSystem::H.V0 = desc["V0"].get<double>(1000); 
-        QcaSystem::H.mu = desc["mu"].get<double>(0);
+        QcaSystem::H.t = os["t"].get<double>(1.0);
+        QcaSystem::H.td = os["td"].get<double>(0); 
+        QcaSystem::H.ti = os["ti"].get<double>(0); 
+        QcaSystem::H.a = os["a"].get<double>(1.0); 
+        QcaSystem::H.b = os["b"].get<double>(3);
+        QcaSystem::H.Vext = os["Vext"].get<double>(0);
+        QcaSystem::H.Pext = os["Pext"].get<double>(0);
+        QcaSystem::H.V0 = os["V0"].get<double>(1000); 
+        QcaSystem::H.mu = os["mu"].get<double>(0);
     }
 };
 
@@ -612,70 +612,5 @@ typedef DQcaGeneric<QcaQuarterFilling<ExternalPlain> > DQcaQuarterFillingPlain;
 typedef DQcaGeneric<QcaQuarterFilling<ExternalDeadPlaquet> > DQcaQuarterFillingDeadPlaquet;
 typedef DQcaGeneric<QcaGrandCanonical<ExternalPlain> > DQcaGrandCanonicalPlain;
 typedef DQcaGeneric<QcaGrandCanonical<ExternalDeadPlaquet> > DQcaGrandCanonicalDeadPlaquet;
-
-/*
-class DQcaBond : public QcaBondPlain
-{
-public:
-    DQcaBond (Description desc_)
-    : QcaBondPlain(desc_["N_p"]), desc(desc_)
-    {
-        H.t = desc["t"].get<double>(1.0);
-        H.td = desc["td"].get<double>(0); 
-        H.ti = 0;
-        H.a = desc["a"].get<double>(1.0); 
-        H.b = desc["b"].get<double>(3);
-        H.Vext = desc["Vext"].get<double>(0);
-        H.Pext = desc["Pext"].get<double>(0);
-        H.V0 = 0; 
-        H.mu = 0;
-    }
-
-private:
-    Description desc;
-};
-
-class DQcaQuarterFilling: public QcaQuarterFilling
-{
-public:
-    DQcaQuarterFilling (Description desc_)
-    : QcaQuarterFilling(desc_["N_p"]), desc(desc_)
-    {
-        H.t = desc["t"].get<double>(1.0);
-        H.td = desc["td"].get<double>(0); 
-        H.ti = 0;
-        H.a = desc["a"].get<double>(1.0); 
-        H.b = desc["b"].get<double>(3);
-        H.Vext = desc["Vext"].get<double>(0);
-        H.Pext = desc["Pext"].get<double>(0);
-        H.V0 = desc["V0"].get<double>(1000); 
-        H.mu  = 0;
-    }
-
-private:
-    Description desc;
-};
-
-class DQcaGrandCanonical: public QcaGrandCanonical
-{
-public:
-    DQcaGrandCanonical (Description desc_)
-    : QcaGrandCanonical (desc_["N_p"]), desc(desc_)
-    {
-        H.t = desc["t"].get<double>(1.0);
-        H.td = desc["td"].get<double>(0); 
-        H.ti = desc["ti"].get<double>(0); 
-        H.a = desc["a"].get<double>(1.0); 
-        H.b = desc["b"].get<double>(3);
-        H.Vext = desc["Vext"].get<double>(0);
-        H.Pext = desc["Pext"].get<double>(0);
-        H.V0 = desc["V0"].get<double>(1000); 
-        H.mu = desc["mu"].get<double>(0);
-    }
-
-private:
-    Description desc;
-};
-*/
 
 #endif // __QCA_HPP__

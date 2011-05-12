@@ -14,6 +14,11 @@
  *    * number of electrons, considering Vext or dead cell
  *    * P-P
  * * compare energy, P-P for bond, qf, gc
+ *
+ *
+ *
+ * Output for the following command does not look correct to me:
+ * ./runQca -m bondDP -p 1 -P 0 -Pext 0,1,2,3 -a 1,2 -E 
  */
 
 class EpsilonLess
@@ -62,23 +67,23 @@ CommandLineOptions setupCLOptions ()
 {
     CommandLineOptions o;
     o.add("help", "h", "Print this help message.")
-     .add("model", "m", "Which QCA model to use.")
-     .add("N_p", "p", "Number of plaquets.")
-     .add("t", "t", "Hopping parameter.")
-     .add("td", "td", "Diagonal hopping parameter.")
-     .add("ti", "ti", "Inter-plaquet hopping parameter.")
-     .add("V0", "V0", "On-site coulomb repulsion (Hubbard U).")
-     .add("mu", "mu", "Chemical potential.")
-     .add("Vext", "Vext", "External potential.")
-     .add("Pext", "Pext", "External, 'driving' polarisation of a 'dead plaquet' to the left of the linear chain system.")
-     .add("a", "a", "Intra-plaquet spacing.")
-     .add("b", "b", "Inter-plaquet spacing.")
-     .add("beta", "beta", "Inverse temperature.")
+     .add("model", "m", "Which QCA model to use. Options are: bond, bondDP, quarter, quarterDP, grand, grandDP.")
+     .add("", "p", "Number of plaquets.")
+     .add("", "t", "Hopping parameter.")
+     .add("", "td", "Diagonal hopping parameter.")
+     .add("", "ti", "Inter-plaquet hopping parameter.")
+     .add("", "V0", "On-site coulomb repulsion (Hubbard U).")
+     .add("", "mu", "Chemical potential.")
+     .add("", "Vext", "External potential.")
+     .add("", "Pext", "External, 'driving' polarisation of a 'dead plaquet' to the left of the linear chain system.")
+     .add("", "a", "Intra-plaquet spacing.")
+     .add("", "b", "Inter-plaquet spacing.")
+     .add("", "beta", "Inverse temperature.")
      .add("energy-spectrum", "E", "Calculate the energy spectrum.")
      .add("polarisation", "P", "Calculate the polarisation for specified plaquet(s).")
      .add("particle-number", "N", "Calculate the particle number for the specified plaquet or the total particle number.");
     
-    o["N_p"].setDefault(1);
+    o["p"].setDefault(1);
     o["t"].setDefault(1);
     o["td"].setDefault(0);
     o["ti"].setDefault(0);
@@ -96,7 +101,7 @@ CommandLineOptions setupCLOptions ()
 void printUsage (CommandLineOptions& o)
 {
     std::cerr << "Usage: " << std::endl;
-    std::cerr << o.optionsDescription();
+    std::cerr << o.usage();
 }
 
 enum OutputMode {Header, Line, None};
@@ -105,25 +110,25 @@ template<class System>
 class Measurement
 {
 public:
-    Measurement (Description o_)
+    Measurement (OptionSection o_)
     : o(o_), s(o_), needHeader(true), globalFirst(true)
     {
-        for (Description::ItemsType::const_iterator i=o.items.begin(); i!=o.items.end(); i++)
-            outputConfig[i->first] = Header;
+        for (OptionSection::OptionsType::iterator i=o.getOptions().begin(); i!=o.getOptions().end(); i++)
+            outputConfig[i->getName()] = Header;
         outputConfig["energy-spectrum"] = None;
         outputConfig["polarisation"] = None;
         outputConfig["particle-number"] = None;
         outputConfig["help"] = None;
     }
 
-    void setParam (const std::string& param, const DescriptionItem& value)
+    void setParam (const std::string& param, const OptionValue& value)
     {
         o[param] = value;
         if (outputConfig[param] == Header)
             needHeader = true;
     }
 
-    void measure (const std::string& param, const DescriptionItem& value)
+    void measure (const std::string& param, const OptionValue& value)
     {
         setParam(param, value);
         measure();
@@ -287,18 +292,18 @@ public:
     {
         if (!globalFirst) std::cout << std::endl;
         else globalFirst = false;
-        for (Description::ItemsType::const_iterator i=o.items.begin(); i!=o.items.end(); i++)
-            if (outputConfig[i->first] == Header)
-                std::cout << "# " << i->first << " = " << i->second << std::endl;
+        for (OptionSection::OptionsType::iterator i=o.getOptions().begin(); i!=o.getOptions().end(); i++)
+            if (outputConfig[i->getName()] == Header)
+                std::cout << "# " << i->getName() << " = " << i->getValue() << std::endl;
     }
 
     void printHeaderAll ()
     {
         if (!globalFirst) std::cout << std::endl;
         else globalFirst = false;
-        for (Description::ItemsType::const_iterator i=o.items.begin(); i!=o.items.end(); i++)
-            if (outputConfig[i->first] != None)
-                std::cout << "# " << i->first << " = " << i->second << std::endl;
+        for (OptionSection::OptionsType::iterator i=o.getOptions().begin(); i!=o.getOptions().end(); i++)
+            if (outputConfig[i->getName()] != None)
+                std::cout << "# " << i->getName() << " = " << i->getValue() << std::endl;
     }
 
     void setOutputMode (std::string param, OutputMode mode)
@@ -307,7 +312,7 @@ public:
     }
 
 private:
-    Description o;
+    OptionSection o;
     System s;
 
     std::vector<std::vector<double> > E;
@@ -361,7 +366,7 @@ void run (CommandLineOptions& opts)
 
     std::sort(params.begin(), params.end(), comparePair);
 
-    Description cOpts(opts);
+    OptionSection cOpts(opts);
     cOpts["t"] = 1;
     cOpts["td"] = 0;
     cOpts["ti"] = 0;
@@ -374,66 +379,6 @@ void run (CommandLineOptions& opts)
     cOpts["beta"] = 1;
     Measurement<System> M(cOpts);
     runMeasurement(M, opts, params, 0);
-
-
-    /*
-    std::vector<double> Vexts = opts["Vext"];
-    if (Vexts.size() > 1) opts["Vext"] = 0; 
-
-    System qca(opts);
-
-    for (size_t j=0; j<Vexts.size(); j++)
-    {
-        qca.H.Vext = Vexts[j];
-    
-        qca.H.construct();
-        qca.H.diagonalise();
-
-        if (opts["energy-spectrum"].isSet())
-        {
-            printEnergySpectrum(qca);
-            std::cout << std::endl;
-        }
-
-        if (opts["polarisation"].isSet())
-        {
-            std::cout << qca.H.Vext;
-            std::vector<size_t> ps = opts["polarisation"];
-            for (size_t i=0; i<ps.size(); i++)
-            {
-                if (ps[i] >= qca.N_p) 
-                {
-                    std::cerr << std::endl << "Polarisation: There is no plaquet " 
-                        << ps[i] << " in this system." << std::endl;
-                    std::exit(EXIT_FAILURE);
-                }
-                std::cout << "\t" << qca.ensembleAverage(opts["beta"], qca.P(ps[i]));
-            }
-            std::cout << std::endl;
-        }
-
-        if (opts["particle-number"].isSet())
-        {
-            //TODO opts["particle-number"].isSize_t() or isBool() would be uselful
-            size_t p;
-            try
-            {
-                p = opts["particle-number"];
-                if (p >= qca.N_p) 
-                {
-                    std::cerr << std::endl << "Particle number: There is no plaquet " 
-                        << p << " in this system." << std::endl;
-                    std::exit(EXIT_FAILURE);
-                }
-                std::cout << qca.ensembleAverage(opts["beta"], qca.N(p)) << std::endl;
-            }
-            catch (ConversionException e)
-            {
-                std::cout << qca.ensembleAverage(opts["beta"], qca.N()) << std::endl;
-            }
-        }
-    }
-    */
 }
 
 int main(int argc, const char** argv)
@@ -471,14 +416,8 @@ int main(int argc, const char** argv)
         run<DQcaGrandCanonicalDeadPlaquet>(opts);
     else
     {
-        std::cerr 
-            << "Please specify a model. Options are: " << std::endl 
-            << "\t" << "'bond'" << std::endl
-            << "\t" << "'bondDP'" << std::endl
-            << "\t" << "'quarterfilling' or 'quarter'" << std::endl
-            << "\t" << "'quarterfillingDP' or 'quarterDP'" << std::endl
-            << "\t" << "'grandcanonical' or 'grand'" << std::endl
-            << "\t" << "'grandcanonicalDP' or 'grandDP'" << std::endl;
+        printUsage(opts);
+        std::cerr << std::endl << "Please specify a model." << std::endl;
         std::exit(EXIT_FAILURE);
     }
 
