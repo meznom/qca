@@ -141,7 +141,7 @@ public:
     OptionValue(size_t value_, bool set_ = true): set(set_) {setValue(value_);}
     OptionValue(double value_, bool set_ = true): set(set_) {setValue(value_);}
 
-    virtual ~OptionValue() {}
+    //virtual ~OptionValue() {}
 
     template<typename T>
     void operator= (const T& v)
@@ -352,78 +352,83 @@ class Option
 {
 public:
     Option() {}
+    Option(std::string name_) : name(name_) {}
+
+    std::string getName() const
+    {
+        return name;
+    }
+
+    OptionValue& getValue()
+    {
+        return value;
+    }
+
+    void setValue(OptionValue v)
+    {
+        value = v;
+    }
 
     std::string name;
     OptionValue value;
 };
 
-//TODO: probably use a better name, maybe: Option, Parameter, etc
+class OptionSectionException : public std::runtime_error
+{
+public:
+    explicit OptionSectionException (const std::string& message)
+        : std::runtime_error(message) {}
+};
+
+//TODO: We probably need section and option iterators
 class OptionSection
 {
 public:
-    //typedef std::map<std::string, Description> SectionsType;
-    //typedef std::map<std::string, DescriptionItem> ItemsType;
-    //struct Option { 
-    //    Option() {}
-    //    Option(std::string name_) : name(name_) {}
+    typedef std::vector<OptionSection> SectionsType;
+    typedef std::vector<Option> OptionsType;
 
-    //    void operator= (const DescriptionItem& v)
-    //    {
-    //        value = v;
-    //    }
-    //    
-    //    std::string name; 
-    //    DescriptionItem value;
-    //};
+    OptionSection(const std::string& name_)
+        : name(name_) {}
 
-    class OptionWithName
-    {
-    public:
-        OptionWithName (std::string name_) : name(name_) {}
-
-        bool operator() (const Option& o)
-        {
-            return o.name == name;
-        }
-
-        std::string name;
-    };
-
-    class SectionWithName
-    {
-    public:
-        SectionWithName (std::string name_) : name(name_) {}
-
-        bool operator() (const OptionSection& s)
-        {
-            return s.name == name;
-        }
-
-        std::string name;
-    };
-
-
-    OptionSection(std::string name)
-        : name(name) {}
-
-    //needed to store OptionSection objects in a map
     OptionSection() {}
 
-    virtual ~OptionSection() {}
+    //virtual ~OptionSection() {}
 
-    OptionSection& addSection (OptionSection& section)
+    std::string getName() const
     {
-        //TODO: check that name does not already exist
+        return name;
+    }
+
+    void setName (const std::string& name_)
+    {
+        name = name_;
+    }
+
+    SectionsType& getSections()
+    {
+        return ss;
+    }
+
+    OptionsType& getOptions()
+    {
+        return os;
+    }
+
+    OptionSection& addSection (OptionSection section)
+    {
+        if (hasSection(section.getName()))
+            throw OptionSectionException("Can't add duplicate section '" + 
+                                          section.getName() + "'.");
         ss.push_back(section);
         return *this;
     }
 
-    OptionSection& addSection (std::string name)
+    OptionSection& addSection (const std::string& name)
     {
         return addSection(OptionSection(name));
     }
 
-    bool hasSection(std::string name)
+    bool hasSection (const std::string& name) const
     {
         typedef std::vector<OptionSection>::const_iterator SIT;
         SIT i;
@@ -431,7 +436,7 @@ public:
         return i!=ss.end();
     }
 
-    OptionSection& getSection(std::string name)
+    OptionSection& getSection (const std::string& name)
     {
         typedef std::vector<OptionSection>::iterator SIT;
         SIT i;
@@ -444,41 +449,69 @@ public:
         return *i;
     }
 
-    OptionSection& s(std::string name)
+    OptionSection& s (const std::string& name)
     {
         return getSection(name);
     }
 
-    bool hasItem(std::string itemName)
+    OptionSection& addOption (Option o)
     {
-        //return items.count(itemName);
+        if (hasOption(o.getName()))
+            throw OptionSectionException("Can't add duplicate option '" + 
+                                          o.getName() + "'.");
+        os.push_back(o);
+        return *this;
+    }
+
+    OptionSection& addOption (const std::string& name)
+    {
+        return addOption(Option(name));
+    }
+
+    bool hasOption (const std::string& name) const
+    {
         typedef std::vector<Option>::const_iterator OIT;
         OIT i;
-        i = std::find_if(items.begin(), items.end(), OptionWithName(itemName));
-        return i!=items.end();
+        i = std::find_if(os.begin(), os.end(), OptionWithName(name));
+        return i!=os.end();
     }
 
-    DescriptionItem getItem(std::string itemName)
-    {
-        return operator[] (itemName);
-
-
-        //return items[itemName];
-    }
-
-    DescriptionItem& operator[] (std::string itemName)
+    Option& getOption (const std::string& name)
     {
         typedef std::vector<Option>::iterator OIT;
         OIT i;
-        i = std::find_if(items.begin(), items.end(), OptionWithName(itemName));
-        if (i == items.end())
+        i = std::find_if(os.begin(), os.end(), OptionWithName(name));
+        if (i == os.end())
         {
-            items.push_back(Option(itemName));
-            i = items.end() - 1;
+            addOption(name);
+            i = os.end() - 1;
         }
-        return i->value;
+        return *i;
     }
 
+    OptionValue& getOptionValue (const std::string& name)
+    {
+        return getOption(name).getValue();
+    }
+
+    OptionValue& operator[] (const std::string& name)
+    {
+        return getOptionValue(name);
+    }
+
+    OptionValue& o (const std::string& name)
+    {
+        return getOptionValue(name);
+    }
+
+    //DescriptionItem getItem(std::string itemName)
+    //{
+    //    return operator[] (itemName);
+
+
+    //    //return items[itemName];
+    //}
+    
 //    std::string asString() const
 //    {
 //        std::stringstream s;
@@ -500,11 +533,35 @@ public:
 //    }
 
 private:
+    class OptionWithName
+    {
+    public:
+        OptionWithName (const std::string& name_) : name(name_) {}
+
+        bool operator() (const Option& o)
+        {
+            return o.getName() == name;
+        }
+
+        std::string name;
+    };
+
+    class SectionWithName
+    {
+    public:
+        SectionWithName (const std::string& name_) : name(name_) {}
+
+        bool operator() (const OptionSection& s)
+        {
+            return s.getName() == name;
+        }
+
+        std::string name;
+    };
+
     std::string name;
-    //SectionsType sections; //TODO: again, misleading name
-    //ItemsType items;
-    std::vector<OptionSection> ss;
-    std::vector<Option> os;
+    SectionsType ss;
+    OptionsType os;
 };
 
 class IniException: public std::runtime_error
@@ -527,7 +584,7 @@ public:
 //         parseIniFile();
 //     }
 // 
-//     virtual ~IniFile() {}
+//     //virtual ~IniFile() {}
 // 
 // private:
 //     void parseIniFile()
@@ -613,175 +670,184 @@ public:
  * TODO: maybe make DescriptionItems available with both the long and the short
  * name, e.g. opts["hopping"] and ["t"]
  */
-// class CommandLineOptions: public Description
-// {
-// public:
-//     virtual ~CommandLineOptions() {}
-// 
-//     CommandLineOptions& add(Description option)
-//     {
-//         sections[option.name] = option;
-//         return *this;
-//     }
-// 
-//     CommandLineOptions& add(std::string name, std::string shortName, std::string description)
-//     {
-//         Description newOption(name);
-//         newOption["shortName"] = shortName;
-//         newOption["description"] = description;
-//         return add(newOption);
-//     }
-// 
-//     CommandLineOptions& add(std::string name, std::string description)
-//     {
-//         Description newOption(name);
-//         newOption["description"] = description;
-//         return add(newOption);
-//     }
-// 
-//     void parse(int argc, const char** argv)
-//     {
-//         for (int i=1; i<argc; i++) {
-//             std::string s(argv[i]);
-//             std::string optionName;
-//             //is it an option?
-//             if (s[0] == '-') {
-//                 //is it a long or short option?
-//                 if (s[1] == '-') {
-//                     optionName = s.substr(2);
-//                     if (!hasOption(optionName)) {
-//                         throw CommandLineOptionsException("Unknown option: '" + optionName + "'.");
-//                     }
-//                 }
-//                 else {
-//                     optionName = s.substr(1);
-//                     if (!hasShortOption(optionName)) {
-//                         throw CommandLineOptionsException("Unknown option: '" + optionName + "'.");
-//                     }
-//                     optionName = getOptionName(optionName);
-//                 }
-//                 /*
-//                  * if there is a next argument and this argument isn't an
-//                  * option specifier (i.e. not a '-' followed by a non-digit)
-//                  * then this argument is the value for our option
-//                  */
-//                 if (i+1 < argc &&   
-//                     ( (std::strlen(argv[i+1]) > 0 && argv[i+1][0] != '-') || 
-//                       (std::strlen(argv[i+1]) > 1 && std::isdigit(argv[i+1][1])) 
-//                     )
-//                    )
-//                 {
-//                     //items[optionName] = DescriptionItem(std::string(argv[i+1]));
-//                     (*this)[optionName] = DescriptionItem(std::string(argv[i+1]));
-//                     i++;
-//                 }
-//                 else
-//                     //items[optionName] = DescriptionItem("true");
-//                     (*this)[optionName] = DescriptionItem("true");
-//             }
-//             else {
-//                 //we throw an error on unrecognised options / arguments
-//                 throw CommandLineOptionsException("Can't parse command line arguments.");
-//             }
-//         }
-// 
-//     }
-// 
-//     //TODO: Test this some more. Can we do unit testing for this?
-//     std::string optionsDescription()
-//     {
-//         std::stringstream s;
-//         typedef SectionsType::iterator SIT;
-//         for (SIT i=sections.begin(); i!=sections.end(); i++) 
-//         {
-//             size_t length = 0;
-//             if (i->second.hasItem("shortName")) {
-//                 //s << "  -" << i->second.items["shortName"] << ", ";
-//                 //length += i->second.items["shortName"].getValue().size() + 5;
-//                 s << "  -" << i->second["shortName"] << ", ";
-//                 length += i->second["shortName"].getValue().size() + 5;
-//             }
-//             
-//             s << "--" << i->second.name;
-//             length += i->second.name.size() + 2;
-//             
-//             //const std::string dString = i->second.items["description"].getValue();
-//             const std::string dString = i->second["description"].getValue();
-//             const std::vector<std::string> dWords = words(dString);
-//             if (30-length <= 0) 
-//             {
-//                 s << std::endl;
-//                 length = 0;
-//             }
-//             padStream(s, 30-length);
-//             length = 30;
-//             for (size_t j=0; j<dWords.size(); j++)
-//             {
-//                 if (length + dWords[j].size() + 1 > 80)
-//                 {
-//                     s << std::endl;
-//                     padStream(s, 30);
-//                     length = 30;
-//                 }
-//                 s << dWords[j] << " ";
-//                 length += dWords[j].size() + 1;
-//             }
-//             s << std::endl;
-//         }
-//         return s.str();
-//     }
-// 
-// private:
-//     bool hasOption(std::string name)
-//     {
-//         return hasSection(name);
-//     }
-// 
-//     bool hasShortOption(std::string shortName)
-//     {
-//         typedef SectionsType::iterator SIT;
-//         for (SIT i=sections.begin(); i!=sections.end(); i++) {
-//             //if (i->second.hasItem("shortName") && i->second.items["shortName"] == shortName) {
-//             if (i->second.hasItem("shortName") && i->second["shortName"] == shortName) {
-//                 return true;
-//             }
-//         }
-//         return false;
-//     }
-// 
-//     std::string getOptionName(std::string shortName)
-//     {
-//         typedef SectionsType::iterator SIT;
-//         for (SIT i=sections.begin(); i!=sections.end(); i++) {
-//             //if (i->second.hasItem("shortName") && i->second.items["shortName"] == shortName) {
-//             if (i->second.hasItem("shortName") && i->second["shortName"] == shortName) {
-//                 return i->second.name;
-//             }
-//         }
-//         return "";
-//     }
-// 
-//     void padStream (std::ostream& s, size_t n) const
-//     {
-//         for (size_t i=0; i<n; i++) 
-//             s.put(' ');
-//     }
-// 
-//     std::vector<std::string> words(const std::string& s) const
-//     {
-//         std::vector<std::string> ws;
-//         size_t pos = 0;
-//         while (pos < s.size())
-//         {
-//             size_t next = s.find(' ', pos);
-//             if (next == std::string::npos)
-//                 next = s.size();
-//             const std::string w = s.substr(pos, next-pos);
-//             ws.push_back(w);
-//             pos = next+1;
-//         }
-//         return ws;
-//     }
-// };
+class CommandLineOptions: public OptionSection
+{
+public:
+    CommandLineOptions() : OptionSection("CommandLineOptions") {}
+    
+    //virtual CommandLineOptions~() {}
+    
+    CommandLineOptions& add (std::string name, 
+                             const std::string& shortName, 
+                             const std::string& description)
+    {
+        OptionSection o;
+        if (name == "" && shortName != "")
+        {
+            name = shortName;
+            o["shortOnly"] = true;
+        }
+        else
+            o["shortOnly"] = false;
+        o.setName(name);
+        o["shortName"] = shortName;
+        o["description"] = description;
+        addSection(o);
+        return *this;
+    }
+
+    CommandLineOptions& add (const std::string& name, 
+                             const std::string& description)
+    {
+        return add (name, "", description);
+    }
+
+    OptionValue& operator[] (const std::string& name)
+    {
+        if (hasShortOption(name))
+            return OptionSection::operator[](getOptionName(name));
+        return OptionSection::operator[](name);
+    }
+
+    bool hasOption (const std::string& name)
+    {
+        if (hasShortOption(name))
+            return OptionSection::hasOption(getOptionName(name));
+        return OptionSection::hasOption(name);
+    }
+
+    void parse(int argc, const char** argv)
+    {
+        for (int i=1; i<argc; i++) {
+            std::string s(argv[i]);
+            std::string optionName;
+            //is it an option?
+            if (s[0] == '-')
+            {
+                //is it a long or short option?
+                if (s[1] == '-')
+                {
+                    optionName = s.substr(2);
+                    if (!hasSection(optionName) || getSection(optionName)["shortOnly"])
+                    {
+                        throw CommandLineOptionsException("Unknown option: '--" + 
+                                                          optionName + "'.");
+                    }
+                }
+                else
+                {
+                    const std::string shortName = s.substr(1);
+                    optionName = getOptionName(shortName);
+                }
+                /*
+                 * if there is a next argument and this argument isn't an
+                 * option specifier (i.e. not a '-' followed by a non-digit)
+                 * then this argument is the value for our option
+                 */
+                if (i+1 < argc &&   
+                    ( (std::strlen(argv[i+1]) > 0 && argv[i+1][0] != '-') || 
+                      (std::strlen(argv[i+1]) > 1 && std::isdigit(argv[i+1][1])) 
+                    )
+                   )
+                {
+                    getOption(optionName).setValue(OptionValue(std::string(argv[i+1])));
+                    i++;
+                }
+                else
+                    getOption(optionName).setValue(OptionValue("true"));
+            }
+            else {
+                //we throw an error on unrecognised options / arguments
+                throw CommandLineOptionsException("Can't parse command line arguments.");
+            }
+        }
+
+    }
+
+    //TODO: Test this some more. Can we do unit testing for this?
+//    std::string optionsDescription()
+//    {
+//        std::stringstream s;
+//        typedef SectionsType::iterator SIT;
+//        for (SIT i=sections.begin(); i!=sections.end(); i++) 
+//        {
+//            size_t length = 0;
+//            if (i->second.hasItem("shortName")) {
+//                //s << "  -" << i->second.items["shortName"] << ", ";
+//                //length += i->second.items["shortName"].getValue().size() + 5;
+//                s << "  -" << i->second["shortName"] << ", ";
+//                length += i->second["shortName"].getValue().size() + 5;
+//            }
+//            
+//            s << "--" << i->second.name;
+//            length += i->second.name.size() + 2;
+//            
+//            //const std::string dString = i->second.items["description"].getValue();
+//            const std::string dString = i->second["description"].getValue();
+//            const std::vector<std::string> dWords = words(dString);
+//            if (30-length <= 0) 
+//            {
+//                s << std::endl;
+//                length = 0;
+//            }
+//            padStream(s, 30-length);
+//            length = 30;
+//            for (size_t j=0; j<dWords.size(); j++)
+//            {
+//                if (length + dWords[j].size() + 1 > 80)
+//                {
+//                    s << std::endl;
+//                    padStream(s, 30);
+//                    length = 30;
+//                }
+//                s << dWords[j] << " ";
+//                length += dWords[j].size() + 1;
+//            }
+//            s << std::endl;
+//        }
+//        return s.str();
+//    }
+
+private:
+    bool hasShortOption(const std::string& shortName)
+    {
+        typedef SectionsType::iterator SIT;
+        for (SIT i=getSections().begin(); i!=getSections().end(); i++)
+            if (i->hasOption("shortName") && i->o("shortName") == shortName)
+                return true;
+        return false;
+    }
+
+    std::string getOptionName(const std::string& shortName)
+    {
+        typedef SectionsType::iterator SIT;
+        for (SIT i=getSections().begin(); i!=getSections().end(); i++)
+            if (i->hasOption("shortName") && i->o("shortName") == shortName)
+                return i->getName();
+        throw CommandLineOptionsException("Unknown option: '-" + shortName + "'.");
+    }
+
+    void padStream (std::ostream& s, size_t n) const
+    {
+        for (size_t i=0; i<n; i++) 
+            s.put(' ');
+    }
+
+    std::vector<std::string> words(const std::string& s) const
+    {
+        std::vector<std::string> ws;
+        size_t pos = 0;
+        while (pos < s.size())
+        {
+            size_t next = s.find(' ', pos);
+            if (next == std::string::npos)
+                next = s.size();
+            const std::string w = s.substr(pos, next-pos);
+            ws.push_back(w);
+            pos = next+1;
+        }
+        return ws;
+    }
+};
 
 #endif /* __UTILITIES_HPP__ */
