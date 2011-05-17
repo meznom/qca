@@ -7,5 +7,9 @@ include_directories(..)
 add_executable(utilitiesTest utilitiesTest.cpp)
 target_link_libraries(utilitiesTest boost_unit_test_framework)
 add_test(utilities utilitiesTest)
-add_dependencies(buildtest utilitiesTest)
 
+add_executable(basisTest basisTest.cpp)
+target_link_libraries(basisTest boost_unit_test_framework)
+add_test(basis basisTest)
+
+add_dependencies(buildtest utilitiesTest basisTest)

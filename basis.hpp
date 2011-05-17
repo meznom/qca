@@ -101,6 +101,41 @@ std::ostream& operator<< (std::ostream& o, const FermionicState<T>& fs)
 
 typedef FermionicState<uint16_t> State;
 
+class SymmetryOperator
+{
+public:
+    virtual ~SymmetryOperator() {}
+    virtual double operator() (const State&) const = 0;
+};
+
+class ParticleNumberSymmetryOperator : public SymmetryOperator
+{
+public:
+    virtual ~ParticleNumberSymmetryOperator() {}
+
+    virtual double operator() (const State& s) const
+    {
+        return s.count();
+    }
+};
+
+class SpinSymmetryOperator : public SymmetryOperator
+{
+public:
+    virtual ~SpinSymmetryOperator() {}
+
+    virtual double operator() (const State& s) const
+    {
+        // N_down = N - N_up with N the total particle number
+        // spin = N_up - N_down = 2 N_up - N
+        const int N = s.count();
+        int N_up=0;
+        for (size_t i=0; i<s.size(); i+=2)
+            N_up += s[i];
+        return 2*N_up - N;
+    }
+};
+
 class BasisException : public std::logic_error
 {
 public:
@@ -117,8 +152,35 @@ class Basis
 public:
     typedef State::num_t num_t;
 
-    Basis (size_t N_orbital_, const Filter& filter, const Sorter& sorter)
-    : N_orbital(N_orbital_), maskStart(-1), maskEnd(-1)
+    typedef std::pair<State, std::vector<double> > SortableState;
+
+    class SymmetrySorter
+    {
+    public:
+        bool operator() (const SortableState& s1, const SortableState& s2) const
+        {
+            const std::vector<double>& ev1 = s1.second;
+            const std::vector<double>& ev2 = s2.second;
+            const size_t size = (ev1.size()<ev2.size())?ev1.size():ev2.size();
+            for (size_t i=0; i<size; i++)
+            {
+                //TODO: is this dangerous with doubles? 
+                // -- it should be okay, because doubles that come from 
+                // equal integers should equal each other (5 == 5 => 5.0 == 5.0)
+                if (ev1[i] < ev2[i]) 
+                    return true;
+                else if (ev1[i] > ev2[i])
+                    return false;
+            }
+            return false;
+        }
+    };
+
+    Basis (size_t N_orbital_, const Filter& filter_, const Sorter& sorter_)
+    : N_orbital(N_orbital_), maskStart(-1), maskEnd(-1), filter(filter_), sorter(sorter_)
+    {}
+
+    void construct ()
     {
         /*
          * Note: sizeof(N_basis) must be bigger than sizeof(num_t), because a
@@ -129,16 +191,43 @@ public:
         assert(sizeof(N_basis) > sizeof(num_t));
         N_basis = std::pow(2.0, static_cast<int>(N_orbital));
         State s(N_orbital);
+        
+        //TODO: disabled filter and sorter for now
+        
+        std::vector<SortableState> sStates(N_basis, SortableState(s, std::vector<double>(sos.size())));
+
         for (size_t num=0; num<N_basis; num++)
         {
             s = static_cast<num_t>(num);
-            if (filter(s))
-                states.push_back(s);
+            sStates[num] = SortableState(s, applySymmetryOperators(s));
+            //if (filter(s))
+            //    states.push_back(s);
         }
-        N_basis = states.size();
-        std::sort(states.begin(), states.end(), sorter);
+
+        std::sort(sStates.begin(), sStates.end(), SymmetrySorter());
+
+        for (size_t i=0; i<sStates.size(); i++)
+            states.push_back(sStates[i].first);
+            
+
+        //N_basis = states.size();
+        //std::sort(states.begin(), states.end(), sorter);
         for (size_t i=0; i<states.size(); i++)
             indices[states[i]] = i;
+    }
+
+    Basis& addSymmetryOperator (const SymmetryOperator* so)
+    {
+        sos.push_back(so);
+        return *this;
+    }
+
+    std::vector<double> applySymmetryOperators (const State& s) const
+    {
+        std::vector<double> evs(sos.size());
+        for (size_t i=0; i<sos.size(); i++)
+            evs[i] = sos[i]->operator()(s);
+        return evs;
     }
 
     const State& operator() (num_t index) const
@@ -234,6 +323,9 @@ private:
     std::vector<State> states;
     std::map<State, num_t> indices;
     int maskStart, maskEnd;
+    std::vector<const SymmetryOperator*> sos;
+    const Filter& filter;
+    const Sorter& sorter;
 };
 
 #endif // __BASIS_HPP__
