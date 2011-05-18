@@ -20,6 +20,14 @@ typedef VectorXd DVector;
 
 enum Spin {UP=0, DOWN=1};
 
+class FermionicStateException : public std::logic_error
+{
+public:
+    FermionicStateException (const std::string& what)
+    : std::logic_error(what)
+    {}
+};
+
 template<typename T=uint64_t>
 class FermionicState
 {
@@ -31,6 +39,20 @@ public:
     {
         assert(N<=sizeof(T)*8);
     }
+
+    FermionicState (const std::string& sString)
+    {
+        N = sString.size();
+        for (size_t i=0; i<N; i++)
+            if (sString[i] == '1')
+                s[i] = 1;
+            else if (sString[i] == '0')
+                s[i] = 0;
+            else
+                throw FermionicStateException("Can't construct FermionicState from string '" + 
+                                              sString + "'.");
+    }
+
 
     void operator= (const T& v)
     {
@@ -86,6 +108,14 @@ public:
         return s.to_ulong() < state2.s.to_ulong();
     }
 
+    std::string toString() const
+    {
+        std::stringstream ss;
+        for (size_t i=0; i<N; i++)
+            ss << s[i];
+        return ss.str();
+    }
+
 private:
     size_t N;
     bitset s;
@@ -94,8 +124,7 @@ private:
 template<typename T>
 std::ostream& operator<< (std::ostream& o, const FermionicState<T>& fs)
 {
-    for (size_t i=0; i<fs.size(); i++)
-        o << fs[i];
+    o << fs.toString();
     return o;
 }
 
@@ -105,7 +134,7 @@ class SymmetryOperator
 {
 public:
     virtual ~SymmetryOperator() {}
-    virtual double operator() (const State&) const = 0;
+    virtual int operator() (const State&) const = 0;
 };
 
 class ParticleNumberSymmetryOperator : public SymmetryOperator
@@ -113,7 +142,7 @@ class ParticleNumberSymmetryOperator : public SymmetryOperator
 public:
     virtual ~ParticleNumberSymmetryOperator() {}
 
-    virtual double operator() (const State& s) const
+    virtual int operator() (const State& s) const
     {
         return s.count();
     }
@@ -124,7 +153,7 @@ class SpinSymmetryOperator : public SymmetryOperator
 public:
     virtual ~SpinSymmetryOperator() {}
 
-    virtual double operator() (const State& s) const
+    virtual int operator() (const State& s) const
     {
         // N_down = N - N_up with N the total particle number
         // spin = N_up - N_down = 2 N_up - N
@@ -136,31 +165,50 @@ public:
     }
 };
 
+struct Range
+{
+    Range (size_t a_, size_t b_) : a(a_), b(b_) {}
+    size_t a;
+    size_t b;
+};
+
+//TODO: move into Basis class
+typedef std::vector<int> Sector;
+
+//TODO: move into Basis class
+struct SectorRange
+{
+    Sector s;
+    Range r;
+};
+
+
 class BasisException : public std::logic_error
 {
 public:
     BasisException (const std::string& what)
     : std::logic_error(what)
     {}
-
-    virtual ~BasisException() throw() {}
 };
 
+//TODO: can we avoid runtime polymorphism for SymmetryOperators? Would it be
+//worth it?
 template<class Filter, class Sorter>
 class Basis
 {
 public:
     typedef State::num_t num_t;
 
-    typedef std::pair<State, std::vector<double> > SortableState;
+
+    typedef std::pair<State, Sector> SortableState;
 
     class SymmetrySorter
     {
     public:
         bool operator() (const SortableState& s1, const SortableState& s2) const
         {
-            const std::vector<double>& ev1 = s1.second;
-            const std::vector<double>& ev2 = s2.second;
+            const Sector& ev1 = s1.second;
+            const Sector& ev2 = s2.second;
             const size_t size = (ev1.size()<ev2.size())?ev1.size():ev2.size();
             for (size_t i=0; i<size; i++)
             {
@@ -194,7 +242,7 @@ public:
         
         //TODO: disabled filter and sorter for now
         
-        std::vector<SortableState> sStates(N_basis, SortableState(s, std::vector<double>(sos.size())));
+        std::vector<SortableState> sStates(N_basis, SortableState(s, Sector(sos.size())));
 
         for (size_t num=0; num<N_basis; num++)
         {
@@ -214,6 +262,8 @@ public:
         //std::sort(states.begin(), states.end(), sorter);
         for (size_t i=0; i<states.size(); i++)
             indices[states[i]] = i;
+
+        //TODO: construct/fill ranges vector
     }
 
     Basis& addSymmetryOperator (const SymmetryOperator* so)
@@ -222,12 +272,41 @@ public:
         return *this;
     }
 
-    std::vector<double> applySymmetryOperators (const State& s) const
+    Sector applySymmetryOperators (const State& s) const
     {
-        std::vector<double> evs(sos.size());
+        Sector evs(sos.size());
         for (size_t i=0; i<sos.size(); i++)
             evs[i] = sos[i]->operator()(s);
         return evs;
+    }
+
+    Range sectorRange (const Sector& s) const
+    {
+        typedef std::vector<SectorRange>::const_iterator SRIT;
+        for (SRIT i=ranges.begin(); i!=ranges.end(); i++)
+            if (i->s == s)
+                return i->r;
+        return Range(0,0);
+    }
+
+    Range sectorRange (int a, int b=0, int c=0, int d=0, int e=0) const
+    {
+        size_t size = sos.size();
+        Sector s;
+        if (size > 0) s.push_back(a);
+        if (size > 1) s.push_back(b);
+        if (size > 2) s.push_back(c);
+        if (size > 3) s.push_back(d);
+        if (size > 4) s.push_back(e);
+        return sectorRange(s);
+    }
+
+    std::vector<Range> sectorRanges () const
+    {
+        std::vector<Range> rs(ranges.size());
+        for (size_t i=0; i<ranges.size(); i++)
+            rs[i] = ranges[i].r;
+        return rs;
     }
 
     const State& operator() (num_t index) const
@@ -322,6 +401,7 @@ private:
     size_t N_orbital, N_basis;
     std::vector<State> states;
     std::map<State, num_t> indices;
+    std::vector<SectorRange> ranges;
     int maskStart, maskEnd;
     std::vector<const SymmetryOperator*> sos;
     const Filter& filter;
