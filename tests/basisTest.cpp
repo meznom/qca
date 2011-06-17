@@ -22,7 +22,6 @@ BOOST_AUTO_TEST_CASE ( construct_simple_basis )
     Basis<Filter::SelectAll, Sorter::DontSort> b(4, Filter::SelectAll(), Sorter::DontSort());
     b.construct();
     BOOST_CHECK (b.size() == 16);
-
 }
 
 BOOST_AUTO_TEST_CASE ( costruct_basis_with_symmetry_operators )
@@ -57,7 +56,42 @@ BOOST_AUTO_TEST_CASE ( costruct_basis_with_symmetry_operators )
     delete S;
 }
 
-BOOST_AUTO_TEST_CASE ( test_basis_blocks )
+BOOST_AUTO_TEST_CASE ( test_sectors_and_ranges_1 )
+{
+    Basis<Filter::SelectAll, Sorter::DontSort> b(4, Filter::SelectAll(), Sorter::DontSort());
+    ParticleNumberSymmetryOperator* N = new ParticleNumberSymmetryOperator();
+    SpinSymmetryOperator* S = new SpinSymmetryOperator();
+    b.addSymmetryOperator(N);
+    b.addSymmetryOperator(S);
+    b.construct();
+
+    BOOST_CHECK (b.getRanges().size() == 9);
+
+    Range r, er;
+    r = b.getRangeOfSector(2, 0);
+    er = Range(6, 10);
+    BOOST_CHECK (r == er);
+
+    for (size_t i=6; i<10; i++)
+    {
+        const State& s = b(i);
+        BOOST_CHECK((*N)(s) == 2);
+        BOOST_CHECK((*S)(s) == 0);
+    }
+    
+    r = b.getRangeOfSector(3, 1);
+    er = Range(13, 15);
+    BOOST_CHECK (r == er);
+
+    r = b.getRangeOfSector(2, 1); //empty/undefined sector
+    er = Range(0, 0);
+    BOOST_CHECK (r == er);
+
+    delete N;
+    delete S;
+}
+
+BOOST_AUTO_TEST_CASE ( test_sectors_and_ranges_2 )
 {
     Basis<Filter::SelectAll, Sorter::DontSort> b(8, Filter::SelectAll(), Sorter::DontSort());
     ParticleNumberSymmetryOperator* N = new ParticleNumberSymmetryOperator();
@@ -66,7 +100,15 @@ BOOST_AUTO_TEST_CASE ( test_basis_blocks )
     b.addSymmetryOperator(S);
     b.construct();
 
-    b.sectorRange(4, 1);
+    Range r;
+    r = b.getRangeOfSector(4, 4);
+    BOOST_CHECK (r.b-r.a == 1);
+
+    r = b.getRangeOfSector(4, 2);
+    BOOST_CHECK (r.b-r.a == 16);
+
+    r = b.getRangeOfSector(6, 2);
+    BOOST_CHECK (r.b-r.a == 6);
 
     delete N;
     delete S;

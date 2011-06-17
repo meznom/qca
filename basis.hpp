@@ -167,7 +167,14 @@ public:
 
 struct Range
 {
+    Range () : a(0), b(0) {}
     Range (size_t a_, size_t b_) : a(a_), b(b_) {}
+
+    bool operator== (const Range& r)
+    {
+        return a==r.a && b==r.b;
+    }
+
     size_t a;
     size_t b;
 };
@@ -178,6 +185,7 @@ typedef std::vector<int> Sector;
 //TODO: move into Basis class
 struct SectorRange
 {
+    SectorRange (Sector s_, Range r_) : s(s_), r(r_) {}
     Sector s;
     Range r;
 };
@@ -199,25 +207,28 @@ class Basis
 public:
     typedef State::num_t num_t;
 
-
-    typedef std::pair<State, Sector> SortableState;
+    struct SectorAndState 
+    {
+        SectorAndState (Sector sector_, State state_)
+            : sector(sector_), state(state_) {}
+        
+        Sector sector;
+        State state;
+    };
 
     class SymmetrySorter
     {
     public:
-        bool operator() (const SortableState& s1, const SortableState& s2) const
+        bool operator() (const SectorAndState& sas1, const SectorAndState& sas2) const
         {
-            const Sector& ev1 = s1.second;
-            const Sector& ev2 = s2.second;
-            const size_t size = (ev1.size()<ev2.size())?ev1.size():ev2.size();
+            const Sector& s1 = sas1.sector;
+            const Sector& s2 = sas2.sector;
+            const size_t size = (s1.size()<s2.size())?s1.size():s2.size();
             for (size_t i=0; i<size; i++)
             {
-                //TODO: is this dangerous with doubles? 
-                // -- it should be okay, because doubles that come from 
-                // equal integers should equal each other (5 == 5 => 5.0 == 5.0)
-                if (ev1[i] < ev2[i]) 
+                if (s1[i] < s2[i]) 
                     return true;
-                else if (ev1[i] > ev2[i])
+                else if (s1[i] > s2[i])
                     return false;
             }
             return false;
@@ -238,74 +249,94 @@ public:
          */
         assert(sizeof(N_basis) > sizeof(num_t));
         N_basis = std::pow(2.0, static_cast<int>(N_orbital));
-        State s(N_orbital);
+        State state(N_orbital);
         
         //TODO: disabled filter and sorter for now
         
-        std::vector<SortableState> sStates(N_basis, SortableState(s, Sector(sos.size())));
+        std::vector<SectorAndState> sas(N_basis, SectorAndState(Sector(symmetryOperators.size()), state));
 
         for (size_t num=0; num<N_basis; num++)
         {
-            s = static_cast<num_t>(num);
-            sStates[num] = SortableState(s, applySymmetryOperators(s));
-            //if (filter(s))
-            //    states.push_back(s);
+            state = static_cast<num_t>(num);
+            sas[num] = SectorAndState(getSectorForState(state), state);
+            //if (filter(state))
+            //    states.push_back(state);
         }
 
-        std::sort(sStates.begin(), sStates.end(), SymmetrySorter());
+        std::sort(sas.begin(), sas.end(), SymmetrySorter());
 
-        for (size_t i=0; i<sStates.size(); i++)
-            states.push_back(sStates[i].first);
+        constructSectorRanges(sas);
+
+        for (size_t i=0; i<sas.size(); i++)
+            states.push_back(sas[i].state);
             
 
         //N_basis = states.size();
         //std::sort(states.begin(), states.end(), sorter);
         for (size_t i=0; i<states.size(); i++)
             indices[states[i]] = i;
+    }
 
-        //TODO: construct/fill ranges vector
+    void constructSectorRanges(const std::vector<SectorAndState>& sas)
+    {
+        assert(sas.size() > 0);
+        Sector const * currentSector = &(sas[0].sector);
+        int a = 0;
+        int b = 0;
+        for (size_t i=1; i<sas.size(); i++)
+        {
+            Sector const * newSector = &(sas[i].sector);
+            if (*newSector != *currentSector)
+            {
+                b = i;
+                sectorRanges.push_back(SectorRange(*currentSector, Range(a,b)));
+                a = i;
+                currentSector = newSector;
+            }
+        }
+        sectorRanges.push_back(SectorRange(*currentSector, Range(b, sas.size())));
     }
 
     Basis& addSymmetryOperator (const SymmetryOperator* so)
     {
-        sos.push_back(so);
+        symmetryOperators.push_back(so);
         return *this;
     }
 
-    Sector applySymmetryOperators (const State& s) const
+    Sector getSectorForState (const State& s) const
     {
-        Sector evs(sos.size());
-        for (size_t i=0; i<sos.size(); i++)
-            evs[i] = sos[i]->operator()(s);
-        return evs;
+        Sector sector(symmetryOperators.size());
+        for (size_t i=0; i<symmetryOperators.size(); i++)
+            sector[i] = symmetryOperators[i]->operator()(s);
+        return sector;
     }
 
-    Range sectorRange (const Sector& s) const
+    Range getRangeOfSector (const Sector& s) const
     {
         typedef std::vector<SectorRange>::const_iterator SRIT;
-        for (SRIT i=ranges.begin(); i!=ranges.end(); i++)
+        for (SRIT i=sectorRanges.begin(); i!=sectorRanges.end(); i++)
             if (i->s == s)
                 return i->r;
         return Range(0,0);
     }
 
-    Range sectorRange (int a, int b=0, int c=0, int d=0, int e=0) const
+    Range getRangeOfSector (int a, int b=0, int c=0, int d=0, int e=0) const
     {
-        size_t size = sos.size();
+        size_t size = symmetryOperators.size();
         Sector s;
         if (size > 0) s.push_back(a);
         if (size > 1) s.push_back(b);
         if (size > 2) s.push_back(c);
         if (size > 3) s.push_back(d);
         if (size > 4) s.push_back(e);
-        return sectorRange(s);
+        return getRangeOfSector(s);
     }
 
-    std::vector<Range> sectorRanges () const
+    std::vector<Range> getRanges () const
     {
-        std::vector<Range> rs(ranges.size());
-        for (size_t i=0; i<ranges.size(); i++)
-            rs[i] = ranges[i].r;
+        std::vector<Range> rs(sectorRanges.size());
+        for (size_t i=0; i<sectorRanges.size(); i++)
+            rs[i] = sectorRanges[i].r;
         return rs;
     }
 
@@ -401,9 +432,9 @@ private:
     size_t N_orbital, N_basis;
     std::vector<State> states;
     std::map<State, num_t> indices;
-    std::vector<SectorRange> ranges;
+    std::vector<SectorRange> sectorRanges;
     int maskStart, maskEnd;
-    std::vector<const SymmetryOperator*> sos;
+    std::vector<const SymmetryOperator*> symmetryOperators;
     const Filter& filter;
     const Sorter& sorter;
 };
