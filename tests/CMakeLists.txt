@@ -12,4 +12,8 @@ add_executable(basisTest basisTest.cpp)
 target_link_libraries(basisTest boost_unit_test_framework)
 add_test(basis basisTest)
 
-add_dependencies(buildtest utilitiesTest basisTest)
+add_executable(systemTest systemTest.cpp)
+target_link_libraries(systemTest boost_unit_test_framework)
+add_test(system systemTest)
+
+add_dependencies(buildtest utilitiesTest basisTest systemTest)

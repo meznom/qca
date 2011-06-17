@@ -62,6 +62,9 @@ class Creator
 public:
     Creator (const System& s_)
     : s(s_), cs(s.N_orbital)
+    {}
+
+    void construct ()
     {
         for (size_t i=0; i<s.N_orbital; i++)
             constructMatrix(i);
@@ -120,6 +123,9 @@ class Annihilator
 public:
     Annihilator (const System& s_)
     : s(s_), as(s.N_orbital)
+    {}
+
+    void construct ()
     {
         for (size_t i=0; i<s.N_orbital; i++)
             as[i] = SMatrix(s.creator(i).transpose());
@@ -166,7 +172,7 @@ class Hamiltonian
 {
 public:
     Hamiltonian (const System& s_)
-    : s(s_), H(s.basis.size(), s.basis.size())
+    : s(s_), H()
     {}
 
     /**
@@ -193,11 +199,72 @@ public:
         DMatrix m(H);
         SelfAdjointEigenSolver<DMatrix> es(m);
         eigenvalues = es.eigenvalues();
-        eigenvectors = es.eigenvectors();
+        Emin = eigenvalues.minCoeff();
+        DMatrix denseEigenvectors = es.eigenvectors();
+        
+        eigenvectors = SMatrix(H.rows(), H.rows());
+        eigenvectors.setZero();
+        denseBlockToSparseMatrix(denseEigenvectors, eigenvectors, 0, 0, H.rows(), H.rows());
+        eigenvectors.finalize();
+    }
+
+    void diagonaliseBlockWise ()
+    {
+        eigenvalues = DVector(H.rows());
+        eigenvalues.setZero();
+        eigenvectors = SMatrix(H.rows(), H.rows());
+        eigenvectors.setZero();
+        //TODO: eigenvectors.reserve??
+        const std::vector<Range>& rs = s.basis.getRanges();
+        int oldA = -1;
+        int oldB = -1;
+        for (size_t i=0; i<rs.size(); i++)
+        {
+            const int& a = rs[i].a;
+            const int& b = rs[i].b;
+            
+            assert(oldA < a && oldB < b);
+            oldA = a;
+            oldB = b;
+
+            DMatrix m = block(H, a, a, b-a, b-a);
+            SelfAdjointEigenSolver<DMatrix> es(m);
+            DVector blockEigenvalues = es.eigenvalues();
+            DMatrix blockEigenvectors = es.eigenvectors();
+            eigenvalues.segment(a, b-a) = blockEigenvalues;
+            denseBlockToSparseMatrix(blockEigenvectors, eigenvectors, a, a, b-a, b-a);
+        }
+        eigenvectors.finalize();
         Emin = eigenvalues.minCoeff();
     }
 
-    DMatrix eigenvectors;
+    DMatrix block (const SMatrix& sm, int i, int j, int p, int q) const
+    {
+        DMatrix dm = DMatrix::Zero(p,q);
+        for (int l=0; l<q; l++)
+        {
+            for (SMatrix::InnerIterator it(sm,l+j); it; ++it)
+                if (it.row()>=i && it.row()<i+p)
+                    dm(it.row()-i,it.col()-j) = it.value();
+        }
+        return dm;
+    }
+
+    void denseBlockToSparseMatrix (const DMatrix& dm, SMatrix& sm, int i, int j, int p, int q)
+    {
+        assert(dm.rows() == p);
+        assert(dm.cols() == q);
+
+        for (int l=0; l<q; l++)
+        {
+            sm.startVec(l+j);
+            for (int k=0; k<p; k++)
+                sm.insertBack(k+i,l+j) = dm(k,l);
+        }
+    }
+
+    //DMatrix eigenvectors;
+    SMatrix eigenvectors;
     DVector eigenvalues;
     double Emin;
 
@@ -293,6 +360,11 @@ public:
     : N_orbital(N_orbital_), basis(N_orbital, filter, sorter)
     {}
 
+    void construct ()
+    {
+        basis.construct();
+    }
+
     size_t N_orbital;
     Basis<Filter, Sorter> basis;
 };
@@ -321,6 +393,13 @@ public:
     : MinimalSystem<Filter, Sorter>(N_orbital_, filter, sorter), creator(*this), 
       annihilator(*this)
     {}
+
+    void construct ()
+    {
+        MinimalSystem<Filter, Sorter>::construct();
+        creator.construct();
+        annihilator.construct();
+    }
 
     Creator<BasicSystem> creator;
     Annihilator<BasicSystem> annihilator;

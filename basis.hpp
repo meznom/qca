@@ -168,15 +168,15 @@ public:
 struct Range
 {
     Range () : a(0), b(0) {}
-    Range (size_t a_, size_t b_) : a(a_), b(b_) {}
+    Range (int a_, int b_) : a(a_), b(b_) {}
 
     bool operator== (const Range& r)
     {
         return a==r.a && b==r.b;
     }
 
-    size_t a;
-    size_t b;
+    int a;
+    int b;
 };
 
 //TODO: move into Basis class
@@ -332,6 +332,7 @@ public:
         return getRangeOfSector(s);
     }
 
+    //TODO: avoid copying
     std::vector<Range> getRanges () const
     {
         std::vector<Range> rs(sectorRanges.size());
