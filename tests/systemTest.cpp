@@ -96,28 +96,47 @@ bool operator== (SMatrix& sm1, SMatrix& sm2)
     return true;
 }
 
+//class EpsilonEqualPred
+//{
+//public:
+//    typedef std::pair<double, DVector> ValueType;
+//    EpsilonEqualPred (ValueType v_, double epsilon_ = 10E-10)
+//        : v(v_), epsilon(epsilon_)
+//    {}
+//
+//    bool operator() (const ValueType& w) const
+//    {
+//        //if (fabs(v.first - w.first) > epsilon)
+//        //    return false;
+//        assert(v.second.size() == w.second.size());
+//        for (int i=0; i<v.second.size(); i++)
+//            //eigenvectors are normalized, but there's the possibilty of a
+//            //factor -1
+//            if (fabs(v.second(i) - w.second(i)) > epsilon && 
+//                fabs(v.second(i) + w.second(i)) > epsilon)
+//                return false;
+//        return true;
+//    }
+//
+//private:
+//    ValueType v;
+//    double epsilon;
+//};
+
 class EpsilonEqualPred
 {
 public:
-    typedef std::pair<double, DVector> ValueType;
-    EpsilonEqualPred (ValueType v_, double epsilon_ = 10E-10)
+    EpsilonEqualPred (double v_, double epsilon_ = 10E-10)
         : v(v_), epsilon(epsilon_)
     {}
 
-    bool operator() (const ValueType& w) const
+    bool operator() (double w) const
     {
-        //if (fabs(v.first - w.first) > epsilon)
-        //    return false;
-        assert(v.second.size() == w.second.size());
-        for (int i=0; i<v.second.size(); i++)
-            //if (fabs(v.first * v.second(i) - w.first * w.second(i)) > epsilon)
-            if (fabs(v.second(i) - w.second(i)) > epsilon)
-                return false;
-        return true;
+        return fabs(v - w) < epsilon;
     }
 
 private:
-    ValueType v;
+    double v;
     double epsilon;
 };
 
@@ -146,9 +165,9 @@ BOOST_AUTO_TEST_CASE ( construct_system_without_symmetries )
 
 BOOST_AUTO_TEST_CASE ( construct_system_with_symmetries )
 {
-    HubbardSystem s(3, true);
+    HubbardSystem s(4, true);
     s.construct();
-    BOOST_CHECK (s.basis.getRanges().size() == 9);
+    BOOST_CHECK (s.basis.getRanges().size() > 1);
 
     s.H.diagonalise();
     DVector eigenvalues1 = s.H.eigenvalues;
@@ -156,9 +175,9 @@ BOOST_AUTO_TEST_CASE ( construct_system_with_symmetries )
                                                              0, 0, 
                                                              s.H.eigenvectors.cols(), 
                                                              s.H.eigenvectors.cols());
-    std::vector< std::pair<double, DVector> > ev1;
+    std::vector<double> ev1;
     for (int i=0; i<eigenvalues1.size(); i++)
-        ev1.push_back(std::pair<double,DVector>(eigenvalues1(i), eigenvectors1.col(i)));
+        ev1.push_back(eigenvalues1(i));
     
     s.H.diagonaliseBlockWise();
     DVector eigenvalues2 = s.H.eigenvalues;
@@ -166,37 +185,29 @@ BOOST_AUTO_TEST_CASE ( construct_system_with_symmetries )
                                                              0, 0, 
                                                              s.H.eigenvectors.cols(), 
                                                              s.H.eigenvectors.cols());
-    std::vector< std::pair<double, DVector> > ev2;
+    std::vector<double> ev2;
     for (int i=0; i<eigenvalues2.size(); i++)
-        ev2.push_back(std::pair<double,DVector>(eigenvalues2(i), eigenvectors2.col(i)));
+        ev2.push_back(eigenvalues2(i));
+
+    BOOST_CHECK (ev1.size() == ev2.size());
+
+    //We only check if both methods yield the same eigenvalues. Checking
+    //whether the eigenvectors are equivalent is too complicated.
+    for (size_t i=0; i<ev1.size(); i++)
+        BOOST_CHECK (std::find_if(ev2.begin(), ev2.end(), EpsilonEqualPred(ev1[i])) != ev2.end());
+
+    //std::vector< std::pair<double, DVector> > ev1;
+    //for (int i=0; i<eigenvalues1.size(); i++)
+    //    ev1.push_back(std::pair<double,DVector>(eigenvalues1(i), eigenvectors1.col(i)));
+    
+    //std::vector< std::pair<double, DVector> > ev2;
+    //for (int i=0; i<eigenvalues2.size(); i++)
+    //    ev2.push_back(std::pair<double,DVector>(eigenvalues2(i), eigenvectors2.col(i)));
+    
 
     //this is only a rough check, it does not properly handle degeneracies
-    for (size_t i=0; i<ev1.size(); i++)
-    {
-        if (epsilonEqual(ev1[i].first, -2))
-            std::cerr << "-> " << i << "  " << ev1[i].first << std::endl << ev1[i].second << std::endl << std::endl;
-        //BOOST_CHECK (std::find_if(ev2.begin(), ev2.end(), EpsilonEqualPred(ev1[i], 10E-3)) != ev2.end());
-        //if (std::find_if(ev2.begin(), ev2.end(), EpsilonEqualPred(ev1[i], 10E-3)) == ev2.end())
-        //{
-        //    std::cerr << "-> " << i << std::endl << ev1[i].first << std::endl << std::endl << ev1[i].second << std::endl << std::endl;
-        //    std::cerr << "--> " << s.H.H * ev1[i].second << std::endl << std::endl << std::endl;
-        //    break;
-        //}
-    }
-
-    std::cerr << std::endl << std::endl << "Other way around: " << std::endl << std::endl;
-    for (size_t i=0; i<ev2.size(); i++)
-    {
-        if (epsilonEqual(ev2[i].first, -2))
-            std::cerr << "-> " << i << "  " << ev2[i].first << std::endl << ev2[i].second << std::endl << std::endl;
-        //BOOST_CHECK (std::find_if(ev2.begin(), ev2.end(), EpsilonEqualPred(ev1[i], 10E-3)) != ev2.end());
-        //if (std::find_if(ev1.begin(), ev1.end(), EpsilonEqualPred(ev2[i], 10E-3)) == ev1.end())
-        //{
-        //    std::cerr << "-> " << i << std::endl << ev2[i].first << std::endl << std::endl << ev2[i].second << std::endl << std::endl;
-        //    std::cerr << "--> " << s.H.H * ev2[i].second << std::endl << std::endl << std::endl;
-        //    break;
-        //}
-    }
+    //for (size_t i=0; i<ev1.size(); i++)
+    //    BOOST_CHECK (std::find_if(ev2.begin(), ev2.end(), EpsilonEqualPred(ev1[i], 10E-3)) != ev2.end());
 }
 
 BOOST_AUTO_TEST_CASE ( measure_double_occupancy )
@@ -214,37 +225,37 @@ BOOST_AUTO_TEST_CASE ( measure_double_occupancy )
     double doMidT2 = s.ensembleAverage(1, DO(0));
     double doHighT2 = s.ensembleAverage(0.00001, DO(0));
 
-    BOOST_CHECK (epsilonEqual(doLowT1, 0));
-    BOOST_CHECK (epsilonEqual(doHighT1, 0.25, 10E-4));
+    BOOST_CHECK (epsilonEqual(doLowT1, 0, 10E-2));
+    BOOST_CHECK (epsilonEqual(doHighT1, 0.25, 10E-2));
 
     BOOST_CHECK (epsilonEqual(doLowT1, doLowT2));
     BOOST_CHECK (epsilonEqual(doMidT1, doMidT2));
     BOOST_CHECK (epsilonEqual(doHighT1, doHighT2));
 }
 
-//BOOST_AUTO_TEST_CASE ( compare_performance_diagonalise_and_diagonaliseBlockWise )
-//{
-//    std::clock_t startCPUTime, endCPUTime;
-//    double cpuTime = 0;
-//    HubbardSystem s(5, true);
-//    DoubleOccupancy<HubbardSystem> DO(s);
-//
-//
-//    startCPUTime = std::clock();
-//    s.construct();
-//    endCPUTime = std::clock();
-//    cpuTime = static_cast<double>(endCPUTime-startCPUTime)/CLOCKS_PER_SEC;
-//    std::cerr << "Time for construction: " << cpuTime << "s" << std::endl;
-//
-//    startCPUTime = std::clock();
-//    s.H.diagonalise();
-//    endCPUTime = std::clock();
-//    cpuTime = static_cast<double>(endCPUTime-startCPUTime)/CLOCKS_PER_SEC;
-//    std::cerr << "Time for diagonalise: " << cpuTime << "s" << std::endl;
-//
-//    startCPUTime = std::clock();
-//    s.H.diagonaliseBlockWise();
-//    endCPUTime = std::clock();
-//    cpuTime = static_cast<double>(endCPUTime-startCPUTime)/CLOCKS_PER_SEC;
-//    std::cerr << "Time for diagonaliseBlockWise: " << cpuTime << "s" << std::endl;
-//}
+BOOST_AUTO_TEST_CASE ( compare_performance_diagonalise_and_diagonaliseBlockWise )
+{
+    std::clock_t startCPUTime, endCPUTime;
+    double cpuTime = 0;
+    HubbardSystem s(5, true);
+    DoubleOccupancy<HubbardSystem> DO(s);
+
+
+    startCPUTime = std::clock();
+    s.construct();
+    endCPUTime = std::clock();
+    cpuTime = static_cast<double>(endCPUTime-startCPUTime)/CLOCKS_PER_SEC;
+    std::cerr << "Time for construction: " << cpuTime << "s" << std::endl;
+
+    startCPUTime = std::clock();
+    s.H.diagonalise();
+    endCPUTime = std::clock();
+    cpuTime = static_cast<double>(endCPUTime-startCPUTime)/CLOCKS_PER_SEC;
+    std::cerr << "Time for diagonalise: " << cpuTime << "s" << std::endl;
+
+    startCPUTime = std::clock();
+    s.H.diagonaliseBlockWise();
+    endCPUTime = std::clock();
+    cpuTime = static_cast<double>(endCPUTime-startCPUTime)/CLOCKS_PER_SEC;
+    std::cerr << "Time for diagonaliseBlockWise: " << cpuTime << "s" << std::endl;
+}
