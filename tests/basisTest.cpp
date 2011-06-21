@@ -2,8 +2,8 @@
 #define BOOST_TEST_MODULE basis test
 #include <boost/test/unit_test.hpp>
 
+#define STORAGE_TYPE_OF_FERMIONIC_STATE uint32_t
 #include "basis.hpp"
-#include "system.hpp"
 
 BOOST_AUTO_TEST_CASE ( construct_state_from_string )
 {
@@ -19,14 +19,14 @@ BOOST_AUTO_TEST_CASE ( construct_state_from_string )
 
 BOOST_AUTO_TEST_CASE ( construct_simple_basis )
 {
-    Basis<Filter::SelectAll, Sorter::DontSort> b(4, Filter::SelectAll(), Sorter::DontSort());
+    Basis b(4);
     b.construct();
     BOOST_CHECK (b.size() == 16);
 }
 
 BOOST_AUTO_TEST_CASE ( costruct_basis_with_symmetry_operators )
 {
-    Basis<Filter::SelectAll, Sorter::DontSort> b1(4, Filter::SelectAll(), Sorter::DontSort());
+    Basis b1(4);
     ParticleNumberSymmetryOperator* N = new ParticleNumberSymmetryOperator();
     SpinSymmetryOperator* S = new SpinSymmetryOperator();
     b1.addSymmetryOperator(N);
@@ -40,7 +40,7 @@ BOOST_AUTO_TEST_CASE ( costruct_basis_with_symmetry_operators )
     for (size_t i=0; i<b1.size(); i++)
         BOOST_CHECK (expected1[i] == b1(i).toString());
 
-    Basis<Filter::SelectAll, Sorter::DontSort> b2(4, Filter::SelectAll(), Sorter::DontSort());
+    Basis b2(4);
     b2.addSymmetryOperator(S);
     b2.addSymmetryOperator(N);
     b2.construct();
@@ -58,7 +58,7 @@ BOOST_AUTO_TEST_CASE ( costruct_basis_with_symmetry_operators )
 
 BOOST_AUTO_TEST_CASE ( test_sectors_and_ranges_1 )
 {
-    Basis<Filter::SelectAll, Sorter::DontSort> b(4, Filter::SelectAll(), Sorter::DontSort());
+    Basis b(4);
     ParticleNumberSymmetryOperator* N = new ParticleNumberSymmetryOperator();
     SpinSymmetryOperator* S = new SpinSymmetryOperator();
     b.addSymmetryOperator(N);
@@ -97,7 +97,7 @@ BOOST_AUTO_TEST_CASE ( test_sectors_and_ranges_1 )
 
 BOOST_AUTO_TEST_CASE ( test_sectors_and_ranges_2 )
 {
-    Basis<Filter::SelectAll, Sorter::DontSort> b(4, Filter::SelectAll(), Sorter::DontSort());
+    Basis b(4);
     ParticleNumberSymmetryOperator* N = new ParticleNumberSymmetryOperator();
     SpinSymmetryOperator* S = new SpinSymmetryOperator();
     b.addSymmetryOperator(S);
@@ -136,7 +136,7 @@ BOOST_AUTO_TEST_CASE ( test_sectors_and_ranges_2 )
 
 BOOST_AUTO_TEST_CASE ( test_sectors_and_ranges_3 )
 {
-    Basis<Filter::SelectAll, Sorter::DontSort> b(8, Filter::SelectAll(), Sorter::DontSort());
+    Basis b(8);
     ParticleNumberSymmetryOperator* N = new ParticleNumberSymmetryOperator();
     SpinSymmetryOperator* S = new SpinSymmetryOperator();
     b.addSymmetryOperator(N);
@@ -155,4 +155,22 @@ BOOST_AUTO_TEST_CASE ( test_sectors_and_ranges_3 )
 
     delete N;
     delete S;
+}
+
+BOOST_AUTO_TEST_CASE ( performance_construct_basis )
+{
+    std::clock_t startCPUTime, endCPUTime;
+    double cpuTime = 0;
+    Basis b(22);
+    ParticleNumberSymmetryOperator N;
+    SpinSymmetryOperator S;
+    b.addSymmetryOperator(&N);
+    b.addSymmetryOperator(&S);
+    
+    startCPUTime = std::clock();
+    b.construct();
+    endCPUTime = std::clock();
+
+    cpuTime = static_cast<double>(endCPUTime-startCPUTime)/CLOCKS_PER_SEC;
+    std::cerr << "Time for construction: " << cpuTime << "s" << std::endl;
 }

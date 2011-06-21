@@ -123,7 +123,11 @@ std::ostream& operator<< (std::ostream& o, const FermionicState<T>& fs)
     return o;
 }
 
-typedef FermionicState<uint16_t> State;
+#ifndef STORAGE_TYPE_OF_FERMIONIC_STATE
+#define STORAGE_TYPE_OF_FERMIONIC_STATE uint16_t
+#endif
+
+typedef FermionicState<STORAGE_TYPE_OF_FERMIONIC_STATE> State;
 
 class SymmetryOperator
 {
@@ -174,17 +178,7 @@ struct Range
     int b;
 };
 
-//TODO: move into Basis class
 typedef std::vector<int> Sector;
-
-//TODO: move into Basis class
-struct SectorRange
-{
-    SectorRange (Sector s_, Range r_) : s(s_), r(r_) {}
-    Sector s;
-    Range r;
-};
-
 
 class BasisException : public std::logic_error
 {
@@ -194,14 +188,9 @@ public:
     {}
 };
 
-//TODO: can we avoid runtime polymorphism for SymmetryOperators? Would it be
-//worth it?
-template<class Filter, class Sorter>
 class Basis
 {
-public:
-    typedef State::num_t num_t;
-
+private:
     struct SectorAndState 
     {
         SectorAndState (Sector sector_, State state_)
@@ -209,6 +198,13 @@ public:
         
         Sector sector;
         State state;
+    };
+
+    struct SectorRange
+    {
+        SectorRange (Sector s_, Range r_) : s(s_), r(r_) {}
+        Sector s;
+        Range r;
     };
 
     class SymmetrySorter
@@ -230,9 +226,10 @@ public:
         }
     };
 
-    Basis (size_t N_orbital_, const Filter& filter_, const Sorter& sorter_)
-    : N_orbital(N_orbital_), maskStart(-1), maskEnd(-1), filter(filter_), sorter(sorter_)
-    {}
+public:
+    typedef State::num_t num_t;
+
+    Basis (size_t N_orbital_) : N_orbital(N_orbital_) {}
 
     void construct ()
     {
@@ -246,16 +243,13 @@ public:
         N_basis = std::pow(2.0, static_cast<int>(N_orbital));
         State state(N_orbital);
         
-        //TODO: disabled filter and sorter for now
-        
         std::vector<SectorAndState> sas(N_basis, SectorAndState(Sector(symmetryOperators.size()), state));
 
         for (size_t num=0; num<N_basis; num++)
         {
             state = static_cast<num_t>(num);
-            sas[num] = SectorAndState(getSectorForState(state), state);
-            //if (filter(state))
-            //    states.push_back(state);
+            sas[num] = SectorAndState(computeSectorForState(state), state);
+            //TODO: filter
         }
 
         std::sort(sas.begin(), sas.end(), SymmetrySorter());
@@ -266,8 +260,7 @@ public:
             states.push_back(sas[i].state);
             
 
-        //N_basis = states.size();
-        //std::sort(states.begin(), states.end(), sorter);
+        N_basis = states.size();
         for (size_t i=0; i<states.size(); i++)
             indices[states[i]] = i;
     }
@@ -296,14 +289,6 @@ public:
     {
         symmetryOperators.push_back(so);
         return *this;
-    }
-
-    Sector getSectorForState (const State& s) const
-    {
-        Sector sector(symmetryOperators.size());
-        for (size_t i=0; i<symmetryOperators.size(); i++)
-            sector[i] = symmetryOperators[i]->operator()(s);
-        return sector;
     }
 
     Range getRangeOfSector (const Sector& s) const
@@ -361,59 +346,20 @@ public:
             std::cerr << states[i] << std::endl;
     }
 
-    //TODO: move everything mask-related out of basis class
-    template<class MaskFilter>
-    void mask (const MaskFilter& filter)
-    {
-        maskStart = -1;
-        maskEnd = -1;
-        for (size_t i=0; i<states.size(); i++)
-        {
-            if (maskStart == -1 && maskEnd == -1)
-                if (filter(states[i])) maskStart = i;
-                else continue;
-            else if (maskStart != -1 && maskEnd == -1)
-                if (!filter(states[i])) maskEnd = i;
-                else continue;
-            else if (filter(states[i]))
-            {
-                assert(maskStart != -1 && maskEnd != -1);
-                throw BasisException("Non-contiguous block selected.");
-            }
-        }
-        if (maskStart == -1) throw BasisException("Zero-size block selected.");
-        if (maskEnd == -1) maskEnd = states.size();
-    }
-
-    void unmask () 
-    {
-        maskStart = -1;
-        maskEnd = -1;
-    }
-
-    void applyMask (SMatrix& m) const
-    {
-        if (maskStart == -1 || maskEnd == -1)
-            return;
-        m = EigenHelpers::sparseToSparseBlock(m, maskStart, maskStart, maskEnd-maskStart, maskEnd-maskStart);
-    }
-
-    SMatrix applyMask (const SMatrix& m) const
-    {
-        if (maskStart == -1 || maskEnd == -1)
-            return m;
-        return EigenHelpers::sparseToSparseBlock(m, maskStart, maskStart, maskEnd-maskStart, maskEnd-maskStart);
-    }
-
 private:
+    Sector computeSectorForState (const State& s) const
+    {
+        Sector sector(symmetryOperators.size());
+        for (size_t i=0; i<symmetryOperators.size(); i++)
+            sector[i] = symmetryOperators[i]->operator()(s);
+        return sector;
+    }
+
     size_t N_orbital, N_basis;
     std::vector<State> states;
     std::map<State, num_t> indices;
     std::vector<SectorRange> sectorRanges;
-    int maskStart, maskEnd;
     std::vector<const SymmetryOperator*> symmetryOperators;
-    const Filter& filter;
-    const Sorter& sorter;
 };
 
 #endif // __BASIS_HPP__

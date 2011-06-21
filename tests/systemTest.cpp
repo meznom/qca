@@ -29,21 +29,19 @@ public:
             H += 10 * s.creator(2*i) * s.annihilator(2*i) * //U=10 
                      s.creator(2*i+1) * s.annihilator(2*i+1);
         }
-        s.basis.applyMask(H);
     }
 
     SMatrix& H;
     const System& s;
 };
 
-typedef BasicSystem<Filter::SelectAll, Sorter::DontSort> BaseSystem;
+typedef BasicSystem BaseSystem;
 class HubbardSystem : public BaseSystem
 {
 public:
     HubbardSystem (size_t N_sites_, bool exploitSymmetries_ = false) 
-        : BaseSystem(2*N_sites_, Filter::SelectAll(), Sorter::DontSort()), 
-          N_sites(N_sites_), H(*this), exploitSymmetries(exploitSymmetries_),
-          ensembleAverage(*this)
+        : BaseSystem(2*N_sites_), N_sites(N_sites_), H(*this), 
+          exploitSymmetries(exploitSymmetries_), ensembleAverage(*this)
     {}
 
     void construct ()
@@ -95,33 +93,6 @@ bool operator== (SMatrix& sm1, SMatrix& sm2)
                 return false;
     return true;
 }
-
-//class EpsilonEqualPred
-//{
-//public:
-//    typedef std::pair<double, DVector> ValueType;
-//    EpsilonEqualPred (ValueType v_, double epsilon_ = 10E-10)
-//        : v(v_), epsilon(epsilon_)
-//    {}
-//
-//    bool operator() (const ValueType& w) const
-//    {
-//        //if (fabs(v.first - w.first) > epsilon)
-//        //    return false;
-//        assert(v.second.size() == w.second.size());
-//        for (int i=0; i<v.second.size(); i++)
-//            //eigenvectors are normalized, but there's the possibilty of a
-//            //factor -1
-//            if (fabs(v.second(i) - w.second(i)) > epsilon && 
-//                fabs(v.second(i) + w.second(i)) > epsilon)
-//                return false;
-//        return true;
-//    }
-//
-//private:
-//    ValueType v;
-//    double epsilon;
-//};
 
 class EpsilonEqualPred
 {
@@ -195,19 +166,6 @@ BOOST_AUTO_TEST_CASE ( construct_system_with_symmetries )
     //whether the eigenvectors are equivalent is too complicated.
     for (size_t i=0; i<ev1.size(); i++)
         BOOST_CHECK (std::find_if(ev2.begin(), ev2.end(), EpsilonEqualPred(ev1[i])) != ev2.end());
-
-    //std::vector< std::pair<double, DVector> > ev1;
-    //for (int i=0; i<eigenvalues1.size(); i++)
-    //    ev1.push_back(std::pair<double,DVector>(eigenvalues1(i), eigenvectors1.col(i)));
-    
-    //std::vector< std::pair<double, DVector> > ev2;
-    //for (int i=0; i<eigenvalues2.size(); i++)
-    //    ev2.push_back(std::pair<double,DVector>(eigenvalues2(i), eigenvectors2.col(i)));
-    
-
-    //this is only a rough check, it does not properly handle degeneracies
-    //for (size_t i=0; i<ev1.size(); i++)
-    //    BOOST_CHECK (std::find_if(ev2.begin(), ev2.end(), EpsilonEqualPred(ev1[i], 10E-3)) != ev2.end());
 }
 
 BOOST_AUTO_TEST_CASE ( measure_double_occupancy )

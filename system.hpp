@@ -16,42 +16,6 @@
 enum Spin {UP=0, DOWN=1};
 
 /**
- * Filters to filter the basis states.
- */
-namespace Filter
-{
-    /**
-     * Selects all states.
-     *
-     * Thus it's a filter that doesn't filter at all. It's the default Filter
-     * used.
-     */
-    class SelectAll
-    {
-    public:
-        bool operator() (const State&) const {return true;}
-    };
-};
-
-/**
- * Sorters to sort the basis states.
- */
-namespace Sorter
-{
-    /**
-     * Does not sort the states.
-     *
-     * Thus it's a sorter that doesn't sort at all. It's the default Sorter
-     * used.
-     */
-    class DontSort
-    {
-    public:
-        bool operator() (const State&, const State&) const {return false;}
-    };
-};
-
-/**
  * Caching creator. 
  *
  * Constructs one creator martrix for each orbital of the system and caches
@@ -332,17 +296,12 @@ private:
 /**
  * Minimal base class for a fermionic quantum system.
  *
- * Only contains the basis. Filter and Sorter are passed on to the basis
- * and are used to filter and sort the basis states.
+ * Only contains the basis. 
  *
  * Typical usage is to subclass and specify a custom Hamiltonian (subclassed
  * from Hamiltonian) as mySystem.H and probably some observables of interest
  * (say the particle number) as well as the EnsembleAverage.
- *
- * @tparam Filter
- * @tparam Sorter
  */
-template<class Filter, class Sorter>
 class MinimalSystem
 {
 public:
@@ -350,11 +309,9 @@ public:
      * Construct the minimal system. 
      *
      * @param N_orbital number of orbitals
-     * @param filter filter to filter basis states
-     * @param sorter sorter to sort basis states
      */
-    MinimalSystem (size_t N_orbital_, const Filter& filter, const Sorter& sorter)
-    : N_orbital(N_orbital_), basis(N_orbital, filter, sorter)
+    MinimalSystem (size_t N_orbital_)
+    : N_orbital(N_orbital_), basis(N_orbital)
     {}
 
     void construct ()
@@ -363,7 +320,7 @@ public:
     }
 
     size_t N_orbital;
-    Basis<Filter, Sorter> basis;
+    Basis basis;
 };
 
 /**
@@ -371,29 +328,22 @@ public:
  *
  * In addition to the basis the basic system conveniently defines creator and
  * annihilator.
- *
- * @tparam Filter
- * @tparam Sorter
  */
-template<class Filter, class Sorter>
-class BasicSystem : public MinimalSystem<Filter, Sorter>
+class BasicSystem : public MinimalSystem
 {
 public:
     /**
      * Construct the basic system.
      *
      * @param N_orbital_
-     * @param filter
-     * @param sorter
      */
-    BasicSystem (size_t N_orbital_, const Filter& filter, const Sorter& sorter)
-    : MinimalSystem<Filter, Sorter>(N_orbital_, filter, sorter), creator(*this), 
-      annihilator(*this)
+    BasicSystem (size_t N_orbital_)
+    : MinimalSystem(N_orbital_), creator(*this), annihilator(*this)
     {}
 
     void construct ()
     {
-        MinimalSystem<Filter, Sorter>::construct();
+        MinimalSystem::construct();
         creator.construct();
         annihilator.construct();
     }
