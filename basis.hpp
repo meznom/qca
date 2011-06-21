@@ -13,12 +13,7 @@
 #include <Eigen/Dense>
 using namespace Eigen;
 
-
-typedef SparseMatrix<double> SMatrix;
-typedef MatrixXd DMatrix;
-typedef VectorXd DVector;
-
-enum Spin {UP=0, DOWN=1};
+#include "eigenHelpers.hpp"
 
 class FermionicStateException : public std::logic_error
 {
@@ -366,6 +361,7 @@ public:
             std::cerr << states[i] << std::endl;
     }
 
+    //TODO: move everything mask-related out of basis class
     template<class MaskFilter>
     void mask (const MaskFilter& filter)
     {
@@ -399,34 +395,14 @@ public:
     {
         if (maskStart == -1 || maskEnd == -1)
             return;
-        m = sparseBlock(m, maskStart, maskStart, maskEnd-maskStart, maskEnd-maskStart);
+        m = EigenHelpers::sparseToSparseBlock(m, maskStart, maskStart, maskEnd-maskStart, maskEnd-maskStart);
     }
 
     SMatrix applyMask (const SMatrix& m) const
     {
         if (maskStart == -1 || maskEnd == -1)
             return m;
-        return sparseBlock(m, maskStart, maskStart, maskEnd-maskStart, maskEnd-maskStart);
-    }
-
-    /**
-     * Block method for sparse matrices. 
-     * 
-     * Eigen doesn't implement block() for sparse matrices, only for dense
-     * matrices. Hence this small helper function.
-     */
-    SMatrix sparseBlock (const SMatrix& om, int i, int j, int p, int q) const
-    {
-        SMatrix nm(p,q);
-        for (int l=0; l<q; l++)
-        {
-            nm.startVec(l);
-            for (SMatrix::InnerIterator it(om,l+j); it; ++it)
-                if (it.row()>=i && it.row()<i+p)
-                    nm.insertBack(it.row()-i,it.col()-j) = it.value();
-        }
-        nm.finalize();
-        return nm;
+        return EigenHelpers::sparseToSparseBlock(m, maskStart, maskStart, maskEnd-maskStart, maskEnd-maskStart);
     }
 
 private:

@@ -16,4 +16,8 @@ add_executable(systemTest systemTest.cpp)
 target_link_libraries(systemTest boost_unit_test_framework)
 add_test(system systemTest)
 
-add_dependencies(buildtest utilitiesTest basisTest systemTest)
+add_executable(eigenHelpersTest eigenHelpersTest.cpp)
+target_link_libraries(eigenHelpersTest boost_unit_test_framework)
+add_test(eigenHelpers eigenHelpersTest)
+
+add_dependencies(buildtest utilitiesTest basisTest systemTest eigenHelpersTest)

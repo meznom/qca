@@ -10,7 +10,10 @@
 #define __TEST_HPP__
 
 #include <iostream>
+#include "eigenHelpers.hpp"
 #include "basis.hpp"
+
+enum Spin {UP=0, DOWN=1};
 
 /**
  * Filters to filter the basis states.
@@ -202,10 +205,7 @@ public:
         Emin = eigenvalues.minCoeff();
         DMatrix denseEigenvectors = es.eigenvectors();
         
-        eigenvectors = SMatrix(H.rows(), H.rows());
-        eigenvectors.setZero();
-        denseBlockToSparseMatrix(denseEigenvectors, eigenvectors, 0, 0, H.rows(), H.rows());
-        eigenvectors.finalize();
+        eigenvectors = EigenHelpers::denseToSparseBlock(denseEigenvectors, 0, 0, H.rows(), H.rows());
     }
 
     void diagonaliseBlockWise ()
@@ -227,30 +227,23 @@ public:
             oldA = a;
             oldB = b;
 
-            DMatrix m = block(H, a, a, b-a, b-a);
+            DMatrix m = EigenHelpers::sparseToDenseBlock(H, a, a, b-a, b-a);
             SelfAdjointEigenSolver<DMatrix> es(m);
             DVector blockEigenvalues = es.eigenvalues();
             DMatrix blockEigenvectors = es.eigenvectors();
             eigenvalues.segment(a, b-a) = blockEigenvalues;
-            denseBlockToSparseMatrix(blockEigenvectors, eigenvectors, a, a, b-a, b-a);
+            denseToSparseBlockInPlace(blockEigenvectors, eigenvectors, a, a, b-a, b-a);
         }
         eigenvectors.finalize();
         Emin = eigenvalues.minCoeff();
     }
 
-    DMatrix block (const SMatrix& sm, int i, int j, int p, int q) const
-    {
-        DMatrix dm = DMatrix::Zero(p,q);
-        for (int l=0; l<q; l++)
-        {
-            for (SMatrix::InnerIterator it(sm,l+j); it; ++it)
-                if (it.row()>=i && it.row()<i+p)
-                    dm(it.row()-i,it.col()-j) = it.value();
-        }
-        return dm;
-    }
+    SMatrix eigenvectors;
+    DVector eigenvalues;
+    double Emin;
 
-    void denseBlockToSparseMatrix (const DMatrix& dm, SMatrix& sm, int i, int j, int p, int q)
+protected:
+    void denseToSparseBlockInPlace (const DMatrix& dm, SMatrix& sm, int i, int j, int p, int q)
     {
         assert(dm.rows() == p);
         assert(dm.cols() == q);
@@ -263,12 +256,6 @@ public:
         }
     }
 
-    //DMatrix eigenvectors;
-    SMatrix eigenvectors;
-    DVector eigenvalues;
-    double Emin;
-
-protected:
     const System& s;
     SMatrix H;
 };
@@ -306,10 +293,20 @@ public:
     double operator() (double beta, const SMatrix& O) const
     {
         double sum = 0;
+        //for (int i=0; i<s.H.eigenvalues.size(); i++)
+        //    sum += 
+        //        std::exp(-beta * (s.H.eigenvalues(i) - s.H.Emin)) * 
+        //        s.H.eigenvectors.col(i).adjoint() * O * s.H.eigenvectors.col(i);
+       
+        //TODO: check how efficient this is
         for (int i=0; i<s.H.eigenvalues.size(); i++)
-            sum += 
-                std::exp(-beta * (s.H.eigenvalues(i) - s.H.Emin)) * 
-                s.H.eigenvectors.col(i).adjoint() * O * s.H.eigenvectors.col(i);
+        {
+            SMatrix m = s.H.eigenvectors.col(i).adjoint() * O * s.H.eigenvectors.col(i);
+            assert(m.size() == 1);
+            if (m.nonZeros() != 0)
+                sum += std::exp(-beta * (s.H.eigenvalues(i) - s.H.Emin)) * m.coeffRef(0,0);
+        }
+        
         return sum / partitionFunction(beta);
     }
 
