@@ -1,6 +1,6 @@
 /**
  * @file system.hpp
- * Exact diagonaliser base classes.
+ * Exact diagonalizer base classes.
  * @author Burkhard Ritter
  * @version 
  * @date 2010-12-10
@@ -128,7 +128,7 @@ private:
  * @code
  * Hamiltonian H(mySystem);
  * H.construct();
- * H.diagonalise(); //here the real work happens
+ * H.diagonalize(); //here the real work happens
  * H.eigenvalues(); //use eigenenergies
  * @endcode
  *
@@ -150,11 +150,11 @@ public:
     void construct() {}
 
     /**
-     * Diagonalises the Hamiltonian matrix.
+     * Diagonalizes the Hamiltonian matrix.
      *
      * Uses a dense matrix. Relies on Eigen for the eigenvalue decomposition.
      */
-    void diagonalise ()
+    void diagonalize ()
     {
         /*
          * This assertion is somewhat arbitrary, just because my computers tend
@@ -172,25 +172,19 @@ public:
         eigenvectors = EigenHelpers::denseToSparseBlock(denseEigenvectors, 0, 0, H.rows(), H.rows());
     }
 
-    void diagonaliseBlockWise ()
+    void diagonalizeBlockWise ()
     {
         eigenvalues = DVector(H.rows());
         eigenvalues.setZero();
         eigenvectors = SMatrix(H.rows(), H.rows());
         eigenvectors.setZero();
-        //TODO: eigenvectors.reserve??
         const std::vector<Range>& rs = s.basis.getRanges();
-        int oldA = -1;
-        int oldB = -1;
+        //we rely on the fact that the ranges are strictly ordered, i.e. a of
+        //the current range is >= b of the previous range
         for (size_t i=0; i<rs.size(); i++)
         {
-            const int& a = rs[i].a;
-            const int& b = rs[i].b;
-            
-            assert(oldA < a && oldB < b);
-            oldA = a;
-            oldB = b;
-
+            const int a = rs[i].a;
+            const int b = rs[i].b;
             DMatrix m = EigenHelpers::sparseToDenseBlock(H, a, a, b-a, b-a);
             SelfAdjointEigenSolver<DMatrix> es(m);
             DVector blockEigenvalues = es.eigenvalues();

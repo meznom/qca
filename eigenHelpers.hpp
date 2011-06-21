@@ -26,7 +26,7 @@ namespace EigenHelpers
      * matrices. Hence this small helper function. Can also be used to convert
      * sparse to dense matrices.
      */
-    DMatrix sparseToDenseBlock (const SMatrix& sm, int i, int j, int p, int q)
+    inline DMatrix sparseToDenseBlock (const SMatrix& sm, int i, int j, int p, int q)
     {
         DMatrix dm = DMatrix::Zero(p,q);
         for (int l=0; l<q; l++)
@@ -43,7 +43,7 @@ namespace EigenHelpers
      * 
      * Can also be used to convert dense to sparse matrices.
      */
-    SMatrix denseToSparseBlock (const DMatrix& dm, int i, int j, int p, int q)
+    inline SMatrix denseToSparseBlock (const DMatrix& dm, int i, int j, int p, int q)
     {
         SMatrix sm(p,q);
         for (int l=0; l<q; l++)
@@ -62,7 +62,7 @@ namespace EigenHelpers
      * Eigen doesn't implement block() for sparse matrices, only for dense
      * matrices. Hence this small helper function.
      */
-    SMatrix sparseToSparseBlock (const SMatrix& om, int i, int j, int p, int q)
+    inline SMatrix sparseToSparseBlock (const SMatrix& om, int i, int j, int p, int q)
     {
         SMatrix nm(p,q);
         for (int l=0; l<q; l++)

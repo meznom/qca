@@ -122,11 +122,11 @@ BOOST_AUTO_TEST_CASE ( construct_system_without_symmetries )
     s.construct();
     BOOST_CHECK (s.basis.getRanges().size() == 1);
     
-    s.H.diagonalise();
+    s.H.diagonalize();
     DVector eigenvalues1 = s.H.eigenvalues;
     SMatrix eigenvectors1 = s.H.eigenvectors;
     
-    s.H.diagonaliseBlockWise();
+    s.H.diagonalizeBlockWise();
     DVector eigenvalues2 = s.H.eigenvalues;
     SMatrix eigenvectors2 = s.H.eigenvectors;
 
@@ -140,7 +140,7 @@ BOOST_AUTO_TEST_CASE ( construct_system_with_symmetries )
     s.construct();
     BOOST_CHECK (s.basis.getRanges().size() > 1);
 
-    s.H.diagonalise();
+    s.H.diagonalize();
     DVector eigenvalues1 = s.H.eigenvalues;
     DMatrix eigenvectors1 = EigenHelpers::sparseToDenseBlock(s.H.eigenvectors, 
                                                              0, 0, 
@@ -150,7 +150,7 @@ BOOST_AUTO_TEST_CASE ( construct_system_with_symmetries )
     for (int i=0; i<eigenvalues1.size(); i++)
         ev1.push_back(eigenvalues1(i));
     
-    s.H.diagonaliseBlockWise();
+    s.H.diagonalizeBlockWise();
     DVector eigenvalues2 = s.H.eigenvalues;
     DMatrix eigenvectors2 = EigenHelpers::sparseToDenseBlock(s.H.eigenvectors, 
                                                              0, 0, 
@@ -173,12 +173,12 @@ BOOST_AUTO_TEST_CASE ( measure_double_occupancy )
     HubbardSystem s(4, true);
     DoubleOccupancy<HubbardSystem> DO(s);
     s.construct();
-    s.H.diagonalise();
+    s.H.diagonalize();
     double doLowT1 = s.ensembleAverage(1000, DO(0));
     double doMidT1 = s.ensembleAverage(1, DO(0));
     double doHighT1 = s.ensembleAverage(0.00001, DO(0));
 
-    s.H.diagonaliseBlockWise();
+    s.H.diagonalizeBlockWise();
     double doLowT2 = s.ensembleAverage(1000, DO(0));
     double doMidT2 = s.ensembleAverage(1, DO(0));
     double doHighT2 = s.ensembleAverage(0.00001, DO(0));
@@ -191,7 +191,7 @@ BOOST_AUTO_TEST_CASE ( measure_double_occupancy )
     BOOST_CHECK (epsilonEqual(doHighT1, doHighT2));
 }
 
-BOOST_AUTO_TEST_CASE ( compare_performance_diagonalise_and_diagonaliseBlockWise )
+BOOST_AUTO_TEST_CASE ( compare_performance_diagonalize_and_diagonalizeBlockWise )
 {
     std::clock_t startCPUTime, endCPUTime;
     double cpuTime = 0;
@@ -206,14 +206,14 @@ BOOST_AUTO_TEST_CASE ( compare_performance_diagonalise_and_diagonaliseBlockWise 
     std::cerr << "Time for construction: " << cpuTime << "s" << std::endl;
 
     startCPUTime = std::clock();
-    s.H.diagonalise();
+    s.H.diagonalize();
     endCPUTime = std::clock();
     cpuTime = static_cast<double>(endCPUTime-startCPUTime)/CLOCKS_PER_SEC;
-    std::cerr << "Time for diagonalise: " << cpuTime << "s" << std::endl;
+    std::cerr << "Time for diagonalize: " << cpuTime << "s" << std::endl;
 
     startCPUTime = std::clock();
-    s.H.diagonaliseBlockWise();
+    s.H.diagonalizeBlockWise();
     endCPUTime = std::clock();
     cpuTime = static_cast<double>(endCPUTime-startCPUTime)/CLOCKS_PER_SEC;
-    std::cerr << "Time for diagonaliseBlockWise: " << cpuTime << "s" << std::endl;
+    std::cerr << "Time for diagonalizeBlockWise: " << cpuTime << "s" << std::endl;
 }

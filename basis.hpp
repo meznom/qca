@@ -7,6 +7,7 @@
 #include <bitset>
 #include <algorithm>
 #include <stdexcept>
+#include <iostream>
 #include <cassert>
 #include <cmath>
 #include <Eigen/Sparse>
@@ -200,13 +201,6 @@ private:
         State state;
     };
 
-    struct SectorRange
-    {
-        SectorRange (Sector s_, Range r_) : s(s_), r(r_) {}
-        Sector s;
-        Range r;
-    };
-
     class SymmetrySorter
     {
     public:
@@ -214,14 +208,16 @@ private:
         {
             const Sector& s1 = sas1.sector;
             const Sector& s2 = sas2.sector;
-            const size_t size = (s1.size()<s2.size())?s1.size():s2.size();
-            for (size_t i=0; i<size; i++)
+            assert(s1.size() == s2.size());
+            for (size_t i=0; i<s1.size(); i++)
             {
                 if (s1[i] < s2[i]) 
                     return true;
                 else if (s1[i] > s2[i])
                     return false;
             }
+            //They are equal. Has to be false, otherwise sort keeps on
+            //reordering indefinitely.
             return false;
         }
     };
@@ -251,38 +247,15 @@ public:
             sas[num] = SectorAndState(computeSectorForState(state), state);
             //TODO: filter
         }
-
         std::sort(sas.begin(), sas.end(), SymmetrySorter());
-
-        constructSectorRanges(sas);
+        constructSectorsAndRanges(sas);
 
         for (size_t i=0; i<sas.size(); i++)
             states.push_back(sas[i].state);
             
-
         N_basis = states.size();
         for (size_t i=0; i<states.size(); i++)
             indices[states[i]] = i;
-    }
-
-    void constructSectorRanges(const std::vector<SectorAndState>& sas)
-    {
-        assert(sas.size() > 0);
-        Sector const * currentSector = &(sas[0].sector);
-        int a = 0;
-        int b = 0;
-        for (size_t i=1; i<sas.size(); i++)
-        {
-            Sector const * newSector = &(sas[i].sector);
-            if (*newSector != *currentSector)
-            {
-                b = i;
-                sectorRanges.push_back(SectorRange(*currentSector, Range(a,b)));
-                a = i;
-                currentSector = newSector;
-            }
-        }
-        sectorRanges.push_back(SectorRange(*currentSector, Range(b, sas.size())));
     }
 
     Basis& addSymmetryOperator (const SymmetryOperator* so)
@@ -293,10 +266,10 @@ public:
 
     Range getRangeOfSector (const Sector& s) const
     {
-        typedef std::vector<SectorRange>::const_iterator SRIT;
-        for (SRIT i=sectorRanges.begin(); i!=sectorRanges.end(); i++)
-            if (i->s == s)
-                return i->r;
+        assert(sectors.size() == ranges.size());
+        for (size_t i=0; i<sectors.size(); i++)
+            if (sectors[i] == s)
+                return ranges[i];
         return Range(0,0);
     }
 
@@ -312,13 +285,9 @@ public:
         return getRangeOfSector(s);
     }
 
-    //TODO: avoid copying
-    std::vector<Range> getRanges () const
+    const std::vector<Range>& getRanges () const
     {
-        std::vector<Range> rs(sectorRanges.size());
-        for (size_t i=0; i<sectorRanges.size(); i++)
-            rs[i] = sectorRanges[i].r;
-        return rs;
+        return ranges;
     }
 
     const State& operator() (num_t index) const
@@ -355,10 +324,33 @@ private:
         return sector;
     }
 
+    void constructSectorsAndRanges(const std::vector<SectorAndState>& sas)
+    {
+        assert(sas.size() > 0);
+        Sector const * currentSector = &(sas[0].sector);
+        int a = 0;
+        int b = 0;
+        for (size_t i=1; i<sas.size(); i++)
+        {
+            Sector const * newSector = &(sas[i].sector);
+            if (*newSector != *currentSector)
+            {
+                b = i;
+                sectors.push_back(*currentSector);
+                ranges.push_back(Range(a,b));
+                a = i;
+                currentSector = newSector;
+            }
+        }
+        sectors.push_back(*currentSector);
+        ranges.push_back(Range(b, sas.size()));
+    }
+
     size_t N_orbital, N_basis;
     std::vector<State> states;
     std::map<State, num_t> indices;
-    std::vector<SectorRange> sectorRanges;
+    std::vector<Sector> sectors;
+    std::vector<Range> ranges;
     std::vector<const SymmetryOperator*> symmetryOperators;
 };
 
