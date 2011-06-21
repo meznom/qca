@@ -25,7 +25,7 @@ DOXYFILE_ENCODING      = UTF-8
 # The PROJECT_NAME tag is a single word (or a sequence of words surrounded
 # by quotes) that should identify the project.
 
-PROJECT_NAME           = ExactDiagonalisation
+PROJECT_NAME           = ExactDiagonalization
 
 # The PROJECT_NUMBER tag can be used to enter a project or revision number.
 # This could be handy for archiving the generated documentation or
@@ -38,7 +38,7 @@ PROJECT_NUMBER         =
 # If a relative path is entered, it will be relative to the location
 # where doxygen was started. If left blank the current directory will be used.
 
-OUTPUT_DIRECTORY       = "${ExactDiagonalisation_BINARY_DIR}/doc"
+OUTPUT_DIRECTORY       = "${ExactDiagonalization_BINARY_DIR}/doc"
 
 # If the CREATE_SUBDIRS tag is set to YES, then doxygen will create
 # 4096 sub-directories (in 2 levels) under the output directory of each output
@@ -581,8 +581,8 @@ WARN_LOGFILE           =
 # directories like "/usr/src/myproject". Separate the files or directories
 # with spaces.
 
-INPUT                  = "${ExactDiagonalisation_SOURCE_DIR}" \
-                         "${ExactDiagonalisation_SOURCE_DIR}/doc"
+INPUT                  = "${ExactDiagonalization_SOURCE_DIR}" \
+                         "${ExactDiagonalization_SOURCE_DIR}/doc"
 
 # This tag can be used to specify the character encoding of the source files
 # that doxygen parses. Internally doxygen uses the UTF-8 encoding, which is
@@ -639,8 +639,8 @@ EXCLUDE_SYMBOLS        =
 # directories that contain example code fragments that are included (see
 # the \include command).
 
-EXAMPLE_PATH           = "${ExactDiagonalisation_SOURCE_DIR}" \
-                         "${ExactDiagonalisation_SOURCE_DIR}/doc"
+EXAMPLE_PATH           = "${ExactDiagonalization_SOURCE_DIR}" \
+                         "${ExactDiagonalization_SOURCE_DIR}/doc"
 
 # If the value of the EXAMPLE_PATH tag contains directories, you can use the
 # EXAMPLE_PATTERNS tag to specify one or more wildcard pattern (like *.cpp
