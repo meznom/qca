@@ -225,7 +225,7 @@ private:
 public:
     typedef State::num_t num_t;
 
-    Basis (size_t N_orbital_) : N_orbital(N_orbital_) {}
+    Basis (size_t N_orbital_) : N_orbital(N_orbital_), filterSet(false) {}
 
     void construct ()
     {
@@ -239,29 +239,39 @@ public:
         N_basis = std::pow(2.0, static_cast<int>(N_orbital));
         State state(N_orbital);
         
-        std::vector<SectorAndState> sas(N_basis, SectorAndState(Sector(symmetryOperators.size()), state));
-
+        std::vector<SectorAndState> sas;
         for (size_t num=0; num<N_basis; num++)
         {
             state = static_cast<num_t>(num);
-            sas[num] = SectorAndState(computeSectorForState(state), state);
-            //TODO: filter
+            Sector sector = computeSectorForState(state);
+            if (!filterSet || applyFilter(sector))
+                sas.push_back(SectorAndState(sector, state));
         }
         std::sort(sas.begin(), sas.end(), SymmetrySorter());
         constructSectorsAndRanges(sas);
 
+        states.resize(sas.size(), State(N_orbital));
         for (size_t i=0; i<sas.size(); i++)
-            states.push_back(sas[i].state);
-            
-        N_basis = states.size();
-        for (size_t i=0; i<states.size(); i++)
+        {
+            states[i] = sas[i].state;
             indices[states[i]] = i;
+        }
+        N_basis = states.size();
     }
 
     Basis& addSymmetryOperator (const SymmetryOperator* so)
     {
         symmetryOperators.push_back(so);
         return *this;
+    }
+
+    void setFilter (Sector filter_)
+    {
+        if (filter_.size() > symmetryOperators.size())
+            throw BasisException("Invalid filter specified.");
+        filter = filter_;
+        if (filter.size() == 0) filterSet = false;
+        else filterSet = true;
     }
 
     Range getRangeOfSector (const Sector& s) const
@@ -346,12 +356,23 @@ private:
         ranges.push_back(Range(b, sas.size()));
     }
 
+    bool applyFilter (const Sector& sector) const
+    {
+        assert(filter.size() <= sector.size());
+        for (size_t i=0; i<filter.size(); i++)
+            if (filter[i] != sector[i])
+                return false;
+        return true;
+    }
+
     size_t N_orbital, N_basis;
     std::vector<State> states;
     std::map<State, num_t> indices;
     std::vector<Sector> sectors;
     std::vector<Range> ranges;
     std::vector<const SymmetryOperator*> symmetryOperators;
+    Sector filter;
+    bool filterSet;
 };
 
 #endif // __BASIS_HPP__

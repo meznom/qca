@@ -157,6 +157,11 @@ BOOST_AUTO_TEST_CASE ( test_sectors_and_ranges_3 )
     delete S;
 }
 
+BOOST_AUTO_TEST_CASE ( test_construct_basis_with_filter )
+{
+    //TODO
+}
+
 BOOST_AUTO_TEST_CASE ( performance_construct_basis )
 {
     std::clock_t startCPUTime, endCPUTime;
