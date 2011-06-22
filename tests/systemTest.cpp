@@ -195,7 +195,13 @@ BOOST_AUTO_TEST_CASE ( compare_performance_diagonalize_and_diagonalizeBlockWise 
 {
     std::clock_t startCPUTime, endCPUTime;
     double cpuTime = 0;
-    HubbardSystem s(5, true);
+    size_t sites;
+#ifdef NDEBUG
+    sites = 5;
+#else
+    sites = 4;
+#endif
+    HubbardSystem s(sites, true);
     DoubleOccupancy<HubbardSystem> DO(s);
 
 
@@ -203,17 +209,20 @@ BOOST_AUTO_TEST_CASE ( compare_performance_diagonalize_and_diagonalizeBlockWise 
     s.construct();
     endCPUTime = std::clock();
     cpuTime = static_cast<double>(endCPUTime-startCPUTime)/CLOCKS_PER_SEC;
-    std::cerr << "Time for construction: " << cpuTime << "s" << std::endl;
+    std::cerr << "Time for construction of system with " << sites 
+              << " sites: " << cpuTime << "s" << std::endl;
 
     startCPUTime = std::clock();
     s.H.diagonalize();
     endCPUTime = std::clock();
     cpuTime = static_cast<double>(endCPUTime-startCPUTime)/CLOCKS_PER_SEC;
-    std::cerr << "Time for diagonalize: " << cpuTime << "s" << std::endl;
+    std::cerr << "Time for diagonalize of system with " << sites 
+              << " sites: " << cpuTime << "s" << std::endl;
 
     startCPUTime = std::clock();
     s.H.diagonalizeBlockWise();
     endCPUTime = std::clock();
     cpuTime = static_cast<double>(endCPUTime-startCPUTime)/CLOCKS_PER_SEC;
-    std::cerr << "Time for diagonalizeBlockWise: " << cpuTime << "s" << std::endl;
+    std::cerr << "Time for diagonalizeBlockWise of system with " << sites 
+              << " sites: " << cpuTime << "s" << std::endl;
 }

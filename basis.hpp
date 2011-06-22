@@ -181,6 +181,66 @@ struct Range
 
 typedef std::vector<int> Sector;
 
+/*
+ * Some small helper functions for convenient construction of Sector.
+ */
+Sector constructSector (int a)
+{
+    Sector s;
+    s.push_back(a);
+    return s;
+}
+
+Sector constructSector (int a, int b)
+{
+    Sector s;
+    s.push_back(a);
+    s.push_back(b);
+    return s;
+}
+
+Sector constructSector (int a, int b, int c)
+{
+    Sector s;
+    s.push_back(a);
+    s.push_back(b);
+    s.push_back(c);
+    return s;
+}
+
+Sector constructSector (int a, int b, int c, int d)
+{
+    Sector s;
+    s.push_back(a);
+    s.push_back(b);
+    s.push_back(c);
+    s.push_back(d);
+    return s;
+}
+
+Sector constructSector (int a, int b, int c, int d, int e)
+{
+    Sector s;
+    s.push_back(a);
+    s.push_back(b);
+    s.push_back(c);
+    s.push_back(d);
+    s.push_back(e);
+    return s;
+}
+
+Sector constructSector (int a, int b, int c, int d, int e, int f)
+{
+    Sector s;
+    s.push_back(a);
+    s.push_back(b);
+    s.push_back(c);
+    s.push_back(d);
+    s.push_back(e);
+    s.push_back(f);
+    return s;
+}
+
 class BasisException : public std::logic_error
 {
 public:
@@ -336,7 +396,8 @@ private:
 
     void constructSectorsAndRanges(const std::vector<SectorAndState>& sas)
     {
-        assert(sas.size() > 0);
+        if (sas.size() == 0)
+            return;
         Sector const * currentSector = &(sas[0].sector);
         int a = 0;
         int b = 0;

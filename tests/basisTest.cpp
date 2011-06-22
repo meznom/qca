@@ -159,14 +159,77 @@ BOOST_AUTO_TEST_CASE ( test_sectors_and_ranges_3 )
 
 BOOST_AUTO_TEST_CASE ( test_construct_basis_with_filter )
 {
-    //TODO
+    Basis b(8);
+    ParticleNumberSymmetryOperator N;
+    SpinSymmetryOperator S;
+    b.addSymmetryOperator(&N);
+    b.addSymmetryOperator(&S);
+    BOOST_CHECK_THROW (b.setFilter(constructSector(1,2,3)), BasisException);
+    b.setFilter(constructSector(2));
+    b.construct();
+    BOOST_CHECK (b.size() == 28);
+    BOOST_CHECK (b.getRanges().size() == 3);
+
+    b = Basis(8);
+    b.addSymmetryOperator(&N);
+    b.addSymmetryOperator(&S);
+    b.setFilter(constructSector(2,0));
+    b.construct();
+    BOOST_CHECK (b.size() == 16);
+    BOOST_CHECK (b.getRanges().size() == 1);
+
+    b = Basis(8);
+    b.addSymmetryOperator(&N);
+    b.addSymmetryOperator(&S);
+    b.setFilter(constructSector(3,-1));
+    b.construct();
+    BOOST_CHECK (b.size() == 24);
+    BOOST_CHECK (b.getRanges().size() == 1);
+
+    b = Basis(8);
+    b.addSymmetryOperator(&N);
+    b.addSymmetryOperator(&S);
+    b.setFilter(constructSector(3));
+    b.construct();
+    BOOST_CHECK (b.size() == 56);
+    BOOST_CHECK (b.getRanges().size() == 4);
+    
+    b = Basis(8);
+    b.addSymmetryOperator(&S);
+    b.addSymmetryOperator(&N);
+    b.setFilter(constructSector(3));
+    b.construct();
+    BOOST_CHECK (b.size() == 8);
+    BOOST_CHECK (b.getRanges().size() == 2);
+
+    b = Basis(8);
+    b.addSymmetryOperator(&S);
+    b.addSymmetryOperator(&N);
+    b.setFilter(constructSector(0,2));
+    b.construct();
+    BOOST_CHECK (b.size() == 16);
+    BOOST_CHECK (b.getRanges().size() == 1);
+
+    b = Basis(8);
+    b.addSymmetryOperator(&S);
+    b.addSymmetryOperator(&N);
+    b.setFilter(constructSector(17,234));
+    b.construct();
+    BOOST_CHECK (b.size() == 0);
+    BOOST_CHECK (b.getRanges().size() == 0);
 }
 
 BOOST_AUTO_TEST_CASE ( performance_construct_basis )
 {
     std::clock_t startCPUTime, endCPUTime;
     double cpuTime = 0;
-    Basis b(22);
+    size_t N_orbital;
+#ifdef NDEBUG
+    N_orbital = 22;
+#else
+    N_orbital = 16;
+#endif
+    Basis b(N_orbital);
     ParticleNumberSymmetryOperator N;
     SpinSymmetryOperator S;
     b.addSymmetryOperator(&N);
@@ -177,5 +240,6 @@ BOOST_AUTO_TEST_CASE ( performance_construct_basis )
     endCPUTime = std::clock();
 
     cpuTime = static_cast<double>(endCPUTime-startCPUTime)/CLOCKS_PER_SEC;
-    std::cerr << "Time for construction: " << cpuTime << "s" << std::endl;
+    std::cerr << "Time for construction of basis with " << N_orbital 
+              << " orbitals: " << cpuTime << "s" << std::endl;
 }
