@@ -28,12 +28,12 @@ class Creator
 {
 public:
     Creator (const System& s_)
-    : s(s_), cs(s.N_orbital)
+    : s(s_), N_orbital(s.basis.numberOfOrbitals()), cs(N_orbital)
     {}
 
     void construct ()
     {
-        for (size_t i=0; i<s.N_orbital; i++)
+        for (size_t i=0; i<N_orbital; i++)
             constructMatrix(i);
     }
 
@@ -73,6 +73,7 @@ private:
     }
 
     const System& s;
+    size_t N_orbital;
     std::vector<SMatrix> cs;
 };
 
@@ -89,12 +90,12 @@ class Annihilator
 {
 public:
     Annihilator (const System& s_)
-    : s(s_), as(s.N_orbital)
+    : s(s_), N_orbital(s.basis.numberOfOrbitals()), as(N_orbital)
     {}
 
     void construct ()
     {
-        for (size_t i=0; i<s.N_orbital; i++)
+        for (size_t i=0; i<N_orbital; i++)
             as[i] = SMatrix(s.creator(i).transpose());
     }
 
@@ -114,6 +115,7 @@ public:
 
 private:
     const System& s;
+    size_t N_orbital;
     std::vector<SMatrix> as;
 };
 
@@ -185,6 +187,11 @@ public:
         {
             const int a = rs[i].a;
             const int b = rs[i].b;
+            //useful debug output when diagonalizing very large Hamiltonians
+            //std::cerr << "-> " << "Diagonalizing range " << i << " out of " 
+            //          << rs.size() << " ranges." << std::endl
+            //          << "-> Size of range " << i << ": " << b-a << std::endl;
+            assert(4E9 > (b-a)*(b-a)*sizeof(double));
             DMatrix m = EigenHelpers::sparseToDenseBlock(H, a, a, b-a, b-a);
             SelfAdjointEigenSolver<DMatrix> es(m);
             DVector blockEigenvalues = es.eigenvalues();

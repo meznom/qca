@@ -295,6 +295,7 @@ public:
          * states. However this number N is not representable in num_t (num_t's
          * biggest number is N-1).
          */
+        size_t N_basis;
         assert(sizeof(N_basis) > sizeof(num_t));
         N_basis = std::pow(2.0, static_cast<int>(N_orbital));
         State state(N_orbital);
@@ -317,7 +318,6 @@ public:
             states[i] = sas[i].state;
             indices[states[i]] = i;
         }
-        N_basis = states.size();
     }
 
     Basis& addSymmetryOperator (const SymmetryOperator* so)
@@ -380,6 +380,11 @@ public:
         return states.size();
     }
 
+    size_t numberOfOrbitals () const
+    {
+        return N_orbital;
+    }
+
     void dump () const
     {
         for (size_t i=0; i<states.size(); i++)
@@ -429,7 +434,7 @@ private:
         return true;
     }
 
-    size_t N_orbital, N_basis;
+    size_t N_orbital;
     std::vector<State> states;
     std::map<State, num_t> indices;
     std::vector<Sector> sectors;
