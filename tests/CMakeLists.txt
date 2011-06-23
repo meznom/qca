@@ -20,4 +20,8 @@ add_executable(eigenHelpersTest eigenHelpersTest.cpp)
 target_link_libraries(eigenHelpersTest boost_unit_test_framework)
 add_test(eigenHelpers eigenHelpersTest)
 
-add_dependencies(buildtest utilitiesTest basisTest systemTest eigenHelpersTest)
+add_executable(qcaTest qcaTest.cpp)
+target_link_libraries(qcaTest boost_unit_test_framework)
+add_test(qca qcaTest)
+
+add_dependencies(buildtest utilitiesTest basisTest systemTest eigenHelpersTest qcaTest)

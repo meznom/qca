@@ -219,6 +219,43 @@ BOOST_AUTO_TEST_CASE ( test_construct_basis_with_filter )
     BOOST_CHECK (b.getRanges().size() == 0);
 }
 
+BOOST_AUTO_TEST_CASE ( construct_basis_multiple_times )
+{
+    Basis b(4);
+    ParticleNumberSymmetryOperator N;
+    SpinSymmetryOperator S;
+    b.addSymmetryOperator(&N);
+    b.addSymmetryOperator(&S);
+    
+    b.construct();
+    size_t n_b1 = b.size();
+    size_t n_r1 = b.getRanges().size();
+
+    b.construct();
+    size_t n_b2 = b.size();
+    size_t n_r2 = b.getRanges().size();
+
+    BOOST_CHECK (n_b1 == n_b2);
+    BOOST_CHECK (n_r1 == n_r2);
+
+    b = Basis(8);
+    b.addSymmetryOperator(&N);
+    b.addSymmetryOperator(&S);
+    b.setFilter(constructSector(2));
+
+    b.construct();
+    n_b1 = b.size();
+    n_r1 = b.getRanges().size();
+
+    b.construct();
+    n_b2 = b.size();
+    n_r2 = b.getRanges().size();
+
+    BOOST_CHECK (n_b1 == n_b2);
+    BOOST_CHECK (n_r1 == n_r2);
+}
+
+
 BOOST_AUTO_TEST_CASE ( performance_construct_basis )
 {
     std::clock_t startCPUTime, endCPUTime;

@@ -311,6 +311,7 @@ public:
         constructSectorsAndRanges(sas);
 
         states.resize(sas.size(), State(N_orbital));
+        indices.clear();
         for (size_t i=0; i<sas.size(); i++)
         {
             states[i] = sas[i].state;
@@ -399,6 +400,8 @@ private:
         if (sas.size() == 0)
             return;
         Sector const * currentSector = &(sas[0].sector);
+        sectors.clear();
+        ranges.clear();
         int a = 0;
         int b = 0;
         for (size_t i=1; i<sas.size(); i++)

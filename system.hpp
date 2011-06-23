@@ -287,6 +287,11 @@ private:
     const System& s;
 };
 
+//TODO: it might be useful for System to have a method like 'update' => when
+//parameters of the Hamiltonian are changed it's sufficient to reconstruct the
+//Hamiltonian. However, now I'm mostly calling system.construct() which rebuilds
+//everything.
+
 /**
  * Minimal base class for a fermionic quantum system.
  *

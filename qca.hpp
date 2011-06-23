@@ -3,6 +3,7 @@
 
 #include "system.hpp"
 #include "utilities.hpp"
+#include <limits>
 
 class Hopping
 {
@@ -146,11 +147,11 @@ public:
         Coulomb coulomb(V0, a, b);
         External<QcaHamiltonian> external(*this);
 
+        H = SMatrix(s.basis.size(), s.basis.size());
         H.setZero();
         for (size_t i=0; i<s.N_sites; i++)
         {
             H += coulomb(i,i) * s.n_updown(i);
-            //H += (externalPlain(i) + externalDP(i) + mu) * s.n(i);
             H += (external(i) + mu) * s.n(i);
             for (size_t j=i+1; j<s.N_sites; j++)
             {
@@ -158,10 +159,6 @@ public:
                 H += coulomb(i,j) * s.n(i) * s.n(j);
             }
         }
-
-        //std::cerr << "Number of non-zero elements on H: " << H.nonZeros() << std::endl;
-
-        s.basis.applyMask(H);
     }
 
     double t, td, ti, V0, a, b, Vext, Pext, mu;
@@ -170,152 +167,152 @@ public:
     const System& s;
 };
 
-namespace Filter {
-class NElectronsPerPlaquet
-{
-public:
-    NElectronsPerPlaquet (size_t N_, size_t plaquetSize_)
-    : N(N_), plaquetSize(plaquetSize_)
-    {}
-
-    bool operator() (const State& s) const
-    {
-        if (s.count() != N*s.size()/plaquetSize)
-            return false;
-        for (size_t i=0; i<s.size(); i+=plaquetSize)
-            if (s.count(i, i+plaquetSize) != N)
-                return false;
-        return true;
-    }
-
-private:
-    size_t N, plaquetSize;
-};
-
-class Spin
-{
-public:
-    Spin (int S_)
-    : S(S_)
-    {}
-
-
-    bool operator() (const State& s) const
-    {
-        //TODO
-         return spin(s) == S;
-    }
-
-    
-    int spin (const State& s) const
-    {
-        // N_down = N - N_up with N the total particle number
-        // spin = N_up - N_down = 2 N_up - N
-        const int N = s.count();
-        int N_up=0;
-        for (size_t i=0; i<s.size(); i+=2)
-            N_up += s[i];
-        return 2*N_up - N;
-    }
-
-private:
-    const int S;
-};
-
-template<class Filter1, class Filter2>
-class And
-{
-public:
-    And (Filter1 f1_, Filter2 f2_)
-    : f1(f1_), f2(f2_)
-    {}
-
-    bool operator() (const State& s) const
-    {
-        return f1(s) && f2(s);
-    }
-private:
-    Filter1 f1;
-    Filter2 f2;
-};
-}; /* namespace Filter */
-
-namespace Sorter {
-class Bond
-{
-public:
-    Bond ()
-    : twoElectrons(2,4)
-    {}
-
-    bool operator() (const State& s1, const State& s2) const
-    {
-        /*
-         * Sort by particle number first
-         */
-        if (s1.count() != s2.count())
-            return s1.count() < s2.count();
-
-        /*
-         * Special sorting rule for half-filling, i.e. 2 electrons per plaquet.
-         */
-        //if (s1.count() != s1.size()/2)
-        //    return false;
-        if (twoElectrons(s1) && twoElectrons(s2))
-        {
-            for (size_t i=0; i<s1.size(); i+=4)
-                if (stateNumber(s1,i) != stateNumber(s2,i))
-                    return stateNumber(s1,i) < stateNumber(s2,i);
-            return false;
-        }
-        /*
-         * Enforce a definite ordering of twoElectron vs non-twoElectron per
-         * plaquet systems
-         */
-        else
-            return twoElectrons(s1) && !twoElectrons(s2);
-    }
-
-    int stateNumber (const State& s, int offset) const
-    {
-        const int o = offset;
-        if (s[0+o] && s[1+o]) return 1;
-        if (s[1+o] && s[2+o]) return 2;
-        if (s[2+o] && s[3+o]) return 3;
-        if (s[3+o] && s[0+o]) return 4;
-        if (s[0+o] && s[2+o]) return 5;
-        if (s[1+o] && s[3+o]) return 6;
-        return 0;
-    }
-
-private:
-    Filter::NElectronsPerPlaquet twoElectrons;
-};
-    
-class ParticleNumberAndSpin
-{
-public:
-    bool operator() (const State& s1, const State& s2) const
-    {
-        for (size_t i=0; i<s1.size(); i+=8)
-            if (s1.count(i,i+8) != s2.count(i,i+8))
-                return s1.count(i,i+8) < s2.count(i,i+8);
-
-        return spin(s1) < spin(s2);
-    }
-
-    int spin (const State& s) const
-    {
-        // N_down = N - N_up with N the total particle number
-        // spin = N_up - N_down = 2 N_up - N
-        const int N = s.count();
-        int N_up=0;
-        for (size_t i=0; i<s.size(); i+=2)
-            N_up += s[i];
-        return 2*N_up - N;
-    }
-};
-}; /* namespace Sorter */
+//namespace Filter {
+//class NElectronsPerPlaquet
+//{
+//public:
+//    NElectronsPerPlaquet (size_t N_, size_t plaquetSize_)
+//    : N(N_), plaquetSize(plaquetSize_)
+//    {}
+//
+//    bool operator() (const State& s) const
+//    {
+//        if (s.count() != N*s.size()/plaquetSize)
+//            return false;
+//        for (size_t i=0; i<s.size(); i+=plaquetSize)
+//            if (s.count(i, i+plaquetSize) != N)
+//                return false;
+//        return true;
+//    }
+//
+//private:
+//    size_t N, plaquetSize;
+//};
+//
+//class Spin
+//{
+//public:
+//    Spin (int S_)
+//    : S(S_)
+//    {}
+//
+//
+//    bool operator() (const State& s) const
+//    {
+//        //TODO
+//         return spin(s) == S;
+//    }
+//
+//    
+//    int spin (const State& s) const
+//    {
+//        // N_down = N - N_up with N the total particle number
+//        // spin = N_up - N_down = 2 N_up - N
+//        const int N = s.count();
+//        int N_up=0;
+//        for (size_t i=0; i<s.size(); i+=2)
+//            N_up += s[i];
+//        return 2*N_up - N;
+//    }
+//
+//private:
+//    const int S;
+//};
+//
+//template<class Filter1, class Filter2>
+//class And
+//{
+//public:
+//    And (Filter1 f1_, Filter2 f2_)
+//    : f1(f1_), f2(f2_)
+//    {}
+//
+//    bool operator() (const State& s) const
+//    {
+//        return f1(s) && f2(s);
+//    }
+//private:
+//    Filter1 f1;
+//    Filter2 f2;
+//};
+//}; /* namespace Filter */
+//
+//namespace Sorter {
+//class Bond
+//{
+//public:
+//    Bond ()
+//    : twoElectrons(2,4)
+//    {}
+//
+//    bool operator() (const State& s1, const State& s2) const
+//    {
+//        /*
+//         * Sort by particle number first
+//         */
+//        if (s1.count() != s2.count())
+//            return s1.count() < s2.count();
+//
+//        /*
+//         * Special sorting rule for half-filling, i.e. 2 electrons per plaquet.
+//         */
+//        //if (s1.count() != s1.size()/2)
+//        //    return false;
+//        if (twoElectrons(s1) && twoElectrons(s2))
+//        {
+//            for (size_t i=0; i<s1.size(); i+=4)
+//                if (stateNumber(s1,i) != stateNumber(s2,i))
+//                    return stateNumber(s1,i) < stateNumber(s2,i);
+//            return false;
+//        }
+//        /*
+//         * Enforce a definite ordering of twoElectron vs non-twoElectron per
+//         * plaquet systems
+//         */
+//        else
+//            return twoElectrons(s1) && !twoElectrons(s2);
+//    }
+//
+//    int stateNumber (const State& s, int offset) const
+//    {
+//        const int o = offset;
+//        if (s[0+o] && s[1+o]) return 1;
+//        if (s[1+o] && s[2+o]) return 2;
+//        if (s[2+o] && s[3+o]) return 3;
+//        if (s[3+o] && s[0+o]) return 4;
+//        if (s[0+o] && s[2+o]) return 5;
+//        if (s[1+o] && s[3+o]) return 6;
+//        return 0;
+//    }
+//
+//private:
+//    Filter::NElectronsPerPlaquet twoElectrons;
+//};
+//    
+//class ParticleNumberAndSpin
+//{
+//public:
+//    bool operator() (const State& s1, const State& s2) const
+//    {
+//        for (size_t i=0; i<s1.size(); i+=8)
+//            if (s1.count(i,i+8) != s2.count(i,i+8))
+//                return s1.count(i,i+8) < s2.count(i,i+8);
+//
+//        return spin(s1) < spin(s2);
+//    }
+//
+//    int spin (const State& s) const
+//    {
+//        // N_down = N - N_up with N the total particle number
+//        // spin = N_up - N_down = 2 N_up - N
+//        const int N = s.count();
+//        int N_up=0;
+//        for (size_t i=0; i<s.size(); i+=2)
+//            N_up += s[i];
+//        return 2*N_up - N;
+//    }
+//};
+//}; /* namespace Sorter */
 
 template<class System>
 class Polarisation
@@ -328,9 +325,7 @@ public:
     SMatrix operator() (size_t p) const
     {
         const size_t o = 4*p;
-        return s.basis.applyMask(
-            1.0/2.0 * ( s.n(o+1)+s.n(o+3) - s.n(o+0)-s.n(o+2) )
-        );
+        return 1.0/2.0 * ( s.n(o+1)+s.n(o+3) - s.n(o+0)-s.n(o+2) );
     }
 
 private:
@@ -348,9 +343,7 @@ public:
     SMatrix operator() (size_t p) const
     {
         const size_t o = 4*p;
-        return s.basis.applyMask(
-            s.n(o+0) + s.n(o+1) + s.n(o+2) + s.n(o+3)
-        );
+        return s.n(o+0) + s.n(o+1) + s.n(o+2) + s.n(o+3);
     }
 
     SMatrix operator() () const
@@ -370,9 +363,12 @@ class CreatorAnnihilator
 {
 public:
     CreatorAnnihilator (const System& s_, size_t plaquetSize_)
-    : s(s_), plaquetSize(plaquetSize_), cas(s.N_p * plaquetSize * plaquetSize), 
-      zeroMatrix(s.basis.size(), s.basis.size())
+    : s(s_), plaquetSize(plaquetSize_), cas(s.N_p * plaquetSize * plaquetSize) 
+    {}
+
+    void construct ()
     {
+        zeroMatrix = SMatrix(s.basis.size(), s.basis.size());
         //TODO: optimise - c_i a_j = (c_j a_i)^{\dag}
         for (size_t p=0; p<s.N_p; p++)
             for (size_t i=0; i<plaquetSize; i++)
@@ -433,22 +429,62 @@ private:
     SMatrix zeroMatrix;
 };
 
-typedef MinimalSystem<Filter::NElectronsPerPlaquet, Sorter::Bond> QcaBondBase;
+class ParticleNumberPerPlaquetSymmetryOperator : public SymmetryOperator
+{
+public:
+    ParticleNumberPerPlaquetSymmetryOperator (size_t plaquetSize_ = 8)
+        : plaquetSize(plaquetSize_)
+    {}
+
+    virtual int operator() (const State& s) const
+    {
+        assert(s.size()/plaquetSize <= static_cast<size_t>(std::numeric_limits<int>::digits10));
+        int N = 0;
+        int multiplier = 1;
+        for (size_t i=0; i<s.size(); i+=plaquetSize)
+        {
+            N += multiplier * s.count(i, i+plaquetSize);
+            multiplier *= 10;
+        }
+        return N;
+    }
+
+    int valueForNElectronsPerPlaquet (int N, size_t N_p) const
+    {
+        assert(N_p <= static_cast<size_t>(std::numeric_limits<int>::digits10));
+        int value = 0;
+        int multiplier = 1;
+        for (size_t i=0; i<N_p; i++)
+        {
+            value += N*multiplier;
+            multiplier *= 10;
+        }
+        return value;
+    }
+
+private:
+    size_t plaquetSize;
+};
+
 template<template <typename> class External>
-class QcaBond : public QcaBondBase
+class QcaBond
 {
 public:
     QcaBond (size_t N_p_)
-    : QcaBondBase(4*N_p_, Filter::NElectronsPerPlaquet(2,4), Sorter::Bond()), N_p(N_p_), 
-      N_sites(4*N_p), ca(*this,4), H(*this), ensembleAverage(*this), P(*this), N(*this)
+        : basis(plaquetSize*N_p_), N_p(N_p_), N_sites(plaquetSize*N_p), 
+          ca(*this, plaquetSize), H(*this), ensembleAverage(*this), P(*this), 
+          N(*this), PPSO(plaquetSize)
     {}
 
-    /*
-    SMatrix ca (size_t i, size_t j) const
+    void construct ()
     {
-        return creator(i) * annihilator(j);
+        basis.addSymmetryOperator(&PPSO);
+        int filterValue = PPSO.valueForNElectronsPerPlaquet(2,N_p);
+        basis.setFilter(constructSector(filterValue));
+        basis.construct();
+        ca.construct();
+        H.construct();
     }
-    */
 
     SMatrix n (size_t i) const
     {
@@ -461,116 +497,121 @@ public:
         return SMatrix(basis.size(), basis.size());
     }
 
+    enum {plaquetSize=4};
+    Basis basis;
     size_t N_p, N_sites;
     CreatorAnnihilator<QcaBond> ca;
     QcaHamiltonian<QcaBond, External> H;
     EnsembleAverage<QcaBond> ensembleAverage;
     Polarisation<QcaBond> P;
     ParticleNumber<QcaBond> N;
+    ParticleNumberPerPlaquetSymmetryOperator PPSO;
+
+private:
 };
 
-typedef MinimalSystem<Filter::NElectronsPerPlaquet, Sorter::ParticleNumberAndSpin> QcaQuarterFillingBase;
-template<template <typename> class External>
-class QcaQuarterFilling : public QcaQuarterFillingBase
-{
-public:
-    QcaQuarterFilling (size_t N_p_)
-    : QcaQuarterFillingBase(8*N_p_, Filter::NElectronsPerPlaquet(2,8), Sorter::ParticleNumberAndSpin()), 
-      N_p(N_p_), N_sites(4*N_p), creatorAnnihilator(*this,8), H(*this), 
-      ensembleAverage(*this), P(*this), N(*this)
-    {}
-
-    size_t I (size_t i, Spin s) const
-    {
-        return 2*i + s;
-    }
-
-    /*
-    SMatrix ca (size_t i, Spin s_i, size_t j, Spin s_j) const
-    {
-        return creator(I(i, s_i))*annihilator(I(j, s_j));
-    }
-    */
-
-    SMatrix ca (size_t i, Spin s_i, size_t j, Spin s_j) const
-    {
-        return creatorAnnihilator(I(i, s_i), I(j, s_j));
-    }
-
-    SMatrix ca (size_t i, size_t j) const
-    {
-        return ca(i,UP,j,UP) + ca(i,DOWN,j,DOWN);
-    }
-
-    SMatrix n (size_t i, Spin s) const
-    {
-        return ca(i,s,i,s);
-    }
-
-    SMatrix n (size_t i) const
-    {
-        return n(i,UP) + n(i,DOWN);
-    }
-
-    SMatrix n_updown (size_t i) const
-    {
-        return n(i,UP) * n(i,DOWN);
-    }
-
-    size_t N_p, N_sites;
-    CreatorAnnihilator<QcaQuarterFilling> creatorAnnihilator;
-    QcaHamiltonian<QcaQuarterFilling, External> H;
-    EnsembleAverage<QcaQuarterFilling> ensembleAverage;
-    Polarisation<QcaQuarterFilling> P;
-    ParticleNumber<QcaQuarterFilling> N;
-};
-
-typedef BasicSystem<Filter::SelectAll, Sorter::ParticleNumberAndSpin> QcaGrandCanonicalBase;
-template<template <typename> class External>
-class QcaGrandCanonical : public QcaGrandCanonicalBase
-{
-public:
-    QcaGrandCanonical (size_t N_p_)
-    : QcaGrandCanonicalBase(8*N_p_, Filter::SelectAll(), Sorter::ParticleNumberAndSpin()),
-      N_p(N_p_), N_sites(4*N_p_), H(*this), ensembleAverage(*this), P(*this), N(*this)
-    {}
-    
-    size_t I (size_t i, Spin s) const
-    {
-        return 2*i + s;
-    }
-
-    SMatrix ca (size_t i, Spin s_i, size_t j, Spin s_j) const
-    {
-        return creator(I(i, s_i))*annihilator(I(j, s_j));
-    }
-
-    SMatrix ca (size_t i, size_t j) const
-    {
-        return ca(i,UP,j,UP) + ca(i,DOWN,j,DOWN);
-    }
-
-    SMatrix n (size_t i, Spin s) const
-    {
-        return ca(i,s,i,s);
-    }
-
-    SMatrix n (size_t i) const
-    {
-        return n(i,UP) + n(i,DOWN);
-    }
-
-    SMatrix n_updown (size_t i) const
-    {
-        return n(i,UP) * n(i,DOWN);
-    }
-
-    size_t N_p, N_sites;
-    QcaHamiltonian<QcaGrandCanonical, External> H;
-    EnsembleAverage<QcaGrandCanonical> ensembleAverage;
-    Polarisation<QcaGrandCanonical> P;
-    ParticleNumber<QcaGrandCanonical> N;
-};
+//typedef MinimalSystem<Filter::NElectronsPerPlaquet, Sorter::ParticleNumberAndSpin> QcaQuarterFillingBase;
+//template<template <typename> class External>
+//class QcaQuarterFilling : public QcaQuarterFillingBase
+//{
+//public:
+//    QcaQuarterFilling (size_t N_p_)
+//    : QcaQuarterFillingBase(8*N_p_, Filter::NElectronsPerPlaquet(2,8), Sorter::ParticleNumberAndSpin()), 
+//      N_p(N_p_), N_sites(4*N_p), creatorAnnihilator(*this,8), H(*this), 
+//      ensembleAverage(*this), P(*this), N(*this)
+//    {}
+//
+//    size_t I (size_t i, Spin s) const
+//    {
+//        return 2*i + s;
+//    }
+//
+//    /*
+//    SMatrix ca (size_t i, Spin s_i, size_t j, Spin s_j) const
+//    {
+//        return creator(I(i, s_i))*annihilator(I(j, s_j));
+//    }
+//    */
+//
+//    SMatrix ca (size_t i, Spin s_i, size_t j, Spin s_j) const
+//    {
+//        return creatorAnnihilator(I(i, s_i), I(j, s_j));
+//    }
+//
+//    SMatrix ca (size_t i, size_t j) const
+//    {
+//        return ca(i,UP,j,UP) + ca(i,DOWN,j,DOWN);
+//    }
+//
+//    SMatrix n (size_t i, Spin s) const
+//    {
+//        return ca(i,s,i,s);
+//    }
+//
+//    SMatrix n (size_t i) const
+//    {
+//        return n(i,UP) + n(i,DOWN);
+//    }
+//
+//    SMatrix n_updown (size_t i) const
+//    {
+//        return n(i,UP) * n(i,DOWN);
+//    }
+//
+//    size_t N_p, N_sites;
+//    CreatorAnnihilator<QcaQuarterFilling> creatorAnnihilator;
+//    QcaHamiltonian<QcaQuarterFilling, External> H;
+//    EnsembleAverage<QcaQuarterFilling> ensembleAverage;
+//    Polarisation<QcaQuarterFilling> P;
+//    ParticleNumber<QcaQuarterFilling> N;
+//};
+//
+//typedef BasicSystem<Filter::SelectAll, Sorter::ParticleNumberAndSpin> QcaGrandCanonicalBase;
+//template<template <typename> class External>
+//class QcaGrandCanonical : public QcaGrandCanonicalBase
+//{
+//public:
+//    QcaGrandCanonical (size_t N_p_)
+//    : QcaGrandCanonicalBase(8*N_p_, Filter::SelectAll(), Sorter::ParticleNumberAndSpin()),
+//      N_p(N_p_), N_sites(4*N_p_), H(*this), ensembleAverage(*this), P(*this), N(*this)
+//    {}
+//    
+//    size_t I (size_t i, Spin s) const
+//    {
+//        return 2*i + s;
+//    }
+//
+//    SMatrix ca (size_t i, Spin s_i, size_t j, Spin s_j) const
+//    {
+//        return creator(I(i, s_i))*annihilator(I(j, s_j));
+//    }
+//
+//    SMatrix ca (size_t i, size_t j) const
+//    {
+//        return ca(i,UP,j,UP) + ca(i,DOWN,j,DOWN);
+//    }
+//
+//    SMatrix n (size_t i, Spin s) const
+//    {
+//        return ca(i,s,i,s);
+//    }
+//
+//    SMatrix n (size_t i) const
+//    {
+//        return n(i,UP) + n(i,DOWN);
+//    }
+//
+//    SMatrix n_updown (size_t i) const
+//    {
+//        return n(i,UP) * n(i,DOWN);
+//    }
+//
+//    size_t N_p, N_sites;
+//    QcaHamiltonian<QcaGrandCanonical, External> H;
+//    EnsembleAverage<QcaGrandCanonical> ensembleAverage;
+//    Polarisation<QcaGrandCanonical> P;
+//    ParticleNumber<QcaGrandCanonical> N;
+//};
 
 template<class QcaSystem>
 class DQcaGeneric : public QcaSystem
@@ -601,16 +642,16 @@ public:
  */
 typedef QcaBond<ExternalPlain> QcaBondPlain;
 typedef QcaBond<ExternalDeadPlaquet> QcaBondDeadPlaquet;
-typedef QcaQuarterFilling<ExternalPlain> QcaQuarterFillingPlain;
-typedef QcaQuarterFilling<ExternalDeadPlaquet> QcaQuarterFillingDeadPlaquet;
-typedef QcaGrandCanonical<ExternalPlain> QcaGrandCanonicalPlain;
-typedef QcaGrandCanonical<ExternalDeadPlaquet> QcaGrandCanonicalDeadPlaquet;
+//typedef QcaQuarterFilling<ExternalPlain> QcaQuarterFillingPlain;
+//typedef QcaQuarterFilling<ExternalDeadPlaquet> QcaQuarterFillingDeadPlaquet;
+//typedef QcaGrandCanonical<ExternalPlain> QcaGrandCanonicalPlain;
+//typedef QcaGrandCanonical<ExternalDeadPlaquet> QcaGrandCanonicalDeadPlaquet;
 
 typedef DQcaGeneric<QcaBond<ExternalPlain> > DQcaBondPlain;
 typedef DQcaGeneric<QcaBond<ExternalDeadPlaquet> > DQcaBondDeadPlaquet;
-typedef DQcaGeneric<QcaQuarterFilling<ExternalPlain> > DQcaQuarterFillingPlain;
-typedef DQcaGeneric<QcaQuarterFilling<ExternalDeadPlaquet> > DQcaQuarterFillingDeadPlaquet;
-typedef DQcaGeneric<QcaGrandCanonical<ExternalPlain> > DQcaGrandCanonicalPlain;
-typedef DQcaGeneric<QcaGrandCanonical<ExternalDeadPlaquet> > DQcaGrandCanonicalDeadPlaquet;
+//typedef DQcaGeneric<QcaQuarterFilling<ExternalPlain> > DQcaQuarterFillingPlain;
+//typedef DQcaGeneric<QcaQuarterFilling<ExternalDeadPlaquet> > DQcaQuarterFillingDeadPlaquet;
+//typedef DQcaGeneric<QcaGrandCanonical<ExternalPlain> > DQcaGrandCanonicalPlain;
+//typedef DQcaGeneric<QcaGrandCanonical<ExternalDeadPlaquet> > DQcaGrandCanonicalDeadPlaquet;
 
 #endif // __QCA_HPP__

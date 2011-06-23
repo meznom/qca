@@ -168,6 +168,28 @@ BOOST_AUTO_TEST_CASE ( construct_system_with_symmetries )
         BOOST_CHECK (std::find_if(ev2.begin(), ev2.end(), EpsilonEqualPred(ev1[i])) != ev2.end());
 }
 
+BOOST_AUTO_TEST_CASE ( construct_and_diagonalize_system_multiple_times )
+{
+    HubbardSystem s(4, true);
+    s.construct();
+    size_t n_b1 = s.basis.size();
+    size_t n_r1 = s.basis.getRanges().size();
+    
+    s.H.diagonalizeBlockWise();
+    DVector ev1 = s.H.eigenvalues;
+
+    s.construct();
+    size_t n_b2 = s.basis.size();
+    size_t n_r2 = s.basis.getRanges().size();
+    BOOST_CHECK (n_b1 == n_b2);
+    BOOST_CHECK (n_r1 == n_r2);
+   
+    s.H.diagonalizeBlockWise();
+    DVector ev2 = s.H.eigenvalues;
+
+    BOOST_CHECK (ev1 == ev2);
+}
+
 BOOST_AUTO_TEST_CASE ( measure_double_occupancy )
 {
     HubbardSystem s(4, true);
