@@ -354,9 +354,14 @@ public:
         return ensembleAverage(beta, O);
     }
 
-    const DVector& energies() const
+    const DVector& energies () const
     {
         return H.eigenvalues;
+    }
+
+    double Emin () const
+    {
+        return H.Emin;
     }
 
     SMatrix n (size_t i) const
@@ -411,9 +416,14 @@ public:
         return ensembleAverage(beta, O);
     }
     
-    const DVector& energies() const
+    const DVector& energies () const
     {
         return H.eigenvalues;
+    }
+
+    double Emin () const
+    {
+        return H.Emin;
     }
 
     size_t I (size_t i, Spin s) const
@@ -487,9 +497,14 @@ public:
         return ensembleAverage(beta, O);
     }
 
-    const DVector& energies() const
+    const DVector& energies () const
     {
         return H.eigenvalues;
+    }
+
+    double Emin () const
+    {
+        return H.Emin;
     }
 
     size_t I (size_t i, Spin s) const

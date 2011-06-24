@@ -36,33 +36,6 @@ private:
     double e;
 };
 
-template<class System>
-void printEnergySpectrum (const System& s) 
-{
-    typedef std::map<double, int, EpsilonLess> myMap;
-    typedef myMap::const_iterator mapIt;
-    myMap evs;
-    for (int i=0; i<s.H.eigenvalues.size(); i++)
-        evs[s.H.eigenvalues(i)]++;
-    for (mapIt i=evs.begin(); i!=evs.end(); i++)
-        std::cout << i->first << "\t" << i->first - s.H.Emin << "\t" << i->second << std::endl;
-}
-
-template<class System>
-void printPolarisationPolarisation (System& s, size_t i, size_t j, 
-                                    double beta, const std::vector<double>& Vexts)
-{
-    for (size_t k=0; k<Vexts.size(); k++)
-    {
-        s.H.Vext = Vexts[k];
-        s.H.construct();
-        s.H.diagonalise();
-        std::cout
-            << s.ensembleAverage(beta, s.P(i)) << "\t"
-            << s.ensembleAverage(beta, s.P(j)) << std::endl;
-    }
-}
-
 CommandLineOptions setupCLOptions ()
 {
     CommandLineOptions o;
@@ -137,8 +110,7 @@ public:
     void measure () 
     {
         s.setParameters(o);
-        s.H.construct();
-        s.H.diagonalise();
+        s.update();
 
         if (o["energy-spectrum"].isSet())
             measureEnergies();
@@ -156,13 +128,13 @@ public:
         typedef std::map<double, int, EpsilonLess> myMap;
         typedef myMap::const_iterator mapIt;
         myMap evs;
-        for (int i=0; i<s.H.eigenvalues.size(); i++)
-            evs[s.H.eigenvalues(i)]++;
+        for (int i=0; i<s.energies().size(); i++)
+            evs[s.energies()(i)]++;
         for (mapIt i=evs.begin(); i!=evs.end(); i++)
         {
             std::vector<double> v(3);
             v[0] = i->first;
-            v[1] = i->first - s.H.Emin;
+            v[1] = i->first - s.Emin();
             v[2] = i->second;
             E.push_back(v);
         }
@@ -180,7 +152,7 @@ public:
                     << ps[i] << " in this system." << std::endl;
                 std::exit(EXIT_FAILURE);
             }
-            P.push_back(s.ensembleAverage(o["beta"], s.P(ps[i])));
+            P.push_back(s.measure(o["beta"], s.P(ps[i])));
         }
     }
 
@@ -197,7 +169,7 @@ public:
                     << p << " in this system." << std::endl;
                 std::exit(EXIT_FAILURE);
             }
-            N = s.ensembleAverage(o["beta"], s.N(p));
+            N = s.measure(o["beta"], s.N(p));
         }
         catch (ConversionException e)
         {
