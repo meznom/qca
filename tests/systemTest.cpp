@@ -41,10 +41,7 @@ class HubbardSystem : public BaseSystem
 public:
     HubbardSystem (size_t N_sites_, bool exploitSymmetries_ = false) 
         : BaseSystem(2*N_sites_), N_sites(N_sites_), H(*this), 
-          exploitSymmetries(exploitSymmetries_), ensembleAverage(*this)
-    {}
-
-    void construct ()
+          exploitSymmetries(exploitSymmetries_), measure(*this)
     {
         if (exploitSymmetries)
         {
@@ -54,7 +51,12 @@ public:
             basis.addSymmetryOperator(&S);
         }
         BaseSystem::construct();
+    }
+
+    void update()
+    {
         H.construct();
+        H.diagonalize();
     }
 
     size_t N_sites;
@@ -62,7 +64,7 @@ public:
     bool exploitSymmetries;
     ParticleNumberSymmetryOperator N;
     SpinSymmetryOperator S;
-    EnsembleAverage<HubbardSystem> ensembleAverage;
+    EnsembleAverage<HubbardSystem> measure;
 };
 
 template<class System>
@@ -119,14 +121,14 @@ bool epsilonEqual (double v, double w, double epsilon = 10E-10)
 BOOST_AUTO_TEST_CASE ( construct_system_without_symmetries )
 {
     HubbardSystem s(2);
-    s.construct();
+    s.H.construct();
     BOOST_CHECK (s.basis.getRanges().size() == 1);
     
-    s.H.diagonalize();
+    s.H.diagonalizeNoSymmetries();
     DVector eigenvalues1 = s.H.eigenvalues;
     SMatrix eigenvectors1 = s.H.eigenvectors;
     
-    s.H.diagonalizeBlockWise();
+    s.H.diagonalizeUsingSymmetries();
     DVector eigenvalues2 = s.H.eigenvalues;
     SMatrix eigenvectors2 = s.H.eigenvectors;
 
@@ -137,10 +139,10 @@ BOOST_AUTO_TEST_CASE ( construct_system_without_symmetries )
 BOOST_AUTO_TEST_CASE ( construct_system_with_symmetries )
 {
     HubbardSystem s(4, true);
-    s.construct();
+    s.H.construct();
     BOOST_CHECK (s.basis.getRanges().size() > 1);
 
-    s.H.diagonalize();
+    s.H.diagonalizeNoSymmetries();
     DVector eigenvalues1 = s.H.eigenvalues;
     DMatrix eigenvectors1 = EigenHelpers::sparseToDenseBlock(s.H.eigenvectors, 
                                                              0, 0, 
@@ -150,7 +152,7 @@ BOOST_AUTO_TEST_CASE ( construct_system_with_symmetries )
     for (int i=0; i<eigenvalues1.size(); i++)
         ev1.push_back(eigenvalues1(i));
     
-    s.H.diagonalizeBlockWise();
+    s.H.diagonalizeUsingSymmetries();
     DVector eigenvalues2 = s.H.eigenvalues;
     DMatrix eigenvectors2 = EigenHelpers::sparseToDenseBlock(s.H.eigenvectors, 
                                                              0, 0, 
@@ -171,20 +173,20 @@ BOOST_AUTO_TEST_CASE ( construct_system_with_symmetries )
 BOOST_AUTO_TEST_CASE ( construct_and_diagonalize_system_multiple_times )
 {
     HubbardSystem s(4, true);
-    s.construct();
+    s.H.construct();
     size_t n_b1 = s.basis.size();
     size_t n_r1 = s.basis.getRanges().size();
     
-    s.H.diagonalizeBlockWise();
+    s.H.diagonalizeUsingSymmetries();
     DVector ev1 = s.H.eigenvalues;
 
-    s.construct();
+    s.H.construct();
     size_t n_b2 = s.basis.size();
     size_t n_r2 = s.basis.getRanges().size();
     BOOST_CHECK (n_b1 == n_b2);
     BOOST_CHECK (n_r1 == n_r2);
    
-    s.H.diagonalizeBlockWise();
+    s.H.diagonalizeUsingSymmetries();
     DVector ev2 = s.H.eigenvalues;
 
     BOOST_CHECK (ev1 == ev2);
@@ -194,16 +196,16 @@ BOOST_AUTO_TEST_CASE ( measure_double_occupancy )
 {
     HubbardSystem s(4, true);
     DoubleOccupancy<HubbardSystem> DO(s);
-    s.construct();
-    s.H.diagonalize();
-    double doLowT1 = s.ensembleAverage(1000, DO(0));
-    double doMidT1 = s.ensembleAverage(1, DO(0));
-    double doHighT1 = s.ensembleAverage(0.00001, DO(0));
+    s.H.construct();
+    s.H.diagonalizeNoSymmetries();
+    double doLowT1 = s.measure(1000, DO(0));
+    double doMidT1 = s.measure(1, DO(0));
+    double doHighT1 = s.measure(0.00001, DO(0));
 
-    s.H.diagonalizeBlockWise();
-    double doLowT2 = s.ensembleAverage(1000, DO(0));
-    double doMidT2 = s.ensembleAverage(1, DO(0));
-    double doHighT2 = s.ensembleAverage(0.00001, DO(0));
+    s.H.diagonalizeUsingSymmetries();
+    double doLowT2 = s.measure(1000, DO(0));
+    double doMidT2 = s.measure(1, DO(0));
+    double doHighT2 = s.measure(0.00001, DO(0));
 
     BOOST_CHECK (epsilonEqual(doLowT1, 0, 10E-2));
     BOOST_CHECK (epsilonEqual(doHighT1, 0.25, 10E-2));
@@ -223,26 +225,25 @@ BOOST_AUTO_TEST_CASE ( compare_performance_diagonalize_and_diagonalizeBlockWise 
 #else
     sites = 4;
 #endif
-    HubbardSystem s(sites, true);
-    DoubleOccupancy<HubbardSystem> DO(s);
-
 
     startCPUTime = std::clock();
-    s.construct();
+    HubbardSystem s(sites, true);
+    DoubleOccupancy<HubbardSystem> DO(s);
+    s.H.construct();
     endCPUTime = std::clock();
     cpuTime = static_cast<double>(endCPUTime-startCPUTime)/CLOCKS_PER_SEC;
     std::cerr << "Time for construction of system with " << sites 
               << " sites: " << cpuTime << "s" << std::endl;
 
     startCPUTime = std::clock();
-    s.H.diagonalize();
+    s.H.diagonalizeNoSymmetries();
     endCPUTime = std::clock();
     cpuTime = static_cast<double>(endCPUTime-startCPUTime)/CLOCKS_PER_SEC;
     std::cerr << "Time for diagonalize of system with " << sites 
               << " sites: " << cpuTime << "s" << std::endl;
 
     startCPUTime = std::clock();
-    s.H.diagonalizeBlockWise();
+    s.H.diagonalizeUsingSymmetries();
     endCPUTime = std::clock();
     cpuTime = static_cast<double>(endCPUTime-startCPUTime)/CLOCKS_PER_SEC;
     std::cerr << "Time for diagonalizeBlockWise of system with " << sites 

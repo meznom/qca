@@ -156,7 +156,7 @@ public:
      *
      * Uses a dense matrix. Relies on Eigen for the eigenvalue decomposition.
      */
-    void diagonalize ()
+    void diagonalizeNoSymmetries ()
     {
         /*
          * This assertion is somewhat arbitrary, just because my computers tend
@@ -174,7 +174,7 @@ public:
         eigenvectors = EigenHelpers::denseToSparseBlock(denseEigenvectors, 0, 0, H.rows(), H.rows());
     }
 
-    void diagonalizeBlockWise ()
+    void diagonalizeUsingSymmetries ()
     {
         eigenvalues = DVector(H.rows());
         eigenvalues.setZero();
@@ -201,6 +201,11 @@ public:
         }
         eigenvectors.finalize();
         Emin = eigenvalues.minCoeff();
+    }
+
+    void diagonalize ()
+    {
+        diagonalizeUsingSymmetries();
     }
 
     SMatrix eigenvectors;
@@ -294,11 +299,6 @@ private:
     const System& s;
 };
 
-//TODO: it might be useful for System to have a method like 'update' => when
-//parameters of the Hamiltonian are changed it's sufficient to reconstruct the
-//Hamiltonian. However, now I'm mostly calling system.construct() which rebuilds
-//everything.
-
 /**
  * Minimal base class for a fermionic quantum system.
  *
@@ -320,13 +320,14 @@ public:
     : N_orbital(N_orbital_), basis(N_orbital)
     {}
 
+    size_t N_orbital;
+    Basis basis;
+
+protected:
     void construct ()
     {
         basis.construct();
     }
-
-    size_t N_orbital;
-    Basis basis;
 };
 
 /**
@@ -347,15 +348,16 @@ public:
     : MinimalSystem(N_orbital_), creator(*this), annihilator(*this)
     {}
 
+    Creator<BasicSystem> creator;
+    Annihilator<BasicSystem> annihilator;
+
+protected:
     void construct ()
     {
         MinimalSystem::construct();
         creator.construct();
         annihilator.construct();
     }
-
-    Creator<BasicSystem> creator;
-    Annihilator<BasicSystem> annihilator;
 };
 
 #endif // __TEST_HPP__

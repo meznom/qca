@@ -136,23 +136,22 @@ class QcaHamiltonian : public Hamiltonian<System>
 {
 public:
     QcaHamiltonian (const System& s_)
-    : Hamiltonian<System>(s_), 
-      t(1), td(0), ti(0), V0(1000), a(1.0), b(3*a), Vext(0), Pext(0), mu(0), 
-      H(Hamiltonian<System>::H), s(Hamiltonian<System>::s)
+    : Hamiltonian<System>(s_), H(Hamiltonian<System>::H), 
+      s(Hamiltonian<System>::s)
     {}
 
     void construct() 
     {
-        Hopping hopping(t, td, ti);
-        Coulomb coulomb(V0, a, b);
-        External<QcaHamiltonian> external(*this);
+        Hopping hopping(s.t, s.td, s.ti);
+        Coulomb coulomb(s.V0, s.a, s.b);
+        External<System> external(s);
 
         H = SMatrix(s.basis.size(), s.basis.size());
         H.setZero();
         for (size_t i=0; i<s.N_sites; i++)
         {
             H += coulomb(i,i) * s.n_updown(i);
-            H += (external(i) + mu) * s.n(i);
+            H += (external(i) + s.mu) * s.n(i);
             for (size_t j=i+1; j<s.N_sites; j++)
             {
                 H += - hopping(i,j) * s.ca(i,j) - hopping(j,i) * s.ca(j,i);
@@ -161,8 +160,7 @@ public:
         }
     }
 
-    double t, td, ti, V0, a, b, Vext, Pext, mu;
-
+private:
     SMatrix& H;
     const System& s;
 };
@@ -319,24 +317,46 @@ private:
     size_t plaquetSize;
 };
 
+class QcaParameters
+{
+public:
+    QcaParameters()
+        : t(1), td(0), ti(0), V0(1000), a(1.0), b(3*a), Vext(0), Pext(0), mu(0)
+    {}
+
+    double t, td, ti, V0, a, b, Vext, Pext, mu;
+};
+
 template<template <typename> class External>
-class QcaBond
+class QcaBond : public QcaParameters
 {
 public:
     QcaBond (size_t N_p_)
         : basis(plaquetSize*N_p_), N_p(N_p_), N_sites(plaquetSize*N_p), 
           ca(*this, plaquetSize), H(*this), ensembleAverage(*this), P(*this), 
           N(*this), PPSO(plaquetSize)
-    {}
-
-    void construct ()
     {
         basis.addSymmetryOperator(&PPSO);
         int filterValue = PPSO.valueForNElectronsPerPlaquet(2,N_p);
         basis.setFilter(constructSector(filterValue));
         basis.construct();
         ca.construct();
+    }
+
+    void update ()
+    {
         H.construct();
+        H.diagonalize();
+    }
+
+    double measure (double beta, const SMatrix& O) const
+    {
+        return ensembleAverage(beta, O);
+    }
+
+    const DVector& energies() const
+    {
+        return H.eigenvalues;
     }
 
     SMatrix n (size_t i) const
@@ -358,22 +378,19 @@ public:
     EnsembleAverage<QcaBond> ensembleAverage;
     Polarisation<QcaBond> P;
     ParticleNumber<QcaBond> N;
-    ParticleNumberPerPlaquetSymmetryOperator PPSO;
 
 private:
+    ParticleNumberPerPlaquetSymmetryOperator PPSO;
 };
 
 template<template <typename> class External>
-class QcaQuarterFilling
+class QcaQuarterFilling : public QcaParameters
 {
 public:
     QcaQuarterFilling (size_t N_p_)
         : basis(plaquetSize*N_p_), N_p(N_p_), N_sites(4*N_p), 
           creatorAnnihilator(*this, plaquetSize), H(*this), 
           ensembleAverage(*this), P(*this), N(*this), PPSO(plaquetSize)
-    {}
-
-    void construct ()
     {
         basis.addSymmetryOperator(&PPSO);
         basis.addSymmetryOperator(&SSO);
@@ -381,7 +398,22 @@ public:
         basis.setFilter(constructSector(filterValue));
         basis.construct();
         creatorAnnihilator.construct();
+    }
+
+    void update ()
+    {
         H.construct();
+        H.diagonalize();
+    }
+
+    double measure (double beta, const SMatrix& O) const
+    {
+        return ensembleAverage(beta, O);
+    }
+    
+    const DVector& energies() const
+    {
+        return H.eigenvalues;
     }
 
     size_t I (size_t i, Spin s) const
@@ -422,30 +454,44 @@ public:
     EnsembleAverage<QcaQuarterFilling> ensembleAverage;
     Polarisation<QcaQuarterFilling> P;
     ParticleNumber<QcaQuarterFilling> N;
+
+private:
     ParticleNumberPerPlaquetSymmetryOperator PPSO;
     SpinSymmetryOperator SSO;
 };
 
 template<template <typename> class External>
-class QcaGrandCanonical
+class QcaGrandCanonical : public QcaParameters
 {
 public:
     QcaGrandCanonical (size_t N_p_)
         : basis(plaquetSize*N_p_), N_p(N_p_), N_sites(4*N_p_), creator(*this),
           annihilator(*this), H(*this), ensembleAverage(*this), P(*this), 
           N(*this)
-    {}
-
-    void construct ()
     {
         basis.addSymmetryOperator(&PSO);
         basis.addSymmetryOperator(&SSO);
         basis.construct();
         creator.construct();
         annihilator.construct();
-        H.construct();
     }
-    
+
+    void update ()
+    {
+        H.construct();
+        H.diagonalize();
+    }
+
+    double measure (double beta, const SMatrix& O) const
+    {
+        return ensembleAverage(beta, O);
+    }
+
+    const DVector& energies() const
+    {
+        return H.eigenvalues;
+    }
+
     size_t I (size_t i, Spin s) const
     {
         return 2*i + s;
@@ -485,6 +531,8 @@ public:
     EnsembleAverage<QcaGrandCanonical> ensembleAverage;
     Polarisation<QcaGrandCanonical> P;
     ParticleNumber<QcaGrandCanonical> N;
+
+private:
     ParticleNumberSymmetryOperator PSO;
     SpinSymmetryOperator SSO;
 };
@@ -501,15 +549,15 @@ public:
 
     void setParameters (OptionSection os)
     {
-        QcaSystem::H.t = os["t"].get<double>(1.0);
-        QcaSystem::H.td = os["td"].get<double>(0); 
-        QcaSystem::H.ti = os["ti"].get<double>(0); 
-        QcaSystem::H.a = os["a"].get<double>(1.0); 
-        QcaSystem::H.b = os["b"].get<double>(3);
-        QcaSystem::H.Vext = os["Vext"].get<double>(0);
-        QcaSystem::H.Pext = os["Pext"].get<double>(0);
-        QcaSystem::H.V0 = os["V0"].get<double>(1000); 
-        QcaSystem::H.mu = os["mu"].get<double>(0);
+        QcaSystem::t = os["t"].get<double>(1.0);
+        QcaSystem::td = os["td"].get<double>(0); 
+        QcaSystem::ti = os["ti"].get<double>(0); 
+        QcaSystem::a = os["a"].get<double>(1.0); 
+        QcaSystem::b = os["b"].get<double>(3);
+        QcaSystem::Vext = os["Vext"].get<double>(0);
+        QcaSystem::Pext = os["Pext"].get<double>(0);
+        QcaSystem::V0 = os["V0"].get<double>(1000); 
+        QcaSystem::mu = os["mu"].get<double>(0);
     }
 };
 
