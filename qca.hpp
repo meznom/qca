@@ -131,7 +131,7 @@ private:
     const double P;
 };
 
-template<class System, template <typename> class External>
+template<class System>
 class QcaHamiltonian : public Hamiltonian<System>
 {
 public:
@@ -144,7 +144,7 @@ public:
     {
         Hopping hopping(s.t, s.td, s.ti);
         Coulomb coulomb(s.V0, s.a, s.b);
-        External<System> external(s);
+        typename System::External external(s);
 
         H = SMatrix(s.basis.size(), s.basis.size());
         H.setZero();
@@ -327,21 +327,20 @@ public:
     double t, td, ti, V0, a, b, Vext, Pext, mu;
 };
 
-template<template <typename> class External>
-class QcaBond : public QcaParameters
+template<class QcaSystem>
+class QcaCommon
 {
+private:
+    typedef QcaSystem S;
+    S& s;
+
 public:
-    QcaBond (size_t N_p_)
-        : basis(plaquetSize*N_p_), N_p(N_p_), N_sites(plaquetSize*N_p), 
-          ca(*this, plaquetSize), H(*this), ensembleAverage(*this), P(*this), 
-          N(*this), PPSO(plaquetSize)
-    {
-        basis.addSymmetryOperator(&PPSO);
-        int filterValue = PPSO.valueForNElectronsPerPlaquet(2,N_p);
-        basis.setFilter(constructSector(filterValue));
-        basis.construct();
-        ca.construct();
-    }
+    QcaCommon (QcaSystem& s_, size_t N_p_)
+        : s(s_), N_p(N_p_), N_sites(S::plaquetSize*N_p), 
+          H(s), ensembleAverage(s), P(s), 
+          N(s), 
+          t(1), td(0), ti(0), V0(1000), a(1.0), b(3*a), Vext(0), Pext(0), mu(0)
+    {}
 
     void update ()
     {
@@ -362,6 +361,34 @@ public:
     double Emin () const
     {
         return H.Emin;
+    }
+
+    size_t N_p, N_sites;
+    QcaHamiltonian<S> H;
+    EnsembleAverage<S> ensembleAverage;
+    Polarisation<S> P;
+    ParticleNumber<S> N;
+    double t, td, ti, V0, a, b, Vext, Pext, mu;
+};
+
+template<template <typename> class ExternalTemplateClass>
+class QcaBond : public QcaCommon< QcaBond<ExternalTemplateClass> >
+{
+private:
+    typedef QcaCommon< QcaBond<ExternalTemplateClass> > B;
+
+public:
+    typedef ExternalTemplateClass< QcaBond<ExternalTemplateClass> > External;
+
+    QcaBond (size_t N_p_)
+        : B(*this, N_p_), 
+          basis(plaquetSize*N_p_), ca(*this, plaquetSize), PPSO(plaquetSize)
+    {
+        basis.addSymmetryOperator(&PPSO);
+        int filterValue = PPSO.valueForNElectronsPerPlaquet(2,B::N_p);
+        basis.setFilter(constructSector(filterValue));
+        basis.construct();
+        ca.construct();
     }
 
     SMatrix n (size_t i) const
@@ -377,180 +404,236 @@ public:
 
     enum {plaquetSize=4};
     Basis basis;
-    size_t N_p, N_sites;
     CreatorAnnihilator<QcaBond> ca;
-    QcaHamiltonian<QcaBond, External> H;
-    EnsembleAverage<QcaBond> ensembleAverage;
-    Polarisation<QcaBond> P;
-    ParticleNumber<QcaBond> N;
 
 private:
     ParticleNumberPerPlaquetSymmetryOperator PPSO;
 };
 
-template<template <typename> class External>
-class QcaQuarterFilling : public QcaParameters
-{
-public:
-    QcaQuarterFilling (size_t N_p_)
-        : basis(plaquetSize*N_p_), N_p(N_p_), N_sites(4*N_p), 
-          creatorAnnihilator(*this, plaquetSize), H(*this), 
-          ensembleAverage(*this), P(*this), N(*this), PPSO(plaquetSize)
-    {
-        basis.addSymmetryOperator(&PPSO);
-        basis.addSymmetryOperator(&SSO);
-        int filterValue = PPSO.valueForNElectronsPerPlaquet(2,N_p);
-        basis.setFilter(constructSector(filterValue));
-        basis.construct();
-        creatorAnnihilator.construct();
-    }
+//template<template <typename> class External>
+//class QcaBond : public QcaParameters
+//{
+//public:
+//    QcaBond (size_t N_p_)
+//        : basis(plaquetSize*N_p_), N_p(N_p_), N_sites(plaquetSize*N_p), 
+//          ca(*this, plaquetSize), H(*this), ensembleAverage(*this), P(*this), 
+//          N(*this), PPSO(plaquetSize)
+//    {
+//        basis.addSymmetryOperator(&PPSO);
+//        int filterValue = PPSO.valueForNElectronsPerPlaquet(2,N_p);
+//        basis.setFilter(constructSector(filterValue));
+//        basis.construct();
+//        ca.construct();
+//    }
+//
+//    void update ()
+//    {
+//        H.construct();
+//        H.diagonalize();
+//    }
+//
+//    double measure (double beta, const SMatrix& O) const
+//    {
+//        return ensembleAverage(beta, O);
+//    }
+//
+//    const DVector& energies () const
+//    {
+//        return H.eigenvalues;
+//    }
+//
+//    double Emin () const
+//    {
+//        return H.Emin;
+//    }
+//
+//    SMatrix n (size_t i) const
+//    {
+//        return ca(i,i);
+//    }
+//
+//    SMatrix n_updown (size_t i) const
+//    {
+//        // return 0
+//        return SMatrix(basis.size(), basis.size());
+//    }
+//
+//    enum {plaquetSize=4};
+//    Basis basis;
+//    size_t N_p, N_sites;
+//    CreatorAnnihilator<QcaBond> ca;
+//    QcaHamiltonian<QcaBond, External> H;
+//    EnsembleAverage<QcaBond> ensembleAverage;
+//    Polarisation<QcaBond> P;
+//    ParticleNumber<QcaBond> N;
+//
+//private:
+//    ParticleNumberPerPlaquetSymmetryOperator PPSO;
+//};
 
-    void update ()
-    {
-        H.construct();
-        H.diagonalize();
-    }
-
-    double measure (double beta, const SMatrix& O) const
-    {
-        return ensembleAverage(beta, O);
-    }
-    
-    const DVector& energies () const
-    {
-        return H.eigenvalues;
-    }
-
-    double Emin () const
-    {
-        return H.Emin;
-    }
-
-    size_t I (size_t i, Spin s) const
-    {
-        return 2*i + s;
-    }
-
-    SMatrix ca (size_t i, Spin s_i, size_t j, Spin s_j) const
-    {
-        return creatorAnnihilator(I(i, s_i), I(j, s_j));
-    }
-
-    SMatrix ca (size_t i, size_t j) const
-    {
-        return ca(i,UP,j,UP) + ca(i,DOWN,j,DOWN);
-    }
-
-    SMatrix n (size_t i, Spin s) const
-    {
-        return ca(i,s,i,s);
-    }
-
-    SMatrix n (size_t i) const
-    {
-        return n(i,UP) + n(i,DOWN);
-    }
-
-    SMatrix n_updown (size_t i) const
-    {
-        return n(i,UP) * n(i,DOWN);
-    }
-
-    enum {plaquetSize=8};
-    Basis basis;
-    size_t N_p, N_sites;
-    CreatorAnnihilator<QcaQuarterFilling> creatorAnnihilator;
-    QcaHamiltonian<QcaQuarterFilling, External> H;
-    EnsembleAverage<QcaQuarterFilling> ensembleAverage;
-    Polarisation<QcaQuarterFilling> P;
-    ParticleNumber<QcaQuarterFilling> N;
-
-private:
-    ParticleNumberPerPlaquetSymmetryOperator PPSO;
-    SpinSymmetryOperator SSO;
-};
-
-template<template <typename> class External>
-class QcaGrandCanonical : public QcaParameters
-{
-public:
-    QcaGrandCanonical (size_t N_p_)
-        : basis(plaquetSize*N_p_), N_p(N_p_), N_sites(4*N_p_), creator(*this),
-          annihilator(*this), H(*this), ensembleAverage(*this), P(*this), 
-          N(*this)
-    {
-        basis.addSymmetryOperator(&PSO);
-        basis.addSymmetryOperator(&SSO);
-        basis.construct();
-        creator.construct();
-        annihilator.construct();
-    }
-
-    void update ()
-    {
-        H.construct();
-        H.diagonalize();
-    }
-
-    double measure (double beta, const SMatrix& O) const
-    {
-        return ensembleAverage(beta, O);
-    }
-
-    const DVector& energies () const
-    {
-        return H.eigenvalues;
-    }
-
-    double Emin () const
-    {
-        return H.Emin;
-    }
-
-    size_t I (size_t i, Spin s) const
-    {
-        return 2*i + s;
-    }
-
-    SMatrix ca (size_t i, Spin s_i, size_t j, Spin s_j) const
-    {
-        return creator(I(i, s_i))*annihilator(I(j, s_j));
-    }
-
-    SMatrix ca (size_t i, size_t j) const
-    {
-        return ca(i,UP,j,UP) + ca(i,DOWN,j,DOWN);
-    }
-
-    SMatrix n (size_t i, Spin s) const
-    {
-        return ca(i,s,i,s);
-    }
-
-    SMatrix n (size_t i) const
-    {
-        return n(i,UP) + n(i,DOWN);
-    }
-
-    SMatrix n_updown (size_t i) const
-    {
-        return n(i,UP) * n(i,DOWN);
-    }
-
-    enum {plaquetSize=8};
-    Basis basis;
-    size_t N_p, N_sites;
-    Creator<QcaGrandCanonical> creator;
-    Annihilator<QcaGrandCanonical> annihilator;
-    QcaHamiltonian<QcaGrandCanonical, External> H;
-    EnsembleAverage<QcaGrandCanonical> ensembleAverage;
-    Polarisation<QcaGrandCanonical> P;
-    ParticleNumber<QcaGrandCanonical> N;
-
-private:
-    ParticleNumberSymmetryOperator PSO;
-    SpinSymmetryOperator SSO;
-};
+//template<template <typename> class External>
+//class QcaQuarterFilling : public QcaParameters
+//{
+//public:
+//    QcaQuarterFilling (size_t N_p_)
+//        : basis(plaquetSize*N_p_), N_p(N_p_), N_sites(4*N_p), 
+//          creatorAnnihilator(*this, plaquetSize), H(*this), 
+//          ensembleAverage(*this), P(*this), N(*this), PPSO(plaquetSize)
+//    {
+//        basis.addSymmetryOperator(&PPSO);
+//        basis.addSymmetryOperator(&SSO);
+//        int filterValue = PPSO.valueForNElectronsPerPlaquet(2,N_p);
+//        basis.setFilter(constructSector(filterValue));
+//        basis.construct();
+//        creatorAnnihilator.construct();
+//    }
+//
+//    void update ()
+//    {
+//        H.construct();
+//        H.diagonalize();
+//    }
+//
+//    double measure (double beta, const SMatrix& O) const
+//    {
+//        return ensembleAverage(beta, O);
+//    }
+//    
+//    const DVector& energies () const
+//    {
+//        return H.eigenvalues;
+//    }
+//
+//    double Emin () const
+//    {
+//        return H.Emin;
+//    }
+//
+//    size_t I (size_t i, Spin s) const
+//    {
+//        return 2*i + s;
+//    }
+//
+//    SMatrix ca (size_t i, Spin s_i, size_t j, Spin s_j) const
+//    {
+//        return creatorAnnihilator(I(i, s_i), I(j, s_j));
+//    }
+//
+//    SMatrix ca (size_t i, size_t j) const
+//    {
+//        return ca(i,UP,j,UP) + ca(i,DOWN,j,DOWN);
+//    }
+//
+//    SMatrix n (size_t i, Spin s) const
+//    {
+//        return ca(i,s,i,s);
+//    }
+//
+//    SMatrix n (size_t i) const
+//    {
+//        return n(i,UP) + n(i,DOWN);
+//    }
+//
+//    SMatrix n_updown (size_t i) const
+//    {
+//        return n(i,UP) * n(i,DOWN);
+//    }
+//
+//    enum {plaquetSize=8};
+//    Basis basis;
+//    size_t N_p, N_sites;
+//    CreatorAnnihilator<QcaQuarterFilling> creatorAnnihilator;
+//    QcaHamiltonian<QcaQuarterFilling, External> H;
+//    EnsembleAverage<QcaQuarterFilling> ensembleAverage;
+//    Polarisation<QcaQuarterFilling> P;
+//    ParticleNumber<QcaQuarterFilling> N;
+//
+//private:
+//    ParticleNumberPerPlaquetSymmetryOperator PPSO;
+//    SpinSymmetryOperator SSO;
+//};
+//
+//template<template <typename> class External>
+//class QcaGrandCanonical : public QcaParameters
+//{
+//public:
+//    QcaGrandCanonical (size_t N_p_)
+//        : basis(plaquetSize*N_p_), N_p(N_p_), N_sites(4*N_p_), creator(*this),
+//          annihilator(*this), H(*this), ensembleAverage(*this), P(*this), 
+//          N(*this)
+//    {
+//        basis.addSymmetryOperator(&PSO);
+//        basis.addSymmetryOperator(&SSO);
+//        basis.construct();
+//        creator.construct();
+//        annihilator.construct();
+//    }
+//
+//    void update ()
+//    {
+//        H.construct();
+//        H.diagonalize();
+//    }
+//
+//    double measure (double beta, const SMatrix& O) const
+//    {
+//        return ensembleAverage(beta, O);
+//    }
+//
+//    const DVector& energies () const
+//    {
+//        return H.eigenvalues;
+//    }
+//
+//    double Emin () const
+//    {
+//        return H.Emin;
+//    }
+//
+//    size_t I (size_t i, Spin s) const
+//    {
+//        return 2*i + s;
+//    }
+//
+//    SMatrix ca (size_t i, Spin s_i, size_t j, Spin s_j) const
+//    {
+//        return creator(I(i, s_i))*annihilator(I(j, s_j));
+//    }
+//
+//    SMatrix ca (size_t i, size_t j) const
+//    {
+//        return ca(i,UP,j,UP) + ca(i,DOWN,j,DOWN);
+//    }
+//
+//    SMatrix n (size_t i, Spin s) const
+//    {
+//        return ca(i,s,i,s);
+//    }
+//
+//    SMatrix n (size_t i) const
+//    {
+//        return n(i,UP) + n(i,DOWN);
+//    }
+//
+//    SMatrix n_updown (size_t i) const
+//    {
+//        return n(i,UP) * n(i,DOWN);
+//    }
+//
+//    enum {plaquetSize=8};
+//    Basis basis;
+//    size_t N_p, N_sites;
+//    Creator<QcaGrandCanonical> creator;
+//    Annihilator<QcaGrandCanonical> annihilator;
+//    QcaHamiltonian<QcaGrandCanonical, External> H;
+//    EnsembleAverage<QcaGrandCanonical> ensembleAverage;
+//    Polarisation<QcaGrandCanonical> P;
+//    ParticleNumber<QcaGrandCanonical> N;
+//
+//private:
+//    ParticleNumberSymmetryOperator PSO;
+//    SpinSymmetryOperator SSO;
+//};
 
 template<class QcaSystem>
 class DQcaGeneric : public QcaSystem
@@ -581,16 +664,16 @@ public:
  */
 typedef QcaBond<ExternalPlain> QcaBondPlain;
 typedef QcaBond<ExternalDeadPlaquet> QcaBondDeadPlaquet;
-typedef QcaQuarterFilling<ExternalPlain> QcaQuarterFillingPlain;
-typedef QcaQuarterFilling<ExternalDeadPlaquet> QcaQuarterFillingDeadPlaquet;
-typedef QcaGrandCanonical<ExternalPlain> QcaGrandCanonicalPlain;
-typedef QcaGrandCanonical<ExternalDeadPlaquet> QcaGrandCanonicalDeadPlaquet;
+//typedef QcaQuarterFilling<ExternalPlain> QcaQuarterFillingPlain;
+//typedef QcaQuarterFilling<ExternalDeadPlaquet> QcaQuarterFillingDeadPlaquet;
+//typedef QcaGrandCanonical<ExternalPlain> QcaGrandCanonicalPlain;
+//typedef QcaGrandCanonical<ExternalDeadPlaquet> QcaGrandCanonicalDeadPlaquet;
 
 typedef DQcaGeneric<QcaBond<ExternalPlain> > DQcaBondPlain;
 typedef DQcaGeneric<QcaBond<ExternalDeadPlaquet> > DQcaBondDeadPlaquet;
-typedef DQcaGeneric<QcaQuarterFilling<ExternalPlain> > DQcaQuarterFillingPlain;
-typedef DQcaGeneric<QcaQuarterFilling<ExternalDeadPlaquet> > DQcaQuarterFillingDeadPlaquet;
-typedef DQcaGeneric<QcaGrandCanonical<ExternalPlain> > DQcaGrandCanonicalPlain;
-typedef DQcaGeneric<QcaGrandCanonical<ExternalDeadPlaquet> > DQcaGrandCanonicalDeadPlaquet;
+//typedef DQcaGeneric<QcaQuarterFilling<ExternalPlain> > DQcaQuarterFillingPlain;
+//typedef DQcaGeneric<QcaQuarterFilling<ExternalDeadPlaquet> > DQcaQuarterFillingDeadPlaquet;
+//typedef DQcaGeneric<QcaGrandCanonical<ExternalPlain> > DQcaGrandCanonicalPlain;
+//typedef DQcaGeneric<QcaGrandCanonical<ExternalDeadPlaquet> > DQcaGrandCanonicalDeadPlaquet;
 
 #endif // __QCA_HPP__
