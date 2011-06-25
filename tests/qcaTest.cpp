@@ -108,190 +108,190 @@ BOOST_AUTO_TEST_CASE ( test_qca_bond_system_for_some_parameters )
     BOOST_CHECK (epsilonEqual(s3.measure(1000000, s3.P(0)), 0.93, 0.01));
 }
 
-//BOOST_AUTO_TEST_CASE ( test_construct_qca_quarterfilled_system )
-//{
-//    QcaQuarterFilling<ExternalPlain> s1(1);
-//    BOOST_CHECK (s1.basis.size() == 28);
-//    BOOST_CHECK (s1.basis.getRanges().size() == 3);
-//
-//    QcaQuarterFilling<ExternalPlain> s2(2);
-//    BOOST_CHECK (s2.basis.size() == 28*28);
-//    BOOST_CHECK (s2.basis.getRanges().size() == 5);
-//
-//#ifdef NDEBUG
-//    QcaQuarterFilling<ExternalPlain> s3(3);
-//    BOOST_CHECK (s3.basis.size() == 28*28*28);
-//    BOOST_CHECK (s3.basis.getRanges().size() == 7);
-//#endif
-//}
-//
-//BOOST_AUTO_TEST_CASE ( test_qca_quarterfilled_system_for_some_parameters )
-//{
-//    //see tests/NotesAndTests.txt
-//    QcaQuarterFilling<ExternalDeadPlaquet> s1(1);
-//    s1.Vext = 0;
-//    s1.Pext = 0;
-//    s1.t = 1;
-//    s1.td = 0.2;
-//    s1.a = 1.0/250.0;
-//    s1.b = 1.75*s1.a;
-//    s1.V0 = 10.0 / s1.a;
-//    
-//    s1.Pext = 0;
-//    s1.update();
-//    BOOST_CHECK (epsilonEqual(s1.measure(1000, s1.P(0)), 0));
-//
-//    s1.Pext = 0.1;
-//    s1.update();
-//    BOOST_CHECK (epsilonEqual(s1.measure(1000, s1.P(0)), 0.895, 0.001));
-//
-//    QcaQuarterFilling<ExternalDeadPlaquet> s2(2);
-//    s2.Vext = 0;
-//    s2.Pext = 0;
-//    s2.t = 1;
-//    s2.td = 0.2;
-//    s2.a = 1.0/250.0;
-//    s2.b = 1.75*s2.a;
-//    s2.V0 = 10.0 / s2.a;
-//    
-//    s2.Pext = 0;
-//    s2.update();
-//    BOOST_CHECK (epsilonEqual(s2.measure(1000, s2.P(0)), 0));
-//    BOOST_CHECK (epsilonEqual(s2.measure(1000, s2.P(1)), 0));
-//
-//    s2.Pext = 0.01;
-//    s2.update();
-//    BOOST_CHECK (epsilonEqual(s2.measure(1000000, s2.P(0)), 0.662, 0.001));
-//    BOOST_CHECK (epsilonEqual(s2.measure(1000000, s2.P(1)), 0.013, 0.001));
-//
-//    s2.Pext = 0.2;
-//    s2.update();
-//    BOOST_CHECK (epsilonEqual(s2.measure(1000000, s2.P(0)), 0.998, 0.001));
-//    BOOST_CHECK (epsilonEqual(s2.measure(1000000, s2.P(1)), 0.020, 0.001));
-//
-//    s2.Vext = 0;
-//    s2.Pext = 0;
-//    s2.t = 1;
-//    s2.td = 0;
-//    s2.a = 1.0/100.0;
-//    s2.b = 3*s2.a;
-//    s2.V0 = 10.0 / s2.a;
-//    
-//    s2.Pext = 0.1;
-//    s2.update();
-//    BOOST_CHECK (epsilonEqual(s2.measure(1000000, s2.P(0)), 0.414, 0.001));
-//    BOOST_CHECK (epsilonEqual(s2.measure(1000000, s2.P(1)), 0.379, 0.001));
-//
-//    s2.Pext = -0.8;
-//    s2.update();
-//    BOOST_CHECK (epsilonEqual(s2.measure(1000000, s2.P(0)), -0.944, 0.001));
-//    BOOST_CHECK (epsilonEqual(s2.measure(1000000, s2.P(1)), -0.850, 0.001));
-//}
-//
-//BOOST_AUTO_TEST_CASE ( test_construct_qca_grandcanonical_system )
-//{
-//    QcaGrandCanonical<ExternalPlain> s1(1);
-//    BOOST_CHECK (s1.basis.size() == 256);
-//    BOOST_CHECK (s1.basis.getRanges().size() == 1+2+3+4+5+4+3+2+1);
-//
-//    QcaGrandCanonical<ExternalPlain> s2(2);
-//    BOOST_CHECK (s2.basis.size() == 256*256);
-//}
-//
-//BOOST_AUTO_TEST_CASE ( test_diagonalization_of_qca_grand_canonical_system )
-//{
-//    QcaGrandCanonical<ExternalPlain> s1(1);
-//    s1.H.construct();
-//    s1.H.diagonalizeNoSymmetries();
-//    DVector ev1_ = s1.energies();
-//    std::vector<double> ev1(ev1_.size());
-//    for (int i=0; i<ev1_.size(); i++)
-//        ev1[i] = ev1_(i);
-//    std::sort(ev1.begin(), ev1.end());
-//    
-//    s1.H.diagonalizeUsingSymmetries();
-//    DVector ev2_ = s1.energies();
-//    std::vector<double> ev2(ev2_.size());
-//    for (int i=0; i<ev2_.size(); i++)
-//        ev2[i] = ev2_(i);
-//    std::sort(ev2.begin(), ev2.end());
-//    
-//    BOOST_CHECK (ev1.size() == ev2.size());
-//    for (size_t i=0; i<ev1.size(); i++)
-//        BOOST_CHECK (epsilonEqual(ev1[i], ev2[i]));
-//
-//    QcaGrandCanonical<ExternalPlain> s2(2);
-//    s2.H.construct();
-//
-//    /*
-//     * useful output
-//     */
-//    //const std::vector<Range>& rs = s2.basis.getRanges();
-//    //std::cerr << "For the two plaquet grand canonical QCA system we have " 
-//    //          << rs.size() << " ranges." << std::endl;
-//    //for (size_t i=0; i<rs.size(); i++)
-//    //    std::cerr << "   Size of Range " << i << ": " << rs[i].b-rs[i].a << std::endl;
-//    //std::cerr << std::endl;
-//    
-//    /*
-//     * doesn't work, because the dense matrix gets too big
-//     */
-//    //s2.H.diagonalizeNoSymmetries();
-//
-//    /*
-//     * this takes a _long_ time, but works
-//     */
-//    //s2.H.diagonalizeUsingSymmetries();
-//    //BOOST_CHECK (s2.H.eigenvalues.size() == 256*256);
-//}
-//
-//BOOST_AUTO_TEST_CASE ( simple_sanity_checks_for_qca_grand_canonical_system )
-//{
-//    QcaGrandCanonical<ExternalDeadPlaquet> s1(1);
-//    s1.Vext = 0;
-//    s1.Pext = 0;
-//    s1.t = 1;
-//    s1.td = 0;
-//    s1.a = 1.0/160.0;
-//    s1.b = 3*s1.a;
-//    s1.V0 = 1000;
-//    s1.mu = -300;
-//    
-//    s1.Pext = 0;
-//    s1.update();
-//    BOOST_CHECK (epsilonEqual(s1.measure(1000000, s1.P(0)), 0));
-//
-//    s1.Pext = 0.1;
-//    s1.update();
-//    BOOST_CHECK (epsilonEqual(s1.measure(1000000, s1.N(0)), 2));
-//    double P = s1.measure(100000, s1.P(0));
-//    BOOST_CHECK (P > 0.1 && P < 1);
-//}
-//
-//BOOST_AUTO_TEST_CASE ( compare_performance_qca_quarterfilling_with_and_without_using_symmetries )
-//{
-//    std::clock_t startCPUTime, endCPUTime;
-//    double cpuTime = 0;
-//
-//    startCPUTime = std::clock();
-//    QcaQuarterFilling<ExternalDeadPlaquet> s(2);
-//    s.H.construct();
-//    endCPUTime = std::clock();
-//    cpuTime = static_cast<double>(endCPUTime-startCPUTime)/CLOCKS_PER_SEC;
-//    std::cerr << "Time for construction of two plaquet QCA quarterfilled system: " 
-//              << cpuTime << "s" << std::endl;
-//
-//    startCPUTime = std::clock();
-//    s.H.diagonalizeNoSymmetries();
-//    endCPUTime = std::clock();
-//    cpuTime = static_cast<double>(endCPUTime-startCPUTime)/CLOCKS_PER_SEC;
-//    std::cerr << "Time for diagonalizeNoSymmetries of two plaquet QCA quarterfilled system: " 
-//              << cpuTime << "s" << std::endl;
-//
-//    startCPUTime = std::clock();
-//    s.H.diagonalizeUsingSymmetries();
-//    endCPUTime = std::clock();
-//    cpuTime = static_cast<double>(endCPUTime-startCPUTime)/CLOCKS_PER_SEC;
-//    std::cerr << "Time for diagonalizeUsingSymmetries of two plaquet QCA quarterfilled system: " 
-//              << cpuTime << "s" << std::endl;
-//}
+BOOST_AUTO_TEST_CASE ( test_construct_qca_quarterfilled_system )
+{
+    QcaQuarterFilling<ExternalPlain> s1(1);
+    BOOST_CHECK (s1.basis.size() == 28);
+    BOOST_CHECK (s1.basis.getRanges().size() == 3);
+
+    QcaQuarterFilling<ExternalPlain> s2(2);
+    BOOST_CHECK (s2.basis.size() == 28*28);
+    BOOST_CHECK (s2.basis.getRanges().size() == 5);
+
+#ifdef NDEBUG
+    QcaQuarterFilling<ExternalPlain> s3(3);
+    BOOST_CHECK (s3.basis.size() == 28*28*28);
+    BOOST_CHECK (s3.basis.getRanges().size() == 7);
+#endif
+}
+
+BOOST_AUTO_TEST_CASE ( test_qca_quarterfilled_system_for_some_parameters )
+{
+    //see tests/NotesAndTests.txt
+    QcaQuarterFilling<ExternalDeadPlaquet> s1(1);
+    s1.Vext = 0;
+    s1.Pext = 0;
+    s1.t = 1;
+    s1.td = 0.2;
+    s1.a = 1.0/250.0;
+    s1.b = 1.75*s1.a;
+    s1.V0 = 10.0 / s1.a;
+    
+    s1.Pext = 0;
+    s1.update();
+    BOOST_CHECK (epsilonEqual(s1.measure(1000, s1.P(0)), 0));
+
+    s1.Pext = 0.1;
+    s1.update();
+    BOOST_CHECK (epsilonEqual(s1.measure(1000, s1.P(0)), 0.895, 0.001));
+
+    QcaQuarterFilling<ExternalDeadPlaquet> s2(2);
+    s2.Vext = 0;
+    s2.Pext = 0;
+    s2.t = 1;
+    s2.td = 0.2;
+    s2.a = 1.0/250.0;
+    s2.b = 1.75*s2.a;
+    s2.V0 = 10.0 / s2.a;
+    
+    s2.Pext = 0;
+    s2.update();
+    BOOST_CHECK (epsilonEqual(s2.measure(1000, s2.P(0)), 0));
+    BOOST_CHECK (epsilonEqual(s2.measure(1000, s2.P(1)), 0));
+
+    s2.Pext = 0.01;
+    s2.update();
+    BOOST_CHECK (epsilonEqual(s2.measure(1000000, s2.P(0)), 0.662, 0.001));
+    BOOST_CHECK (epsilonEqual(s2.measure(1000000, s2.P(1)), 0.013, 0.001));
+
+    s2.Pext = 0.2;
+    s2.update();
+    BOOST_CHECK (epsilonEqual(s2.measure(1000000, s2.P(0)), 0.998, 0.001));
+    BOOST_CHECK (epsilonEqual(s2.measure(1000000, s2.P(1)), 0.020, 0.001));
+
+    s2.Vext = 0;
+    s2.Pext = 0;
+    s2.t = 1;
+    s2.td = 0;
+    s2.a = 1.0/100.0;
+    s2.b = 3*s2.a;
+    s2.V0 = 10.0 / s2.a;
+    
+    s2.Pext = 0.1;
+    s2.update();
+    BOOST_CHECK (epsilonEqual(s2.measure(1000000, s2.P(0)), 0.414, 0.001));
+    BOOST_CHECK (epsilonEqual(s2.measure(1000000, s2.P(1)), 0.379, 0.001));
+
+    s2.Pext = -0.8;
+    s2.update();
+    BOOST_CHECK (epsilonEqual(s2.measure(1000000, s2.P(0)), -0.944, 0.001));
+    BOOST_CHECK (epsilonEqual(s2.measure(1000000, s2.P(1)), -0.850, 0.001));
+}
+
+BOOST_AUTO_TEST_CASE ( test_construct_qca_grandcanonical_system )
+{
+    QcaGrandCanonical<ExternalPlain> s1(1);
+    BOOST_CHECK (s1.basis.size() == 256);
+    BOOST_CHECK (s1.basis.getRanges().size() == 1+2+3+4+5+4+3+2+1);
+
+    QcaGrandCanonical<ExternalPlain> s2(2);
+    BOOST_CHECK (s2.basis.size() == 256*256);
+}
+
+BOOST_AUTO_TEST_CASE ( test_diagonalization_of_qca_grand_canonical_system )
+{
+    QcaGrandCanonical<ExternalPlain> s1(1);
+    s1.H.construct();
+    s1.H.diagonalizeNoSymmetries();
+    DVector ev1_ = s1.energies();
+    std::vector<double> ev1(ev1_.size());
+    for (int i=0; i<ev1_.size(); i++)
+        ev1[i] = ev1_(i);
+    std::sort(ev1.begin(), ev1.end());
+    
+    s1.H.diagonalizeUsingSymmetries();
+    DVector ev2_ = s1.energies();
+    std::vector<double> ev2(ev2_.size());
+    for (int i=0; i<ev2_.size(); i++)
+        ev2[i] = ev2_(i);
+    std::sort(ev2.begin(), ev2.end());
+    
+    BOOST_CHECK (ev1.size() == ev2.size());
+    for (size_t i=0; i<ev1.size(); i++)
+        BOOST_CHECK (epsilonEqual(ev1[i], ev2[i]));
+
+    QcaGrandCanonical<ExternalPlain> s2(2);
+    s2.H.construct();
+
+    /*
+     * useful output
+     */
+    //const std::vector<Range>& rs = s2.basis.getRanges();
+    //std::cerr << "For the two plaquet grand canonical QCA system we have " 
+    //          << rs.size() << " ranges." << std::endl;
+    //for (size_t i=0; i<rs.size(); i++)
+    //    std::cerr << "   Size of Range " << i << ": " << rs[i].b-rs[i].a << std::endl;
+    //std::cerr << std::endl;
+    
+    /*
+     * doesn't work, because the dense matrix gets too big
+     */
+    //s2.H.diagonalizeNoSymmetries();
+
+    /*
+     * this takes a _long_ time, but works
+     */
+    //s2.H.diagonalizeUsingSymmetries();
+    //BOOST_CHECK (s2.H.eigenvalues.size() == 256*256);
+}
+
+BOOST_AUTO_TEST_CASE ( simple_sanity_checks_for_qca_grand_canonical_system )
+{
+    QcaGrandCanonical<ExternalDeadPlaquet> s1(1);
+    s1.Vext = 0;
+    s1.Pext = 0;
+    s1.t = 1;
+    s1.td = 0;
+    s1.a = 1.0/160.0;
+    s1.b = 3*s1.a;
+    s1.V0 = 1000;
+    s1.mu = -300;
+    
+    s1.Pext = 0;
+    s1.update();
+    BOOST_CHECK (epsilonEqual(s1.measure(1000000, s1.P(0)), 0));
+
+    s1.Pext = 0.1;
+    s1.update();
+    BOOST_CHECK (epsilonEqual(s1.measure(1000000, s1.N(0)), 2));
+    double P = s1.measure(100000, s1.P(0));
+    BOOST_CHECK (P > 0.1 && P < 1);
+}
+
+BOOST_AUTO_TEST_CASE ( compare_performance_qca_quarterfilling_with_and_without_using_symmetries )
+{
+    std::clock_t startCPUTime, endCPUTime;
+    double cpuTime = 0;
+
+    startCPUTime = std::clock();
+    QcaQuarterFilling<ExternalDeadPlaquet> s(2);
+    s.H.construct();
+    endCPUTime = std::clock();
+    cpuTime = static_cast<double>(endCPUTime-startCPUTime)/CLOCKS_PER_SEC;
+    std::cerr << "Time for construction of two plaquet QCA quarterfilled system: " 
+              << cpuTime << "s" << std::endl;
+
+    startCPUTime = std::clock();
+    s.H.diagonalizeNoSymmetries();
+    endCPUTime = std::clock();
+    cpuTime = static_cast<double>(endCPUTime-startCPUTime)/CLOCKS_PER_SEC;
+    std::cerr << "Time for diagonalizeNoSymmetries of two plaquet QCA quarterfilled system: " 
+              << cpuTime << "s" << std::endl;
+
+    startCPUTime = std::clock();
+    s.H.diagonalizeUsingSymmetries();
+    endCPUTime = std::clock();
+    cpuTime = static_cast<double>(endCPUTime-startCPUTime)/CLOCKS_PER_SEC;
+    std::cerr << "Time for diagonalizeUsingSymmetries of two plaquet QCA quarterfilled system: " 
+              << cpuTime << "s" << std::endl;
+}
