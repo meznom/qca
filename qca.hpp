@@ -326,9 +326,7 @@ private:
 
 public:
     QcaCommon (QcaSystem& s_, size_t N_p_)
-        : s(s_), N_p(N_p_), N_sites(S::plaquetSize*N_p), 
-          H(s), ensembleAverage(s), P(s), 
-          N(s), 
+        : s(s_), N_p(N_p_), N_sites(4*N_p), H(s), ensembleAverage(s), P(s), N(s), 
           t(1), td(0), ti(0), V0(1000), a(1.0), b(3*a), Vext(0), Pext(0), mu(0)
     {}
 
