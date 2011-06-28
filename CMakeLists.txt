@@ -10,11 +10,11 @@ include_directories(
 	${EIGEN_INCLUDE_DIR}
 )
 
-set(CMAKE_CXX_FLAGS_DEBUG "-O0 -Wall -ggdb -DEIGEN_YES_I_KNOW_SPARSE_MODULE_IS_NOT_STABLE_YET")
+set(CMAKE_CXX_FLAGS_DEBUG "-O0 -Wall -ggdb -DEIGEN_YES_I_KNOW_SPARSE_MODULE_IS_NOT_STABLE_YET -I/usr/local/include -L/usr/local/lib")
 # TODO: why is there no -march=native on mac?
 # TODO: use newer gcc on mac
 #set(CMAKE_CXX_FLAGS_RELEASE "-O3 -Wall -march=native -DNDEBUG")
-set(CMAKE_CXX_FLAGS_RELEASE "-O3 -Wall -fopenmp -mtune=native -DNDEBUG -DEIGEN_YES_I_KNOW_SPARSE_MODULE_IS_NOT_STABLE_YET")
+set(CMAKE_CXX_FLAGS_RELEASE "-O3 -Wall -fopenmp -mtune=native -DNDEBUG -DEIGEN_YES_I_KNOW_SPARSE_MODULE_IS_NOT_STABLE_YET -I/usr/local/include -L/usr/local/lib")
 
 # make sure that the default is a Release
 if (NOT CMAKE_BUILD_TYPE)

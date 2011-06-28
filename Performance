@@ -1,0 +1,313 @@
+Testing performance with different compilers
+============================================
+
+June 28 2011
+
+
+I've installed gcc 4.2.1, the default gcc shipped by Apple with OS X. Clang
+version 2.9svn got installed alongside XCode 4. Finally, I compiled gcc-4.6.1
+from the sources.
+
+burkhard@macheath:~$ /usr/bin/gcc-4.2 --version
+i686-apple-darwin10-gcc-4.2.1 (GCC) 4.2.1 (Apple Inc. build 5666) (dot 3)
+Copyright (C) 2007 Free Software Foundation, Inc.
+This is free software; see the source for copying conditions.  There is NO
+warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+
+burkhard@macheath:~$ ls -lh /usr/local/bin/g++-4.6 
+lrwxr-xr-x  1 root  wheel    34B 28 Jun 14:09 /usr/local/bin/g++-4.6 -> /usr/local/gcc-4.6.1/bin/g++-4.6.1
+burkhard@macheath:~$ /usr/local/bin/g++-4.6 --version
+g++-4.6 (GCC) 4.6.1
+Copyright (C) 2011 Free Software Foundation, Inc.
+This is free software; see the source for copying conditions.  There is NO
+warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+
+burkhard@macheath:~$ /usr/bin/clang++ --version
+Apple clang version 2.0 (tags/Apple/clang-139) (based on LLVM 2.9svn)
+Target: x86_64-apple-darwin10
+Thread model: posix
+
+
+1. Running tests, Debug mode
+----------------------------
+
+First I run my tests in Debug mode (which is of course not very interesting).
+
+burkhard@macheath:~/o/src/ExactDiagonalization/Debug (master *)$ cd gcc-4.2.1/
+burkhard@macheath:~/o/src/ExactDiagonalization/Debug/gcc-4.2.1 (master *)$ make check
+[ 20%] Built target systemTest
+[ 40%] Built target qcaTest
+[ 60%] Built target eigenHelpersTest
+[ 80%] Built target utilitiesTest
+[100%] Built target basisTest
+[100%] Built target buildtest
+Scanning dependencies of target check
+Test project /Users/burkhard/o/src/ExactDiagonalization/Debug/gcc-4.2.1
+    Start 1: utilities
+1/5 Test #1: utilities ........................   Passed    0.03 sec
+    Start 2: basis
+2/5 Test #2: basis ............................   Passed    0.42 sec
+    Start 3: system
+3/5 Test #3: system ...........................   Passed    2.78 sec
+    Start 4: eigenHelpers
+4/5 Test #4: eigenHelpers .....................   Passed    0.00 sec
+    Start 5: qca
+5/5 Test #5: qca ..............................   Passed   55.64 sec
+
+100% tests passed, 0 tests failed out of 5
+
+Total Test time (real) =  58.94 sec
+[100%] Built target check
+burkhard@macheath:~/o/src/ExactDiagonalization/Debug/gcc-4.2.1 (master *)$ cd ../gcc-4.6.1/
+burkhard@macheath:~/o/src/ExactDiagonalization/Debug/gcc-4.6.1 (master *)$ make check
+[ 20%] Built target utilitiesTest
+[ 40%] Built target systemTest
+[ 60%] Built target eigenHelpersTest
+[ 80%] Built target qcaTest
+[100%] Built target basisTest
+[100%] Built target buildtest
+Scanning dependencies of target check
+Test project /Users/burkhard/o/src/ExactDiagonalization/Debug/gcc-4.6.1
+    Start 1: utilities
+1/5 Test #1: utilities ........................   Passed    0.05 sec
+    Start 2: basis
+2/5 Test #2: basis ............................   Passed    0.43 sec
+    Start 3: system
+3/5 Test #3: system ...........................   Passed    2.68 sec
+    Start 4: eigenHelpers
+4/5 Test #4: eigenHelpers .....................   Passed    0.00 sec
+    Start 5: qca
+5/5 Test #5: qca ..............................   Passed   54.84 sec
+
+100% tests passed, 0 tests failed out of 5
+
+Total Test time (real) =  58.03 sec
+[100%] Built target check
+burkhard@macheath:~/o/src/ExactDiagonalization/Debug/gcc-4.6.1 (master *)$ cd ../clang/
+burkhard@macheath:~/o/src/ExactDiagonalization/Debug/clang (master *)$ make check
+[ 20%] Built target qcaTest
+[ 40%] Built target utilitiesTest
+[ 60%] Built target basisTest
+[ 80%] Built target systemTest
+[100%] Built target eigenHelpersTest
+[100%] Built target buildtest
+Scanning dependencies of target check
+Test project /Users/burkhard/o/src/ExactDiagonalization/Debug/clang
+    Start 1: utilities
+1/5 Test #1: utilities ........................   Passed    0.01 sec
+    Start 2: basis
+2/5 Test #2: basis ............................   Passed    0.45 sec
+    Start 3: system
+3/5 Test #3: system ...........................   Passed    2.46 sec
+    Start 4: eigenHelpers
+4/5 Test #4: eigenHelpers .....................   Passed    0.00 sec
+    Start 5: qca
+5/5 Test #5: qca ..............................   Passed   49.87 sec
+
+100% tests passed, 0 tests failed out of 5
+
+Total Test time (real) =  52.80 sec
+[100%] Built target check
+burkhard@macheath:~/o/src/ExactDiagonalization/Debug/clang (master *)$ cd ../gcc-4.2.1/
+burkhard@macheath:~/o/src/ExactDiagonalization/Debug/gcc-4.2.1 (master *)$ ./tests/qcaTest 
+Running 9 test cases...
+Time for construction of two plaquet QCA quarterfilled system: 0.12635s
+Time for diagonalizeNoSymmetries of two plaquet QCA quarterfilled system: 23.4476s
+Time for diagonalizeUsingSymmetries of two plaquet QCA quarterfilled system: 3.04701s
+
+*** No errors detected
+burkhard@macheath:~/o/src/ExactDiagonalization/Debug/gcc-4.2.1 (master *)$ cd ../gcc-4.6.1/
+burkhard@macheath:~/o/src/ExactDiagonalization/Debug/gcc-4.6.1 (master *)$ ./tests/qcaTest 
+Running 9 test cases...
+Time for construction of two plaquet QCA quarterfilled system: 0.113542s
+Time for diagonalizeNoSymmetries of two plaquet QCA quarterfilled system: 23.4721s
+Time for diagonalizeUsingSymmetries of two plaquet QCA quarterfilled system: 3.08461s
+
+*** No errors detected
+burkhard@macheath:~/o/src/ExactDiagonalization/Debug/gcc-4.6.1 (master *)$ cd ../clang/
+burkhard@macheath:~/o/src/ExactDiagonalization/Debug/clang (master *)$ ./tests/qcaTest 
+Running 9 test cases...
+Time for construction of two plaquet QCA quarterfilled system: 0.115825s
+Time for diagonalizeNoSymmetries of two plaquet QCA quarterfilled system: 20.5842s
+Time for diagonalizeUsingSymmetries of two plaquet QCA quarterfilled system: 2.75435s
+
+*** No errors detected
+
+
+
+Thus clang seems to be slightly faster in Debug mode.
+
+
+
+2. Runnig tests, Release mode
+-----------------------------
+
+At the moment the code doesn't build with clang in Release mode. I'll have to investigate into this.
+
+burkhard@macheath:~/o/src/ExactDiagonalization/Release/gcc-4.2.1 (master *)$ make check
+[ 20%] Built target systemTest
+[ 40%] Built target basisTest
+[ 60%] Built target qcaTest
+[ 80%] Built target utilitiesTest
+[100%] Built target eigenHelpersTest
+[100%] Built target buildtest
+Test project /Users/burkhard/o/src/ExactDiagonalization/Release/gcc-4.2.1
+    Start 1: utilities
+1/5 Test #1: utilities ........................   Passed    0.01 sec
+    Start 2: basis
+2/5 Test #2: basis ............................   Passed   11.17 sec
+    Start 3: system
+3/5 Test #3: system ...........................   Passed    1.82 sec
+    Start 4: eigenHelpers
+4/5 Test #4: eigenHelpers .....................   Passed    0.00 sec
+    Start 5: qca
+5/5 Test #5: qca ..............................   Passed    6.01 sec
+
+100% tests passed, 0 tests failed out of 5
+
+Total Test time (real) =  19.02 sec
+[100%] Built target check
+burkhard@macheath:~/o/src/ExactDiagonalization/Release/gcc-4.2.1 (master *)$ cd ../gcc-4.6.1/
+burkhard@macheath:~/o/src/ExactDiagonalization/Release/gcc-4.6.1 (master *)$ make check
+[ 20%] Built target eigenHelpersTest
+[ 40%] Built target utilitiesTest
+[ 60%] Built target qcaTest
+[ 80%] Built target systemTest
+[100%] Built target basisTest
+[100%] Built target buildtest
+Test project /Users/burkhard/o/src/ExactDiagonalization/Release/gcc-4.6.1
+    Start 1: utilities
+1/5 Test #1: utilities ........................   Passed    0.01 sec
+    Start 2: basis
+2/5 Test #2: basis ............................   Passed   10.91 sec
+    Start 3: system
+3/5 Test #3: system ...........................   Passed    1.36 sec
+    Start 4: eigenHelpers
+4/5 Test #4: eigenHelpers .....................   Passed    0.00 sec
+    Start 5: qca
+5/5 Test #5: qca ..............................   Passed    5.51 sec
+
+100% tests passed, 0 tests failed out of 5
+
+Total Test time (real) =  17.80 sec
+[100%] Built target check
+burkhard@macheath:~/o/src/ExactDiagonalization/Release/gcc-4.6.1 (master *)$ cd ../gcc-4.2.1/
+burkhard@macheath:~/o/src/ExactDiagonalization/Release/gcc-4.2.1 (master *)$ ./tests/qcaTest 
+Running 9 test cases...
+Time for construction of two plaquet QCA quarterfilled system: 0.01702s
+Time for diagonalizeNoSymmetries of two plaquet QCA quarterfilled system: 0.751274s
+Time for diagonalizeUsingSymmetries of two plaquet QCA quarterfilled system: 0.098567s
+
+*** No errors detected
+burkhard@macheath:~/o/src/ExactDiagonalization/Release/gcc-4.2.1 (master *)$ cd ../gcc-4.6.1/
+burkhard@macheath:~/o/src/ExactDiagonalization/Release/gcc-4.6.1 (master *)$ ./tests/qcaTest 
+Running 9 test cases...
+Time for construction of two plaquet QCA quarterfilled system: 0.016396s
+Time for diagonalizeNoSymmetries of two plaquet QCA quarterfilled system: 0.559828s
+Time for diagonalizeUsingSymmetries of two plaquet QCA quarterfilled system: 0.075598s
+
+*** No errors detected
+
+
+
+Thus, gcc-4.6 is faster than gcc-4.2. 
+
+The code compiles with clang if I use -O1 instead of -O3. I assume that this is a clang/Eigen issue. Anyway, with -O1 I get:
+
+burkhard@macheath:~/o/src/ExactDiagonalization/Release/clang (master *)$ make check
+[ 20%] Built target qcaTest
+[ 40%] Built target utilitiesTest
+[ 60%] Built target basisTest
+[ 80%] Built target systemTest
+[100%] Built target eigenHelpersTest
+[100%] Built target buildtest
+Scanning dependencies of target check
+Test project /Users/burkhard/o/src/ExactDiagonalization/Release/clang
+    Start 1: utilities
+1/5 Test #1: utilities ........................   Passed    0.01 sec
+    Start 2: basis
+2/5 Test #2: basis ............................   Passed   23.84 sec
+    Start 3: system
+3/5 Test #3: system ...........................   Passed   26.51 sec
+    Start 4: eigenHelpers
+4/5 Test #4: eigenHelpers .....................   Passed    0.00 sec
+    Start 5: qca
+5/5 Test #5: qca ..............................   Passed   38.37 sec
+
+100% tests passed, 0 tests failed out of 5
+
+Total Test time (real) =  88.73 sec
+[100%] Built target check
+burkhard@macheath:~/o/src/ExactDiagonalization/Release/clang (master *)$ ./tests/qcaTest 
+Running 9 test cases...
+Time for construction of two plaquet QCA quarterfilled system: 0.070734s
+Time for diagonalizeNoSymmetries of two plaquet QCA quarterfilled system: 11.1903s
+Time for diagonalizeUsingSymmetries of two plaquet QCA quarterfilled system: 1.47249s
+
+*** No errors detected
+
+
+Thus clang is (as expected with -O1 instead of -O3), much slower than gcc.
+
+
+
+3. Running the program for real
+-------------------------------
+
+burkhard@macheath:~/o/src/ExactDiagonalization/Release/gcc-4.6.1 (master *)$ time ./runQca -P 0,1 -m grandcanonicalDP -p 2 -t 1 -td 0 -V0 1000 -beta 1000000 -a `c 1/160` -b `c 1/160*3` -Pext 0 -N 0 -mu -300
+# p = 2
+# t = 1
+# td = 0
+# ti = 0
+# V0 = 1000
+# mu = -300
+# Vext = 0
+# Pext = 0
+# a = 0.00625
+# b = 0.01875
+# beta = 1e+06
+# model = grandcanonicalDP
+# 
+# P0	P1	N0
+-3.81041e-12	-3.73008e-12	2
+
+real	24m39.076s
+user	23m4.286s
+sys	0m29.726s
+burkhard@macheath:~/o/src/ExactDiagonalization/Release/gcc-4.6.1 (master *)$ cd ../gcc-4.2.1/
+burkhard@macheath:~/o/src/ExactDiagonalization/Release/gcc-4.2.1 (master *)$ time ./runQca -P 0,1 -m grandcanonicalDP -p 2 -t 1 -td 0 -V0 1000 -beta 1000000 -a `c 1/160` -b `c 1/160*3` -Pext 0 -N 0 -mu -300
+# p = 2
+# t = 1
+# td = 0
+# ti = 0
+# V0 = 1000
+# mu = -300
+# Vext = 0
+# Pext = 0
+# a = 0.00625
+# b = 0.01875
+# beta = 1e+06
+# model = grandcanonicalDP
+# 
+# P0	P1	N2
+4.12217e-11	4.15774e-11	2
+
+real	28m26.163s
+user	26m40.899s
+sys	0m28.951s
+burkhard@macheath:~/o/src/ExactDiagonalization/Release/gcc-4.2.1 (master *)$ 
+
+
+To summarize: The new gcc4.6 is a bit faster, roughly 15%. 
+
+
+
+4. OpenMP
+---------
+
+As far as I can see openmp is not supported in the parts of Eigen that I use.
+Thus the code is not parallized. As long as I don't run out of memory I can
+just run two instances of runQca in parallel, so it doesn't matter.
+
+See http://listengine.tuxfamily.org/lists.tuxfamily.org/eigen/2010/03/msg00178.html
+And this still seems to be the current state as of today.

@@ -5,6 +5,8 @@
 #define STORAGE_TYPE_OF_FERMIONIC_STATE uint32_t
 #include "basis.hpp"
 
+#include <ctime>
+
 BOOST_AUTO_TEST_CASE ( construct_state_from_string )
 {
     State s("10010");

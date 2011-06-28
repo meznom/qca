@@ -223,7 +223,7 @@ public:
                     {
                         size_t p;
                         p = o["particle-number"];
-                        std::cout << "N" << N;
+                        std::cout << "N" << p;
                     }
                     catch (ConversionException e)
                     {
