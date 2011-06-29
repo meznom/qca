@@ -53,8 +53,8 @@ CommandLineOptions setupCLOptions ()
      .add("", "b", "Inter-plaquet spacing.")
      .add("", "beta", "Inverse temperature.")
      .add("energy-spectrum", "E", "Calculate the energy spectrum.")
-     .add("polarisation", "P", "Calculate the polarisation for specified plaquet(s).")
-     .add("particle-number", "N", "Calculate the particle number for the specified plaquet or the total particle number.");
+     .add("polarisation", "P", "Calculate the polarisation for the specified plaquet(s).")
+     .add("particle-number", "N", "Calculate the particle number for the specified plaquet(s).");
     
     o["p"].setDefault(1);
     o["t"].setDefault(1);
@@ -158,22 +158,17 @@ public:
 
     void measureParticleNumber ()
     {
-        //TODO o["particle-number"].isSize_t() or isBool() would be uselful
-        size_t p;
-        try
+        N.resize(0);
+        std::vector<size_t> ns = o["particle-number"];
+        for (size_t i=0; i<ns.size(); i++)
         {
-            p = o["particle-number"];
-            if (p >= s.N_p) 
+            if (ns[i] >= s.N_p) 
             {
                 std::cerr << std::endl << "Particle number: There is no plaquet " 
-                    << p << " in this system." << std::endl;
+                    << ns[i] << " in this system." << std::endl;
                 std::exit(EXIT_FAILURE);
             }
-            N = s.measure(o["beta"], s.N(p));
-        }
-        catch (ConversionException e)
-        {
-            N = s.ensembleAverage(o["beta"], s.N());
+            N.push_back(s.measure(o["beta"], s.N(ns[i])));
         }
     }
 
@@ -216,18 +211,12 @@ public:
                 }
                 if (o["particle-number"].isSet())
                 {
-                    if (!first) std::cout << "\t";
-                    else first = false;
-                    
-                    try
+                    std::vector<size_t> ns = o["particle-number"];
+                    for (size_t i=0; i<ns.size(); i++)
                     {
-                        size_t p;
-                        p = o["particle-number"];
-                        std::cout << "N" << p;
-                    }
-                    catch (ConversionException e)
-                    {
-                        std::cout << "N";
+                        if (!first) std::cout << "\t";
+                        else first = false;
+                        std::cout << "N" << ns[i];
                     }
                 }
                 std::cout << std::endl;
@@ -251,11 +240,12 @@ public:
                     std::cout << P[j];
                 }
             if (o["particle-number"].isSet())
-            {
-                if (!first) std::cout << "\t";
-                else first = false;
-                std::cout << N;
-            }
+                for (size_t j=0; j<N.size(); j++)
+                {
+                    if (!first) std::cout << "\t";
+                    else first = false;
+                    std::cout << N[j];
+                }
             std::cout << std::endl;
         }
     }
@@ -289,7 +279,7 @@ private:
 
     std::vector<std::vector<double> > E;
     std::vector<double> P;
-    double N;
+    std::vector<double> N;
     
     bool needHeader, globalFirst;
     typedef std::map<std::string, OutputMode> OutputMap;
