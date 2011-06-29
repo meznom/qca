@@ -172,7 +172,15 @@ public:
 
     operator size_t() const
     {
-        int returnValue = get<int>();
+        int returnValue;
+        try 
+        {
+            returnValue = get<int>();
+        }
+        catch (ConversionException e)
+        {
+            throw ConversionException("Can't convert '" + value + "' to size_t.");
+        }
         if (returnValue < 0)
             throw ConversionException("Can't convert '" + value + "' to size_t.");
         return returnValue;

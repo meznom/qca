@@ -362,24 +362,34 @@ int main(int argc, const char** argv)
         std::exit(EXIT_SUCCESS);
     }
 
-    if (opts["model"] == "bond")
-        run<DQcaBondPlain>(opts);
-    else if (opts["model"] == "quarterfilling" || opts["model"] == "quarter" || 
-             opts["model"] == "qf")
-        run<DQcaQuarterFillingPlain>(opts);
-    else if (opts["model"] == "grandcanonical" || opts["model"] == "grand")
-        run<DQcaGrandCanonicalPlain>(opts);
-    else if (opts["model"] == "bondDP")
-        run<DQcaBondDeadPlaquet>(opts);
-    else if (opts["model"] == "quarterfillingDP" || opts["model"] == "quarterDP" || 
-             opts["model"] == "qfDP")
-        run<DQcaQuarterFillingDeadPlaquet>(opts);
-    else if (opts["model"] == "grandcanonicalDP" || opts["model"] == "grandDP")
-        run<DQcaGrandCanonicalDeadPlaquet>(opts);
-    else
+    try 
     {
-        printUsage(opts);
-        std::cerr << std::endl << "Please specify a model." << std::endl;
+        if (opts["model"] == "bond")
+            run<DQcaBondPlain>(opts);
+        else if (opts["model"] == "quarterfilling" || opts["model"] == "quarter" || 
+                 opts["model"] == "qf")
+            run<DQcaQuarterFillingPlain>(opts);
+        else if (opts["model"] == "grandcanonical" || opts["model"] == "grand")
+            run<DQcaGrandCanonicalPlain>(opts);
+        else if (opts["model"] == "bondDP")
+            run<DQcaBondDeadPlaquet>(opts);
+        else if (opts["model"] == "quarterfillingDP" || opts["model"] == "quarterDP" || 
+                 opts["model"] == "qfDP")
+            run<DQcaQuarterFillingDeadPlaquet>(opts);
+        else if (opts["model"] == "grandcanonicalDP" || opts["model"] == "grandDP")
+            run<DQcaGrandCanonicalDeadPlaquet>(opts);
+        else
+        {
+            printUsage(opts);
+            std::cerr << std::endl << "Please specify a model." << std::endl;
+            std::exit(EXIT_FAILURE);
+        }
+    }
+    catch (ConversionException e)
+    {
+        std::cerr << "One or more of the specified command line arguments are "
+                  << "of the wrong type." << std::endl;
+        std::cerr << "ConversionException: " << e.what() << std::endl;
         std::exit(EXIT_FAILURE);
     }
 

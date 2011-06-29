@@ -396,7 +396,6 @@ BOOST_AUTO_TEST_CASE ( CommandLineOptions_parser )
     BOOST_CHECK_THROW (o.parse(argc, const_cast<const char**>(argv)), CommandLineOptionsException);
 }
 
-
 BOOST_AUTO_TEST_CASE ( CommandLineOptions_usage_message )
 {
 
