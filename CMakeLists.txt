@@ -3,6 +3,17 @@ project(ExactDiagonalization)
 cmake_minimum_required(VERSION 2.6)
 #set(CMAKE_VERBOSE_MAKEFILE ON)
 
+# get program version from git
+execute_process(
+    WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
+    COMMAND git describe --always 
+    COMMAND tr -d "\n"
+    OUTPUT_VARIABLE GIT_PROGRAM_VERSION
+)
+configure_file(
+    ${PROJECT_SOURCE_DIR}/version.hpp.in
+    ${PROJECT_SOURCE_DIR}/version.hpp
+)
 
 ### set up paths and flags ###
 set(EIGEN_INCLUDE_DIR "~/src/include" CACHE PATH "Include path for eigen3")

@@ -1,0 +1,14 @@
+/**
+ * @file version.hpp
+ * Program version from git.
+ * @author Burkhard Ritter
+ * @version 
+ * @date 2011-07-04
+ */
+
+#ifndef __VERSION_HPP__
+#define __VERSION_HPP__
+
+const char GIT_PROGRAM_VERSION[] = "${GIT_PROGRAM_VERSION}";
+
+#endif // __VERSION_HPP__

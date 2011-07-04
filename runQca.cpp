@@ -1,6 +1,7 @@
 #include "qca.hpp"
 #include "utilities.hpp"
 #include <map>
+#include "version.hpp"
 
 /*
  * TODO
@@ -40,6 +41,7 @@ CommandLineOptions setupCLOptions ()
 {
     CommandLineOptions o;
     o.add("help", "h", "Print this help message.")
+     .add("version", "Print program version.")
      .add("model", "m", "Which QCA model to use. Options are: bond, bondDP, quarter, quarterDP, grand, grandDP.")
      .add("", "p", "Number of plaquets.")
      .add("", "t", "Hopping parameter.")
@@ -92,6 +94,7 @@ public:
         outputConfig["polarisation"] = None;
         outputConfig["particle-number"] = None;
         outputConfig["help"] = None;
+        outputConfig["version"] = None;
     }
 
     void setParam (const std::string& param, const OptionValue& value)
@@ -254,6 +257,8 @@ public:
     {
         if (!globalFirst) std::cout << std::endl;
         else globalFirst = false;
+        std::cout << "# program version: " << GIT_PROGRAM_VERSION << std::endl 
+                  << "# " << std::endl;
         for (OptionSection::OptionsType::iterator i=o.getOptions().begin(); i!=o.getOptions().end(); i++)
             if (outputConfig[i->getName()] == Header)
                 std::cout << "# " << i->getName() << " = " << i->getValue() << std::endl;
@@ -263,6 +268,8 @@ public:
     {
         if (!globalFirst) std::cout << std::endl;
         else globalFirst = false;
+        std::cout << "# program version: " << GIT_PROGRAM_VERSION << std::endl
+                  << "# " << std::endl;
         for (OptionSection::OptionsType::iterator i=o.getOptions().begin(); i!=o.getOptions().end(); i++)
             if (outputConfig[i->getName()] != None)
                 std::cout << "# " << i->getName() << " = " << i->getValue() << std::endl;
@@ -359,6 +366,11 @@ int main(int argc, const char** argv)
     if (opts["help"].isSet())
     {
         printUsage(opts);
+        std::exit(EXIT_SUCCESS);
+    }
+    if (opts["version"].isSet())
+    {
+        std::cout << GIT_PROGRAM_VERSION << std::endl;
         std::exit(EXIT_SUCCESS);
     }
 
