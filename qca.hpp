@@ -108,7 +108,7 @@ class ExternalDeadPlaquet
 {
 public:
     ExternalDeadPlaquet (const ParameterContainer& c)
-    : coulomb(c.V0, c.a, c.b), P(c.Pext)
+    : coulomb(c.V0, c.a, c.b), P(c.Pext), electronsPerPlaquet(c.electronsPerPlaquet)
     {}
 
     double operator() (size_t i) const
@@ -119,16 +119,21 @@ public:
          * the whole system one plaquet to the right (and thus all sites are
          * positive).
          */
+        assert (electronsPerPlaquet == 2 || electronsPerPlaquet == 6);
         double V = 0;
         for (int j=1; j<4; j+=2)
             V += (P+1)/2 * 1/coulomb.distance(j,i+4);
         for (int j=0; j<4; j+=2)
             V += (1-P)/2 * 1/coulomb.distance(j,i+4);
+        if (electronsPerPlaquet == 6)
+            for (int j=0; j<4; j++)
+                V += 1/coulomb.distance(j,i+4);
         return V;
     }
 private:
     const Coulomb coulomb;
     const double P;
+    const size_t electronsPerPlaquet;
 };
 
 template<class System>
@@ -325,10 +330,13 @@ private:
     S& s;
 
 public:
-    QcaCommon (QcaSystem& s_, size_t N_p_)
-        : s(s_), N_p(N_p_), N_sites(4*N_p), H(s), ensembleAverage(s), P(s), N(s), 
+    QcaCommon (QcaSystem& s_, size_t N_p_, size_t electronsPerPlaquet_ = 2)
+        : s(s_), N_p(N_p_), N_sites(4*N_p), electronsPerPlaquet(electronsPerPlaquet_), 
+          H(s), ensembleAverage(s), P(s), N(s), 
           t(1), td(0), ti(0), V0(1000), a(1.0), b(3*a), Vext(0), Pext(0), mu(0)
-    {}
+    {
+        assert(electronsPerPlaquet == 2 || electronsPerPlaquet == 6);
+    }
 
     void update ()
     {
@@ -351,7 +359,7 @@ public:
         return H.Emin;
     }
 
-    size_t N_p, N_sites;
+    size_t N_p, N_sites, electronsPerPlaquet;
     QcaHamiltonian<S> H;
     EnsembleAverage<S> ensembleAverage;
     Polarisation<S> P;
@@ -397,21 +405,21 @@ private:
     ParticleNumberPerPlaquetSymmetryOperator PPSO;
 };
 
-template<template <typename> class ExternalTC>
-class QcaQuarterFilling : public QcaCommon< QcaQuarterFilling<ExternalTC> >
+template<template <typename> class ExternalTC, size_t numberOfElectronsPerPlaquet = 2>
+class QcaFixedCharge : public QcaCommon< QcaFixedCharge<ExternalTC, numberOfElectronsPerPlaquet> >
 {
 public:
-    typedef QcaQuarterFilling<ExternalTC> Self;
+    typedef QcaFixedCharge<ExternalTC, numberOfElectronsPerPlaquet> Self;
     typedef QcaCommon<Self> Base;
     typedef ExternalTC<Self> External;
 
-    QcaQuarterFilling (size_t N_p_)
-        : Base(*this, N_p_), basis(plaquetSize*N_p_), 
+    QcaFixedCharge (size_t N_p_)
+        : Base(*this, N_p_, numberOfElectronsPerPlaquet), basis(plaquetSize*N_p_), 
           creatorAnnihilator(*this, plaquetSize), PPSO(plaquetSize)
     {
         basis.addSymmetryOperator(&PPSO);
         basis.addSymmetryOperator(&SSO);
-        int filterValue = PPSO.valueForNElectronsPerPlaquet(2,Base::N_p);
+        int filterValue = PPSO.valueForNElectronsPerPlaquet(numberOfElectronsPerPlaquet, Base::N_p);
         basis.setFilter(constructSector(filterValue));
         basis.construct();
         creatorAnnihilator.construct();
@@ -449,23 +457,23 @@ public:
 
     enum {plaquetSize=8};
     Basis basis;
-    CreatorAnnihilator<QcaQuarterFilling> creatorAnnihilator;
+    CreatorAnnihilator<QcaFixedCharge> creatorAnnihilator;
 
 private:
     ParticleNumberPerPlaquetSymmetryOperator PPSO;
     SpinSymmetryOperator SSO;
 };
 
-template<template <typename> class ExternalTC>
-class QcaGrandCanonical : public QcaCommon< QcaGrandCanonical<ExternalTC> >
+template<template <typename> class ExternalTC, size_t numberOfElectronsPerPlaquet = 2>
+class QcaGrandCanonical : public QcaCommon< QcaGrandCanonical<ExternalTC, numberOfElectronsPerPlaquet> >
 {
 public:
-    typedef QcaGrandCanonical<ExternalTC> Self;
+    typedef QcaGrandCanonical<ExternalTC, numberOfElectronsPerPlaquet> Self;
     typedef QcaCommon<Self> Base;
     typedef ExternalTC<Self> External;
 
     QcaGrandCanonical (size_t N_p_)
-        : Base(*this, N_p_), basis(plaquetSize*N_p_), creator(*this), 
+        : Base(*this, N_p_, numberOfElectronsPerPlaquet), basis(plaquetSize*N_p_), creator(*this), 
           annihilator(*this) 
     {
         basis.addSymmetryOperator(&PSO);
@@ -544,16 +552,22 @@ public:
  */
 typedef QcaBond<ExternalPlain> QcaBondPlain;
 typedef QcaBond<ExternalDeadPlaquet> QcaBondDeadPlaquet;
-typedef QcaQuarterFilling<ExternalPlain> QcaQuarterFillingPlain;
-typedef QcaQuarterFilling<ExternalDeadPlaquet> QcaQuarterFillingDeadPlaquet;
+typedef QcaFixedCharge<ExternalPlain, 2> QcaFixedCharge2Plain;
+typedef QcaFixedCharge<ExternalPlain, 6> QcaFixedCharge6Plain;
+typedef QcaFixedCharge<ExternalDeadPlaquet, 2> QcaFixedCharge2DeadPlaquet;
+typedef QcaFixedCharge<ExternalDeadPlaquet, 6> QcaFixedCharge6DeadPlaquet;
 typedef QcaGrandCanonical<ExternalPlain> QcaGrandCanonicalPlain;
-typedef QcaGrandCanonical<ExternalDeadPlaquet> QcaGrandCanonicalDeadPlaquet;
+typedef QcaGrandCanonical<ExternalDeadPlaquet, 2> QcaGrandCanonical2DeadPlaquet;
+typedef QcaGrandCanonical<ExternalDeadPlaquet, 6> QcaGrandCanonical6DeadPlaquet;
 
 typedef DQcaGeneric<QcaBond<ExternalPlain> > DQcaBondPlain;
 typedef DQcaGeneric<QcaBond<ExternalDeadPlaquet> > DQcaBondDeadPlaquet;
-typedef DQcaGeneric<QcaQuarterFilling<ExternalPlain> > DQcaQuarterFillingPlain;
-typedef DQcaGeneric<QcaQuarterFilling<ExternalDeadPlaquet> > DQcaQuarterFillingDeadPlaquet;
+typedef DQcaGeneric<QcaFixedCharge<ExternalPlain, 2> > DQcaFixedCharge2Plain;
+typedef DQcaGeneric<QcaFixedCharge<ExternalPlain, 6> > DQcaFixedCharge6Plain;
+typedef DQcaGeneric<QcaFixedCharge<ExternalDeadPlaquet, 2> > DQcaFixedCharge2DeadPlaquet;
+typedef DQcaGeneric<QcaFixedCharge<ExternalDeadPlaquet, 6> > DQcaFixedCharge6DeadPlaquet;
 typedef DQcaGeneric<QcaGrandCanonical<ExternalPlain> > DQcaGrandCanonicalPlain;
-typedef DQcaGeneric<QcaGrandCanonical<ExternalDeadPlaquet> > DQcaGrandCanonicalDeadPlaquet;
+typedef DQcaGeneric<QcaGrandCanonical<ExternalDeadPlaquet, 2> > DQcaGrandCanonical2DeadPlaquet;
+typedef DQcaGeneric<QcaGrandCanonical<ExternalDeadPlaquet, 6> > DQcaGrandCanonical6DeadPlaquet;
 
 #endif // __QCA_HPP__

@@ -42,7 +42,7 @@ CommandLineOptions setupCLOptions ()
     CommandLineOptions o;
     o.add("help", "h", "Print this help message.")
      .add("version", "Print program version.")
-     .add("model", "m", "Which QCA model to use. Options are: bond, bondDP, quarter, quarterDP, grand, grandDP.")
+     .add("model", "m", "Which QCA model to use. Options are: bond, bondDP, fixed2, fixed6, fixed2DP, fixed6DP, grand, grand2DP, grand6DP.")
      .add("", "p", "Number of plaquets.")
      .add("", "t", "Hopping parameter.")
      .add("", "td", "Diagonal hopping parameter.")
@@ -378,18 +378,22 @@ int main(int argc, const char** argv)
     {
         if (opts["model"] == "bond")
             run<DQcaBondPlain>(opts);
-        else if (opts["model"] == "quarterfilling" || opts["model"] == "quarter" || 
-                 opts["model"] == "qf")
-            run<DQcaQuarterFillingPlain>(opts);
+        else if (opts["model"] == "fixedcharge2" || opts["model"] == "fixed2")
+            run<DQcaFixedCharge2Plain>(opts);
+        else if (opts["model"] == "fixedcharge6" || opts["model"] == "fixed6")
+            run<DQcaFixedCharge6Plain>(opts);
         else if (opts["model"] == "grandcanonical" || opts["model"] == "grand")
             run<DQcaGrandCanonicalPlain>(opts);
         else if (opts["model"] == "bondDP")
             run<DQcaBondDeadPlaquet>(opts);
-        else if (opts["model"] == "quarterfillingDP" || opts["model"] == "quarterDP" || 
-                 opts["model"] == "qfDP")
-            run<DQcaQuarterFillingDeadPlaquet>(opts);
-        else if (opts["model"] == "grandcanonicalDP" || opts["model"] == "grandDP")
-            run<DQcaGrandCanonicalDeadPlaquet>(opts);
+        else if (opts["model"] == "fixedcharge2DP" || opts["model"] == "fixed2DP")
+            run<DQcaFixedCharge2DeadPlaquet>(opts);
+        else if (opts["model"] == "fixedcharge6DP" || opts["model"] == "fixed6DP")
+            run<DQcaFixedCharge2DeadPlaquet>(opts);
+        else if (opts["model"] == "grandcanonical2DP" || opts["model"] == "grand2DP")
+            run<DQcaGrandCanonical2DeadPlaquet>(opts);
+        else if (opts["model"] == "grandcanonical6DP" || opts["model"] == "grand6DP")
+            run<DQcaGrandCanonical6DeadPlaquet>(opts);
         else
         {
             printUsage(opts);

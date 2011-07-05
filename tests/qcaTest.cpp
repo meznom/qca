@@ -110,16 +110,16 @@ BOOST_AUTO_TEST_CASE ( test_qca_bond_system_for_some_parameters )
 
 BOOST_AUTO_TEST_CASE ( test_construct_qca_quarterfilled_system )
 {
-    QcaQuarterFilling<ExternalPlain> s1(1);
+    QcaFixedCharge<ExternalPlain> s1(1);
     BOOST_CHECK (s1.basis.size() == 28);
     BOOST_CHECK (s1.basis.getRanges().size() == 3);
 
-    QcaQuarterFilling<ExternalPlain> s2(2);
+    QcaFixedCharge<ExternalPlain> s2(2);
     BOOST_CHECK (s2.basis.size() == 28*28);
     BOOST_CHECK (s2.basis.getRanges().size() == 5);
 
 #ifdef NDEBUG
-    QcaQuarterFilling<ExternalPlain> s3(3);
+    QcaFixedCharge<ExternalPlain> s3(3);
     BOOST_CHECK (s3.basis.size() == 28*28*28);
     BOOST_CHECK (s3.basis.getRanges().size() == 7);
 #endif
@@ -128,7 +128,7 @@ BOOST_AUTO_TEST_CASE ( test_construct_qca_quarterfilled_system )
 BOOST_AUTO_TEST_CASE ( test_qca_quarterfilled_system_for_some_parameters )
 {
     //see tests/NotesAndTests.txt
-    QcaQuarterFilling<ExternalDeadPlaquet> s1(1);
+    QcaFixedCharge<ExternalDeadPlaquet> s1(1);
     s1.Vext = 0;
     s1.Pext = 0;
     s1.t = 1;
@@ -145,7 +145,7 @@ BOOST_AUTO_TEST_CASE ( test_qca_quarterfilled_system_for_some_parameters )
     s1.update();
     BOOST_CHECK (epsilonEqual(s1.measure(1000, s1.P(0)), 0.895, 0.001));
 
-    QcaQuarterFilling<ExternalDeadPlaquet> s2(2);
+    QcaFixedCharge<ExternalDeadPlaquet> s2(2);
     s2.Vext = 0;
     s2.Pext = 0;
     s2.t = 1;
@@ -274,7 +274,7 @@ BOOST_AUTO_TEST_CASE ( compare_performance_qca_quarterfilling_with_and_without_u
     double cpuTime = 0;
 
     startCPUTime = std::clock();
-    QcaQuarterFilling<ExternalDeadPlaquet> s(2);
+    QcaFixedCharge<ExternalDeadPlaquet> s(2);
     s.H.construct();
     endCPUTime = std::clock();
     cpuTime = static_cast<double>(endCPUTime-startCPUTime)/CLOCKS_PER_SEC;
