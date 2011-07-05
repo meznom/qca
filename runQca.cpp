@@ -389,7 +389,7 @@ int main(int argc, const char** argv)
         else if (opts["model"] == "fixedcharge2DP" || opts["model"] == "fixed2DP")
             run<DQcaFixedCharge2DeadPlaquet>(opts);
         else if (opts["model"] == "fixedcharge6DP" || opts["model"] == "fixed6DP")
-            run<DQcaFixedCharge2DeadPlaquet>(opts);
+            run<DQcaFixedCharge6DeadPlaquet>(opts);
         else if (opts["model"] == "grandcanonical2DP" || opts["model"] == "grand2DP")
             run<DQcaGrandCanonical2DeadPlaquet>(opts);
         else if (opts["model"] == "grandcanonical6DP" || opts["model"] == "grand6DP")
