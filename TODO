@@ -1,0 +1,33 @@
+Optimize diagonalization
+------------------------
+
+in Hamiltonian::diagonalizeUsingSymmetries
+idea: avoid dynamic memory allocations as much as possible
+
+implement definitely:
+
+find out the largest block
+allocate dense matrix once (sized for largest block) and then reuse it (with block())
+allocate SelfAdjointEigenSolver once and then reuse it
+
+implement maybe:
+
+sort blocks according to size: usually we have a lot of blocks of the same size
+this would than avoid resizing of the matrices used in the SelfAdjointEigenSolver
+however it would then be more costly to build the sparse eigenvectors matrix
+
+
+
+
+
+find out why SelfAdjointEigenSolver does not work with sparse matrices
+
+maybe implement Block for sparse matrices (a Block mapping sparse to dense --
+this would avoid one matrix copy operation, and I wouldn't need to allocate a
+dense matrix in diagonalizeUsingSymmetries at all)
+
+the question is whether the dynamic memory allocation really is that expensive
+
+
+something like "SelfAdjointEigenSolver<DMatrix> es(m.block(0,0,10,10));" seems to work
+
