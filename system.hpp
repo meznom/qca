@@ -165,8 +165,7 @@ public:
          * why Eigen gives a segfault instead of an exception.
          */
         assert(4E9 > s.basis.size()*s.basis.size()*sizeof(double));
-        DMatrix m(H);
-        SelfAdjointEigenSolver<DMatrix> es(m);
+        EigenHelpers::MySelfAdjointEigenSolver<DMatrix> es(H);
         eigenvalues = es.eigenvalues();
         Emin = eigenvalues.minCoeff();
         DMatrix denseEigenvectors = es.eigenvectors();
@@ -180,6 +179,7 @@ public:
         eigenvalues.setZero();
         eigenvectors = SMatrix(H.rows(), H.rows());
         eigenvectors.setZero();
+        EigenHelpers::MySelfAdjointEigenSolver<DMatrix> es;
         const std::vector<Range>& rs = s.basis.getRanges();
         //we rely on the fact that the ranges are strictly ordered, i.e. a of
         //the current range is >= b of the previous range
@@ -188,12 +188,16 @@ public:
             const int a = rs[i].a;
             const int b = rs[i].b;
             //useful debug output when diagonalizing very large Hamiltonians
-            //std::cerr << "-> " << "Diagonalizing range " << i << " out of " 
-            //          << rs.size() << " ranges." << std::endl
-            //          << "-> Size of range " << i << ": " << b-a << std::endl;
+            std::cerr << "-> " << "Diagonalizing range " << i << " out of " 
+                      << rs.size() << " ranges." << std::endl
+                      << "-> Size of range " << i << ": " << b-a << std::endl;
             assert(4E9 > (b-a)*(b-a)*sizeof(double));
-            DMatrix m = EigenHelpers::sparseToDenseBlock(H, a, a, b-a, b-a);
-            SelfAdjointEigenSolver<DMatrix> es(m);
+            //DMatrix m = EigenHelpers::sparseToDenseBlock(H, a, a, b-a, b-a);
+            //const SMatrix& T = Block<SMatrix>(H,0,0,10,10);
+            //es.compute(Block<SMatrix>(H,0,0,10,10));
+            //es.compute(m.block(0,0,10,10));
+            //SMatrix m = EigenHelpers::sparseToSparseBlock(H, a, a, b-a, b-a);
+            es.computeBlock(H, a, a, b-a, b-a);
             DVector blockEigenvalues = es.eigenvalues();
             DMatrix blockEigenvectors = es.eigenvectors();
             eigenvalues.segment(a, b-a) = blockEigenvalues;

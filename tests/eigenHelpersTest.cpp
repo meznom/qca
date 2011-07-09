@@ -2,6 +2,8 @@
 #define BOOST_TEST_MODULE eigenHelpers test
 #include <boost/test/unit_test.hpp>
 
+#include <ctime>
+#include <iostream>
 #include "eigenHelpers.hpp"
 
 using namespace EigenHelpers;
@@ -119,4 +121,23 @@ BOOST_AUTO_TEST_CASE ( sparse_to_sparse_block )
     sm1 = denseToSparseBlock(dm2, 0, 0, 3, 2);
     sm2 = sparseToSparseBlock(sm0, 1, 3, 3, 2);
     BOOST_CHECK (sm1 == sm2);
+}
+
+BOOST_AUTO_TEST_CASE ( performance_of_MySelfAdjointEigenSolver_computeBlock )
+{
+#ifdef NDEBUG
+    std::clock_t startCPUTime, endCPUTime;
+    double cpuTime = 0;
+
+    DMatrix dm = DMatrix::Random(4000,4000);
+    SMatrix sm = denseToSparseBlock(dm, 0, 0, 4000, 4000);
+    dm.resize(0,0);
+    MySelfAdjointEigenSolver<DMatrix> es;
+    
+    startCPUTime = std::clock();
+    es.computeBlock(sm, 0, 0, 4000, 4000);
+    endCPUTime = std::clock();
+    cpuTime = static_cast<double>(endCPUTime-startCPUTime)/CLOCKS_PER_SEC;
+    std::cerr << "Time to diagonalize 4000x4000 matrix: " << cpuTime << "s" << std::endl;
+#endif
 }
