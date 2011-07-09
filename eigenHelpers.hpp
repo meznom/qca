@@ -268,9 +268,6 @@ template<typename _MatrixType> class MySelfAdjointEigenSolver
       *
       * \sa SelfAdjointEigenSolver(const MatrixType&, int)
       */
-    //MySelfAdjointEigenSolver& compute(const MatrixType& matrix, int options = ComputeEigenvectors);
-    //template<typename Derived>
-    //MySelfAdjointEigenSolver& compute(const MatrixBase<Derived>& matrix, int options = ComputeEigenvectors);
     MySelfAdjointEigenSolver& compute(const SMatrix& matrix, int options = ComputeEigenvectors)
     {
         return computeBlock(matrix, 0, 0, matrix.rows(), matrix.cols(), options);
@@ -398,8 +395,6 @@ template<typename _MatrixType> class MySelfAdjointEigenSolver
 };
 
 template<typename MatrixType>
-//template<typename Derived>
-//::compute(const MatrixBase<Derived>& matrix, int options)
 MySelfAdjointEigenSolver<MatrixType>& MySelfAdjointEigenSolver<MatrixType>
 ::computeBlock(const SMatrix& matrix, int i, int j, int p, int q, int options)
 {
@@ -430,10 +425,6 @@ MySelfAdjointEigenSolver<MatrixType>& MySelfAdjointEigenSolver<MatrixType>
   MatrixType& mat = m_eivec;
 
   // map the matrix coefficients to [-1:1] to avoid over- and underflow.
-  //RealScalar scale = matrix.cwiseAbs().maxCoeff();
-  //if(scale==Scalar(0)) scale = 1;
-  //mat = matrix / scale;
-  //mat = sparseToDenseBlock(matrix, i, j, p, q);
   sparseToDenseBlockInPlace(matrix, mat, i, j, p, q);
   RealScalar scale = mat.cwiseAbs().maxCoeff();
   if(scale==Scalar(0)) scale = 1;

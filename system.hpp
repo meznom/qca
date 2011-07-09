@@ -188,15 +188,10 @@ public:
             const int a = rs[i].a;
             const int b = rs[i].b;
             //useful debug output when diagonalizing very large Hamiltonians
-            std::cerr << "-> " << "Diagonalizing range " << i << " out of " 
-                      << rs.size() << " ranges." << std::endl
-                      << "-> Size of range " << i << ": " << b-a << std::endl;
+            //std::cerr << "-> " << "Diagonalizing range " << i << " out of " 
+            //          << rs.size() << " ranges." << std::endl
+            //          << "-> Size of range " << i << ": " << b-a << std::endl;
             assert(4E9 > (b-a)*(b-a)*sizeof(double));
-            //DMatrix m = EigenHelpers::sparseToDenseBlock(H, a, a, b-a, b-a);
-            //const SMatrix& T = Block<SMatrix>(H,0,0,10,10);
-            //es.compute(Block<SMatrix>(H,0,0,10,10));
-            //es.compute(m.block(0,0,10,10));
-            //SMatrix m = EigenHelpers::sparseToSparseBlock(H, a, a, b-a, b-a);
             es.computeBlock(H, a, a, b-a, b-a);
             DVector blockEigenvalues = es.eigenvalues();
             DMatrix blockEigenvectors = es.eigenvectors();
