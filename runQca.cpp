@@ -259,7 +259,7 @@ public:
         if (!globalFirst) std::cout << std::endl;
         else globalFirst = false;
         std::cout << "# program version: " << GIT_PROGRAM_VERSION << std::endl 
-                  << "# date: " << getTime() << std::endl
+                  << "# date: " << getDate() << std::endl
                   << "# " << std::endl;
         for (OptionSection::OptionsType::iterator i=o.getOptions().begin(); i!=o.getOptions().end(); i++)
             if (outputConfig[i->getName()] == Header)
@@ -271,7 +271,7 @@ public:
         if (!globalFirst) std::cout << std::endl;
         else globalFirst = false;
         std::cout << "# program version: " << GIT_PROGRAM_VERSION << std::endl
-                  << "# date: " << getTime() << std::endl
+                  << "# date: " << getDate() << std::endl
                   << "# " << std::endl;
         for (OptionSection::OptionsType::iterator i=o.getOptions().begin(); i!=o.getOptions().end(); i++)
             if (outputConfig[i->getName()] != None)
@@ -283,32 +283,16 @@ public:
         outputConfig[param] = mode;
     }
 
-    std::string getTime () const
+    std::string getDate () const
     {
-        std::time_t time;
-        std::time(&time);
-        //std::tm* gmTime = std::gmtime(&time);
-        std::tm* localTime = std::localtime(&time);
-        std::stringstream s;
-        s << Helpers::trim(std::asctime(localTime));
-
-        // TODO: find out time difference to UTC and append it as "-0600"
-        //std::cerr << "--> " << std::mktime(localTime) << std::endl;
-        //std::cerr << "--> " << std::mktime(gmTime) << std::endl;
-        //std::time_t diff = std::mktime(localTime) - std::mktime(gmTime);
-        //if (diff<0)
-        //{
-        //    diff *= -1;
-        //    std::tm* diffTm = std::gmtime(&diff);
-        //    s << " -" << diffTm->tm_hour;
-        //}
-        //else
-        //{
-        //    std::tm* diffTm = std::gmtime(&diff);
-        //    s << " +" << diffTm->tm_hour;
-        //}
-
-        return s.str();
+        time_t t;
+        tm localTime;
+        char cstr[100];
+        time(&t);
+        tzset();
+        localtime_r(&t, &localTime);
+        strftime(cstr, 100, "%a %b %d %T %Y %z", &localTime);
+        return cstr;
     }
         
 private:
