@@ -249,3 +249,23 @@ BOOST_AUTO_TEST_CASE ( compare_performance_diagonalize_and_diagonalizeBlockWise 
     std::cerr << "Time for diagonalizeBlockWise of system with " << sites 
               << " sites: " << cpuTime << "s" << std::endl;
 }
+
+#include <sys/mman.h>
+#include <sys/resource.h>
+
+BOOST_AUTO_TEST_CASE ( test_memory_allocation_and_memory_locking )
+{
+    rlimit r;
+    getrlimit(RLIMIT_MEMLOCK, &r);
+    std::cerr << "--> memlock soft limit: " << r.rlim_cur << std::endl;
+    std::cerr << "--> memlock hard limit: " << r.rlim_max << std::endl;
+    double* d = new double[100*1024*1024];
+    assert(mlock(d, 100*1024*1024*sizeof(double))==0);
+    for (size_t i=0; i<100; i++)
+    {
+        for (size_t j=i*1024*1024; j<(i+1)*1024*1024; j++)
+            d[j] = 1.0;
+        sleep(1);
+    }
+    assert(munlock(d, 100*1024*1024*sizeof(double))==0);
+}
