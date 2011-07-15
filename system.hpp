@@ -500,7 +500,7 @@ public:
             // note: usually O is very sparse, so it is essential to use a
             // sparse matrix for the block
             // TODO: maybe when we can do some more optimizations
-            const size_t size = eigenvalues[i].size();
+            const int size = eigenvalues[i].size();
             SMatrix O_block = EigenHelpers::sparseToSparseBlock(O, index, index, size, size);
             for (int j=0; j<size; j++)
                 sum += 
