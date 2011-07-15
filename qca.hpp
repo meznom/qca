@@ -180,7 +180,6 @@ public:
 
     SMatrix operator() (size_t p) const
     {
-        std::cerr << "--> P( " << p << ")" << std::endl;
         const size_t o = 4*p;
         return 1.0/2.0 * ( s.n(o+1)+s.n(o+3) - s.n(o+0)-s.n(o+2) );
     }
@@ -342,27 +341,27 @@ public:
     void update ()
     {
         H.construct();
-        H.diagonalize();
+        H.diagonalizeUsingSymmetriesBySectors();
     }
 
-    double measure (double beta, const SMatrix& O) const
+    double measure (double beta, const SMatrix& O)
     {
         return ensembleAverage(beta, O);
     }
 
-    const DVector& energies () const
+    const DVector& energies ()
     {
-        return H.eigenvalues;
+        return H.eigenvalues();
     }
 
     double Emin () const
     {
-        return H.Emin;
+        return H.Emin();
     }
 
     size_t N_p, N_sites, electronsPerPlaquet;
     QcaHamiltonian<S> H;
-    EnsembleAverage<S> ensembleAverage;
+    EnsembleAverageBySectors<S> ensembleAverage;
     Polarisation<S> P;
     ParticleNumber<S> N;
     double t, td, ti, V0, a, b, Vext, Pext, mu;
@@ -482,7 +481,6 @@ public:
         basis.construct();
         creator.construct();
         annihilator.construct();
-        std::cerr << "basis size: " << basis.size() << std::endl;
     }
 
     size_t I (size_t i, Spin s) const
@@ -528,85 +526,84 @@ private:
 /**
  * Specialization of the QcaHamiltonian for QcaGrandCanonical
  */
-template<template <typename> class ExternalTC, size_t numberOfElectronsPerPlaquet>
-class QcaHamiltonian<QcaGrandCanonical<ExternalTC, numberOfElectronsPerPlaquet> > 
-      : public Hamiltonian<QcaGrandCanonical<ExternalTC, numberOfElectronsPerPlaquet> >
-{
-public:
-    typedef QcaGrandCanonical<ExternalTC, numberOfElectronsPerPlaquet> System;
-    
-    QcaHamiltonian (const System& s_)
-    : Hamiltonian<System>(s_), H(Hamiltonian<System>::H), 
-      s(Hamiltonian<System>::s)
-    {}
-
-    void construct() 
-    {
-        std::cerr << "--> Specialisation used!" << std::endl;
-        const Creator<System>& c = s.creator;
-        const Annihilator<System>& a = s.annihilator;
-        Hopping hopping(s.t, s.td, s.ti);
-        Coulomb coulomb(s.V0, s.a, s.b);
-        typename System::External external(s);
-
-        H = SMatrix(s.basis.size(), s.basis.size());
-        H.setZero();
-        for (size_t i=0; i<s.N_sites; i++)
-        {
-            SMatrix n_i_up = c(I(i,UP)) * a(I(i,UP));
-            SMatrix n_i_down = c(I(i,DOWN)) * a(I(i,DOWN));
-            SMatrix n_i = n_i_up + n_i_down;
-            H += coulomb(i,i) * n_i_up * n_i_down;
-            H += (external(i) + s.mu) * n_i;
-            for (size_t j=i+1; j<s.N_sites; j++)
-            {
-                SMatrix n_j_up = c(I(j,UP)) * a(I(j,UP));
-                SMatrix n_j_down = c(I(j,DOWN)) * a(I(j,DOWN));
-                SMatrix n_j = n_j_up + n_j_down;
-                //H += - hopping(i,j) * s.ca(i,j) - hopping(j,i) * s.ca(j,i);
-                //H += coulomb(i,j) * s.n(i) * s.n(j);
-                H -= hopping(i,j) * c(I(i,UP)) * a(I(j,UP));
-                H -= hopping(i,j) * c(I(i,DOWN)) * a(I(j,DOWN));
-                H -= hopping(j,i) * c(I(j,UP)) * a(I(i,UP));
-                H -= hopping(j,i) * c(I(j,DOWN)) * a(I(i,DOWN));
-                H += coulomb(i,j) * n_i * n_j;
-            }
-        }
-        /*
-         * this is pretty slow and uses just as much memory
-        for (size_t i=0; i<s.N_sites; i++)
-        {
-            //H += coulomb(i,i) * s.n_updown(i);
-            //H += (external(i) + s.mu) * s.n(i);
-            H += coulomb(i,i) * c(I(i,UP)) * a(I(i,UP)) * c(I(i,DOWN)) * a(I(i,DOWN));
-            H += (external(i) + s.mu) * c(I(i,UP)) * a(I(i,UP));
-            H += (external(i) + s.mu) * c(I(i,DOWN)) * a(I(i,DOWN));
-            for (size_t j=i+1; j<s.N_sites; j++)
-            {
-                //H += - hopping(i,j) * s.ca(i,j) - hopping(j,i) * s.ca(j,i);
-                //H += coulomb(i,j) * s.n(i) * s.n(j);
-                H -= hopping(i,j) * c(I(i,UP)) * a(I(j,UP));
-                H -= hopping(i,j) * c(I(i,DOWN)) * a(I(j,DOWN));
-                H -= hopping(j,i) * c(I(j,UP)) * a(I(i,UP));
-                H -= hopping(j,i) * c(I(j,DOWN)) * a(I(i,DOWN));
-                H += coulomb(i,j) * c(I(i,UP)) * a(I(i,UP)) * c(I(j,UP)) * a(I(j,UP));
-                H += coulomb(i,j) * c(I(i,UP)) * a(I(i,UP)) * c(I(j,DOWN)) * a(I(j,DOWN));
-                H += coulomb(i,j) * c(I(i,DOWN)) * a(I(i,DOWN)) * c(I(j,UP)) * a(I(j,UP));
-                H += coulomb(i,j) * c(I(i,DOWN)) * a(I(i,DOWN)) * c(I(j,DOWN)) * a(I(j,DOWN));
-            }
-        }
-        */
-    }
-
-    size_t I (size_t i, Spin spin) const
-    {
-        return (s.I(i,spin));
-    }
-
-private:
-    SMatrix& H;
-    const System& s;
-};
+// template<template <typename> class ExternalTC, size_t numberOfElectronsPerPlaquet>
+// class QcaHamiltonian<QcaGrandCanonical<ExternalTC, numberOfElectronsPerPlaquet> > 
+//       : public Hamiltonian<QcaGrandCanonical<ExternalTC, numberOfElectronsPerPlaquet> >
+// {
+// public:
+//     typedef QcaGrandCanonical<ExternalTC, numberOfElectronsPerPlaquet> System;
+//     
+//     QcaHamiltonian (const System& s_)
+//     : Hamiltonian<System>(s_), H(Hamiltonian<System>::H), 
+//       s(Hamiltonian<System>::s)
+//     {}
+// 
+//     void construct() 
+//     {
+//         const Creator<System>& c = s.creator;
+//         const Annihilator<System>& a = s.annihilator;
+//         Hopping hopping(s.t, s.td, s.ti);
+//         Coulomb coulomb(s.V0, s.a, s.b);
+//         typename System::External external(s);
+// 
+//         H = SMatrix(s.basis.size(), s.basis.size());
+//         H.setZero();
+//         for (size_t i=0; i<s.N_sites; i++)
+//         {
+//             SMatrix n_i_up = c(I(i,UP)) * a(I(i,UP));
+//             SMatrix n_i_down = c(I(i,DOWN)) * a(I(i,DOWN));
+//             SMatrix n_i = n_i_up + n_i_down;
+//             H += coulomb(i,i) * n_i_up * n_i_down;
+//             H += (external(i) + s.mu) * n_i;
+//             for (size_t j=i+1; j<s.N_sites; j++)
+//             {
+//                 SMatrix n_j_up = c(I(j,UP)) * a(I(j,UP));
+//                 SMatrix n_j_down = c(I(j,DOWN)) * a(I(j,DOWN));
+//                 SMatrix n_j = n_j_up + n_j_down;
+//                 //H += - hopping(i,j) * s.ca(i,j) - hopping(j,i) * s.ca(j,i);
+//                 //H += coulomb(i,j) * s.n(i) * s.n(j);
+//                 H -= hopping(i,j) * c(I(i,UP)) * a(I(j,UP));
+//                 H -= hopping(i,j) * c(I(i,DOWN)) * a(I(j,DOWN));
+//                 H -= hopping(j,i) * c(I(j,UP)) * a(I(i,UP));
+//                 H -= hopping(j,i) * c(I(j,DOWN)) * a(I(i,DOWN));
+//                 H += coulomb(i,j) * n_i * n_j;
+//             }
+//         }
+//         /*
+//          * this is pretty slow and uses just as much memory
+//         for (size_t i=0; i<s.N_sites; i++)
+//         {
+//             //H += coulomb(i,i) * s.n_updown(i);
+//             //H += (external(i) + s.mu) * s.n(i);
+//             H += coulomb(i,i) * c(I(i,UP)) * a(I(i,UP)) * c(I(i,DOWN)) * a(I(i,DOWN));
+//             H += (external(i) + s.mu) * c(I(i,UP)) * a(I(i,UP));
+//             H += (external(i) + s.mu) * c(I(i,DOWN)) * a(I(i,DOWN));
+//             for (size_t j=i+1; j<s.N_sites; j++)
+//             {
+//                 //H += - hopping(i,j) * s.ca(i,j) - hopping(j,i) * s.ca(j,i);
+//                 //H += coulomb(i,j) * s.n(i) * s.n(j);
+//                 H -= hopping(i,j) * c(I(i,UP)) * a(I(j,UP));
+//                 H -= hopping(i,j) * c(I(i,DOWN)) * a(I(j,DOWN));
+//                 H -= hopping(j,i) * c(I(j,UP)) * a(I(i,UP));
+//                 H -= hopping(j,i) * c(I(j,DOWN)) * a(I(i,DOWN));
+//                 H += coulomb(i,j) * c(I(i,UP)) * a(I(i,UP)) * c(I(j,UP)) * a(I(j,UP));
+//                 H += coulomb(i,j) * c(I(i,UP)) * a(I(i,UP)) * c(I(j,DOWN)) * a(I(j,DOWN));
+//                 H += coulomb(i,j) * c(I(i,DOWN)) * a(I(i,DOWN)) * c(I(j,UP)) * a(I(j,UP));
+//                 H += coulomb(i,j) * c(I(i,DOWN)) * a(I(i,DOWN)) * c(I(j,DOWN)) * a(I(j,DOWN));
+//             }
+//         }
+//         */
+//     }
+// 
+//     size_t I (size_t i, Spin spin) const
+//     {
+//         return (s.I(i,spin));
+//     }
+// 
+// private:
+//     SMatrix& H;
+//     const System& s;
+// };
 
 
 template<class QcaSystem>

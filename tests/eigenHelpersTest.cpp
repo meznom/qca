@@ -101,6 +101,15 @@ BOOST_AUTO_TEST_CASE ( dense_to_sparse_block )
             21,22,23,24,25, 0,1;
     sm2 = denseToSparseBlock(dm3, 2, 0, 5, 5);
     BOOST_CHECK (sm1 == sm2);
+
+    DMatrix dm4(5,5);
+    dm4 <<  0, 2, 0, 4, 0,
+            0, 0, 0, 0,10,
+           11, 0, 0, 0, 0,
+           16, 0, 0,19, 0,
+           21, 0, 0, 0, 0;
+    SMatrix sm4 = denseToSparseBlock(dm4, 0, 0, 5, 5);
+    BOOST_CHECK (sm4.nonZeros() == 7);
 }
 
 BOOST_AUTO_TEST_CASE ( sparse_to_sparse_block )

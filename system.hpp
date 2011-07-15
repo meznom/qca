@@ -34,10 +34,7 @@ public:
     void construct ()
     {
         for (size_t i=0; i<N_orbital; i++)
-        {
             constructMatrix(i);
-            std::cerr << "creator("<< i << "), nonzeros: " << cs[i].nonZeros() << std::endl;
-        }
     }
 
     /**
@@ -99,10 +96,7 @@ public:
     void construct ()
     {
         for (size_t i=0; i<N_orbital; i++)
-        {
             as[i] = SMatrix(s.creator(i).transpose());
-            std::cerr << "annihilator("<<i<<"), nonzeros: " << as[i].nonZeros() << std::endl;
-        }
     }
 
     /**
@@ -164,6 +158,9 @@ public:
      */
     void diagonalizeNoSymmetries ()
     {
+        dEigenvalues.resize(0);
+        dEigenvectors.resize(0);
+
         /*
          * This assertion is somewhat arbitrary, just because my computers tend
          * to have 4GB ~ 4 10^9 bytes of memory.
@@ -172,70 +169,143 @@ public:
          */
         assert(4E9 > s.basis.size()*s.basis.size()*sizeof(double));
         EigenHelpers::MySelfAdjointEigenSolver<DMatrix> es(H);
-        eigenvalues = es.eigenvalues();
-        Emin = eigenvalues.minCoeff();
-        DMatrix denseEigenvectors = es.eigenvectors();
-        
-        eigenvectors = EigenHelpers::denseToSparseBlock(denseEigenvectors, 0, 0, H.rows(), H.rows());
+        sEigenvalues = es.eigenvalues();
+        minEnergy = sEigenvalues.minCoeff();
+        const DMatrix& denseEigenvectors = es.eigenvectors();
+        sEigenvectors = EigenHelpers::denseToSparseBlock(denseEigenvectors, 0, 0, H.rows(), H.rows());
     }
 
     void diagonalizeUsingSymmetries ()
     {
-        std::cerr << "Hamiltonian, nonzeros: " << H.nonZeros() << std::endl;
-        eigenvalues = DVector(H.rows());
-        eigenvalues.setZero();
-        eigenvectors = SMatrix(H.rows(), H.rows());
-        eigenvectors.setZero();
+        dEigenvalues.resize(0);
+        dEigenvectors.resize(0);
+
+        sEigenvalues = DVector(H.rows());
+        sEigenvalues.setZero();
+        sEigenvectors = SMatrix(H.rows(), H.rows());
+        sEigenvectors.setZero();
+
         EigenHelpers::MySelfAdjointEigenSolver<DMatrix> es;
-        //const std::vector<Range>& rs = s.basis.getRanges();
+
         std::vector<Range> rs = s.basis.getRanges();
         std::sort(rs.begin(), rs.end(), CompareSizeOfRanges());
-        size_t evsSizeEstimate = 0;
+        size_t evsSize = 0;
         for (size_t i=0; i<rs.size(); i++)
-            evsSizeEstimate += (rs[i].b-rs[i].a)*(rs[i].b-rs[i].a);
-        std::cerr << "---> evsSizeEstimate: " << evsSizeEstimate << std::endl;
-
-        eigenvectors.reserve(evsSizeEstimate);
+            evsSize += (rs[i].b-rs[i].a)*(rs[i].b-rs[i].a);
+        sEigenvectors.reserve(evsSize);
             
-        //we rely on the fact that the ranges are strictly ordered, i.e. a of
-        //the current range is >= b of the previous range
-        size_t count=0;
         size_t index=0;
         for (size_t i=0; i<rs.size(); i++)
         {
-            count++;
-            //if (count<15) continue;
-            //if (count>19) std::exit(EXIT_SUCCESS);
-
             const int a = rs[i].a;
             const int b = rs[i].b;
             //useful debug output when diagonalizing very large Hamiltonians
-            std::cerr << "-> " << "Diagonalizing range " << i << " out of " 
-                      << rs.size() << " ranges." << std::endl
-                      << "-> Size of range " << i << ": " << b-a << std::endl;
+            //std::cerr << "-> " << "Diagonalizing range " << i << " out of " 
+            //          << rs.size() << " ranges." << std::endl
+            //          << "-> Size of range " << i << ": " << b-a << std::endl;
             assert(4E9 > (b-a)*(b-a)*sizeof(double));
             es.computeBlock(H, a, a, b-a, b-a);
-            eigenvalues.segment(index, b-a) = es.eigenvalues();
+            sEigenvalues.segment(index, b-a) = es.eigenvalues();
             const DMatrix& blockEigenvectors = es.eigenvectors();
-            //DVector blockEigenvalues = es.eigenvalues();
-            //DMatrix blockEigenvectors = es.eigenvectors();
-            //eigenvalues.segment(a, b-a) = blockEigenvalues;
-            denseToSparseBlockInPlace(blockEigenvectors, eigenvectors, a, index, b-a, b-a);
-            std::cerr << "iteration " << i << ", eigenvectors nonzeros: " << eigenvectors.nonZeros() << std::endl;
+            denseToSparseBlockInPlace(blockEigenvectors, sEigenvectors, a, index, b-a, b-a);
             index += b-a;
         }
-        eigenvectors.finalize();
-        Emin = eigenvalues.minCoeff();
+        sEigenvectors.finalize();
+        minEnergy = sEigenvalues.minCoeff();
+    }
+
+    void diagonalizeUsingSymmetriesBySectors ()
+    {
+        sEigenvalues.resize(0);
+        sEigenvectors.resize(0,0);
+
+        EigenHelpers::MySelfAdjointEigenSolver<DMatrix> es;
+        
+        const std::vector<Range>& rs = s.basis.getRanges();
+        dEigenvalues.resize(rs.size());
+        dEigenvectors.resize(rs.size());
+        std::vector<size_t> is(rs.size());
+        for (size_t i=0; i<is.size(); i++)
+            is[i] = i;
+        std::sort(is.begin(), is.end(), SortIndicesAccordingToSizeOfRanges(rs));
+        
+        for (size_t i=0; i<is.size(); i++)
+        {
+            const int a = rs[is[i]].a;
+            const int b = rs[is[i]].b;
+            //useful debug output when diagonalizing very large Hamiltonians
+            //std::cerr << "-> " << "Diagonalizing range " << is[i] << " out of " 
+            //          << rs.size() << " ranges." << std::endl
+            //          << "-> Size of range " << is[i] << ": " << b-a << std::endl;
+            assert(4E9 > (b-a)*(b-a)*sizeof(double));
+            es.computeBlock(H, a, a, b-a, b-a);
+            dEigenvalues[is[i]] = es.eigenvalues();
+            dEigenvectors[is[i]] = es.eigenvectors();
+        }
+        minEnergy = dEigenvalues[0].minCoeff();
+        for (size_t i=1; i<dEigenvalues.size(); i++)
+            if (dEigenvalues[i].minCoeff() < minEnergy) 
+                minEnergy = dEigenvalues[i].minCoeff();
     }
 
     void diagonalize ()
     {
-        diagonalizeUsingSymmetries();
+        diagonalizeUsingSymmetriesBySectors();
     }
 
-    SMatrix eigenvectors;
-    DVector eigenvalues;
-    double Emin;
+    const DVector& eigenvalues ()
+    {
+        if (sEigenvalues.size() == 0 && dEigenvalues.size() > 0)
+        {
+            sEigenvalues.resize(H.rows());
+            int k=0;
+            for (size_t i=0; i<dEigenvalues.size(); i++)
+                for (int j=0; j<dEigenvalues[i].size(); j++)
+                {
+                    assert(k<sEigenvalues.size());
+                    sEigenvalues(k) = dEigenvalues[i](j);
+                    k++;
+                }
+        }
+        return sEigenvalues;
+    }
+
+    const SMatrix& eigenvectors () 
+    {
+        if (sEigenvectors.size() == 0 && dEigenvectors.size() > 0)
+        {
+            sEigenvectors = SMatrix(H.rows(), H.rows());
+            sEigenvectors.setZero();
+            int k=0;
+            for (size_t i=0; i<dEigenvectors.size(); i++)
+            {
+                const int size = dEigenvectors[i].rows();
+                denseToSparseBlockInPlace(dEigenvectors[i], sEigenvectors, k, k, size, size);
+                k += size;
+            }
+            sEigenvectors.finalize();
+        }
+        return sEigenvectors;
+    }
+
+    const std::vector<DVector>& eigenvaluesBySectors ()
+    {
+        if (dEigenvalues.size() == 0 && sEigenvalues.size() > 0)
+            dEigenvalues.push_back(sEigenvalues);
+        return dEigenvalues;
+    }
+
+    const std::vector<DMatrix>& eigenvectorsBySectors ()
+    {
+        if (dEigenvectors.size() == 0 && sEigenvectors.size() > 0)
+            dEigenvectors.push_back(sEigenvectors);
+        return dEigenvectors;
+    }
+
+    double Emin () const
+    {
+        return minEnergy;
+    }
 
 protected:
     void denseToSparseBlockInPlace (const DMatrix& dm, SMatrix& sm, int i, int j, int p, int q)
@@ -260,8 +330,29 @@ protected:
         }
     };
 
+    class SortIndicesAccordingToSizeOfRanges
+    {
+    public:
+        SortIndicesAccordingToSizeOfRanges (const std::vector<Range>& rs_)
+            : rs(rs_) 
+        {}
+
+        bool operator() (size_t i, size_t j) const
+        {
+            return (rs[i].b-rs[i].a)>(rs[j].b-rs[j].a);
+        }
+
+    private:
+        const std::vector<Range>& rs;
+    };
+
     const System& s;
     SMatrix H;
+    SMatrix sEigenvectors;
+    DVector sEigenvalues;
+    std::vector<DMatrix> dEigenvectors;
+    std::vector<DVector> dEigenvalues;
+    double minEnergy;
 };
 
 /**
@@ -282,7 +373,7 @@ template<class System>
 class EnsembleAverage
 {
 public:
-    EnsembleAverage (const System& s_)
+    EnsembleAverage (System& s_)
     : s(s_)
     {}
 
@@ -294,29 +385,114 @@ public:
      *
      * @return 
      */
-    double operator() (double beta, const SMatrix& O) const
+    double operator() (double beta, const SMatrix& O)
     {
+        //std::cerr << "--> EnsembleAverage 1" << std::endl;
         double sum = 0;
-        //for (int i=0; i<s.H.eigenvalues.size(); i++)
-        //    sum += 
-        //        std::exp(-beta * (s.H.eigenvalues(i) - s.H.Emin)) * 
-        //        s.H.eigenvectors.col(i).adjoint() * O * s.H.eigenvectors.col(i);
-       
-        std::cerr << "--> EnsembleAverage 1" << std::endl;
-        //TODO: check how efficient this is
-        //
-        // memory usage goes way, way up
-        // lots of swapping
-        // pretty slow
-        for (int i=0; i<s.H.eigenvalues.size(); i++)
+        const DVector& eigenvalues = s.H.eigenvalues();
+        const SMatrix& eigenvectors = s.H.eigenvectors();
+        for (int i=0; i<eigenvalues.size(); i++)
         {
-            SMatrix m = s.H.eigenvectors.col(i).adjoint() * O * s.H.eigenvectors.col(i);
+            SMatrix m = eigenvectors.col(i).adjoint() * O * eigenvectors.col(i);
             assert(m.size() == 1);
             if (m.nonZeros() != 0)
-                sum += std::exp(-beta * (s.H.eigenvalues(i) - s.H.Emin)) * m.coeffRef(0,0);
+                sum += std::exp(-beta * (eigenvalues(i) - s.H.Emin())) * m.coeffRef(0,0);
+        }
+        //std::cerr << "--> EnsembleAverage 2" << std::endl;
+        return sum / partitionFunction(beta);
+    }
+
+    /**
+     * Calculate the partition function at the given temperature.
+     *
+     * @param beta = 1/T (temperature)
+     *
+     * @return 
+     */
+    double partitionFunction (double beta)
+    {
+        double Z = 0;
+        const DVector& eigenvalues = s.H.eigenvalues();
+        for (int i=0; i<eigenvalues.size(); i++)
+            Z += std::exp(-beta * (eigenvalues(i) - s.H.Emin()));
+        return Z;
+    }
+
+private:
+    System& s;
+};
+
+/**
+ * Calculate the ensemble average.
+ *
+ * An operator. Example usage:
+ * @code
+ * EnsembleAverage ensembleAverage(mySystem);
+ * MyFunkyOperator O(mySystem);
+ * ensembleAverage(beta, O); //will expect and use mySystem.H
+ * @endcode
+ *
+ * Dependencies: System.basis and System.H (Hamiltonian)
+ *
+ * @tparam System
+ */
+template<class System>
+class EnsembleAverageBySectors
+{
+public:
+    EnsembleAverageBySectors (System& s_)
+    : s(s_)
+    {}
+
+    /**
+     * Calculate the ensemble average for the given operator.
+     *
+     * @param beta = 1/T (temperature)
+     * @param O operator matrix
+     *
+     * @return 
+     */
+    double operator() (double beta, const SMatrix& O)
+    {
+        //std::cerr << "--> EnsembleAverage 1" << std::endl;
+        double sum = 0;
+        size_t index = 0;
+        const std::vector<DVector>& eigenvalues = s.H.eigenvaluesBySectors();
+        const std::vector<DMatrix>& eigenvectors = s.H.eigenvectorsBySectors();
+        //std::cerr << "------> O non zeros: " << O.nonZeros() << std::endl;
+        for (size_t i=0; i<eigenvalues.size(); i++)
+        {
+            const size_t size = eigenvalues[i].size();
+            //std::cerr << "Block " << i << " of size " << size << std::endl;
+            //TODO: optimize
+            //DMatrix dO(size,size);
+            //std::cerr << "Allocated" << std::endl;
+            //EigenHelpers::sparseToDenseBlockInPlace(O, dO, index, index, size, size);
+
+            // note: usually O is very sparse, so it is essential to use a
+            // sparse matrix for the block
+            // TODO: maybe when we can do some more optimizations
+            SMatrix O_block = EigenHelpers::sparseToSparseBlock(O, index, index, size, size);
+            //std::cerr << "-> matrix total size: " << size*size << ", non zero elements: " << sO.nonZeros() << std::endl;
+            //std::cerr << "Copied" << std::endl;
+            for (int j=0; j<eigenvalues[i].size(); j++)
+            {
+                //DVector v = sO * eigenvectors[i].col(j);
+                //v.dot(dO);
+                //v *= eigenvectors[i].col(j);
+                //assert(v.size() == 1);
+                //double d = eigenvectors[i].col(j).adjoint() * sO * eigenvectors[i].col(j);
+                //const double d = eigenvectors[i].col(j).dot(dO * eigenvectors[i].col(j));
+                //sum += std::exp(-beta * (eigenvalues[i](j) - s.H.Emin())) * d;
+                sum += 
+                    std::exp(-beta * (eigenvalues[i](j) - s.H.Emin())) * 
+                    eigenvectors[i].col(j).adjoint() * O_block * eigenvectors[i].col(j);
+            }
+            //std::cerr << "Calculated" << std::endl;
+            index += size;
         }
 
-        std::cerr << "--> EnsembleAverage 2" << std::endl;
+        //std::cerr << "--> EnsembleAverage 2" << std::endl;
         
         return sum / partitionFunction(beta);
     }
@@ -328,16 +504,18 @@ public:
      *
      * @return 
      */
-    double partitionFunction (double beta) const
+    double partitionFunction (double beta)
     {
         double Z = 0;
-        for (int i=0; i<s.H.eigenvalues.size(); i++)
-            Z += std::exp(-beta * (s.H.eigenvalues(i) - s.H.Emin));
+        const std::vector<DVector>& eigenvalues = s.H.eigenvaluesBySectors();
+        for (size_t i=0; i<eigenvalues.size(); i++)
+            for (int j=0; j<eigenvalues[i].size(); j++)
+                Z += std::exp(-beta * (eigenvalues[i](j) - s.H.Emin()));
         return Z;
     }
 
 private:
-    const System& s;
+    System& s;
 };
 
 /**

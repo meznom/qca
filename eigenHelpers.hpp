@@ -63,7 +63,8 @@ inline SMatrix denseToSparseBlock (const DMatrix& dm, int i, int j, int p, int q
     {
         sm.startVec(l);
         for (int k=0; k<p; k++)
-            sm.insertBack(k,l) = dm(k+i,l+j);
+            if (dm(k+i,l+j) != 0)
+                sm.insertBack(k,l) = dm(k+i,l+j);
     }
     sm.finalize();
     return sm;
