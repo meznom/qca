@@ -22,12 +22,11 @@ public:
         {
             for (int spin=0; spin<2; spin++)
             {
-                //t=1
-                H += s.creator(2*i+spin) * s.annihilator(2* ((i+1)%s.N_sites) +spin);
-                H += s.creator(2* ((i+1)%s.N_sites) +spin) * s.annihilator(2*i+spin);
+                H += s.t * s.creator(2*i+spin) * s.annihilator(2* ((i+1)%s.N_sites) +spin);
+                H += s.t * s.creator(2* ((i+1)%s.N_sites) +spin) * s.annihilator(2*i+spin);
             }
-            H += 10 * s.creator(2*i) * s.annihilator(2*i) * //U=10 
-                     s.creator(2*i+1) * s.annihilator(2*i+1);
+            H += s.U * s.creator(2*i) * s.annihilator(2*i) *
+                       s.creator(2*i+1) * s.annihilator(2*i+1);
         }
     }
 
@@ -41,7 +40,8 @@ class HubbardSystem : public BaseSystem
 public:
     HubbardSystem (size_t N_sites_, bool exploitSymmetries_ = false) 
         : BaseSystem(2*N_sites_), N_sites(N_sites_), H(*this), 
-          exploitSymmetries(exploitSymmetries_), measure(*this), measureBS(*this)
+          exploitSymmetries(exploitSymmetries_), measure(*this), measureBS(*this),
+          t(1), U(10)
     {
         if (exploitSymmetries)
         {
@@ -66,6 +66,7 @@ public:
     SpinSymmetryOperator S;
     EnsembleAverage<HubbardSystem> measure;
     EnsembleAverageBySectors<HubbardSystem> measureBS;
+    double t, U;
 };
 
 template<class System>
@@ -261,6 +262,41 @@ BOOST_AUTO_TEST_CASE ( test_BySectors_eigenvalue_and_eigenvectors_accessors )
         BOOST_CHECK (std::find_if(ev2.begin(), ev2.end(), EpsilonEqualPred(ev1[i])) != ev2.end());
         BOOST_CHECK (std::find_if(ev3.begin(), ev3.end(), EpsilonEqualPred(ev1[i])) != ev3.end());
     }
+
+
+    // test that eigenvectors get properly reset and reconstructed
+    s.H.diagonalizeNoSymmetries();
+    std::vector<DVector> eigenvalues4 = s.H.eigenvaluesBySectors();
+
+    BOOST_CHECK (eigenvalues4.size() == 1);
+    BOOST_CHECK (eigenvalues4[0].size() > 1);
+
+    std::vector<double> ev4;
+    for (int i=0; i<eigenvalues4[0].size(); i++)
+        ev4.push_back(eigenvalues4[0](i));
+
+    s.t = 1000;
+    s.U = 20000;
+    s.H.construct();
+    s.H.diagonalizeUsingSymmetries();
+
+    std::vector<DVector> eigenvalues5 = s.H.eigenvaluesBySectors();
+
+    BOOST_CHECK (eigenvalues5.size() == 1);
+    BOOST_CHECK (eigenvalues5[0].size() > 1);
+    
+    std::vector<double> ev5;
+    for (int i=0; i<eigenvalues5[0].size(); i++)
+        ev5.push_back(eigenvalues5[0](i));
+
+    bool in = false;
+    for (size_t i=0; i<ev4.size(); i++)
+        if (ev4[i] > 10E-10 && 
+            std::find_if(ev5.begin(), ev5.end(), EpsilonEqualPred(ev4[i])) != ev5.end())
+        {
+            in = true;
+        }
+    BOOST_CHECK (in == false);
 }
 
 BOOST_AUTO_TEST_CASE ( measure_double_occupancy )

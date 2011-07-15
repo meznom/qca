@@ -266,10 +266,21 @@ BOOST_AUTO_TEST_CASE ( test_diagonalization_of_qca_grand_canonical_system )
     for (int i=0; i<ev2_.size(); i++)
         ev2[i] = ev2_(i);
     std::sort(ev2.begin(), ev2.end());
+
+    s1.H.diagonalizeUsingSymmetriesBySectors();
+    DVector ev3_ = s1.energies();
+    std::vector<double> ev3(ev3_.size());
+    for (int i=0; i<ev3_.size(); i++)
+        ev3[i] = ev3_(i);
+    std::sort(ev3.begin(), ev3.end());
     
     BOOST_CHECK (ev1.size() == ev2.size());
+    BOOST_CHECK (ev1.size() == ev3.size());
     for (size_t i=0; i<ev1.size(); i++)
+    {
         BOOST_CHECK (epsilonEqual(ev1[i], ev2[i]));
+        BOOST_CHECK (epsilonEqual(ev1[i], ev3[i]));
+    }
 
     QcaGrandCanonical<ExternalPlain> s2(2);
     s2.H.construct();
@@ -365,5 +376,12 @@ BOOST_AUTO_TEST_CASE ( compare_performance_qca_fixed_charge_with_and_without_usi
     endCPUTime = std::clock();
     cpuTime = static_cast<double>(endCPUTime-startCPUTime)/CLOCKS_PER_SEC;
     std::cerr << "Time for diagonalizeUsingSymmetries of two plaquet QCA quarterfilled system: " 
+              << cpuTime << "s" << std::endl;
+
+    startCPUTime = std::clock();
+    s.H.diagonalizeUsingSymmetriesBySectors();
+    endCPUTime = std::clock();
+    cpuTime = static_cast<double>(endCPUTime-startCPUTime)/CLOCKS_PER_SEC;
+    std::cerr << "Time for diagonalizeUsingSymmetriesBySectors of two plaquet QCA quarterfilled system: " 
               << cpuTime << "s" << std::endl;
 }

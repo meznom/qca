@@ -155,6 +155,9 @@ public:
      * Diagonalizes the Hamiltonian matrix.
      *
      * Uses a dense matrix. Relies on Eigen for the eigenvalue decomposition.
+     *
+     * Eigenvectors are stored in a sparse matrix so the eigenvalues() and
+     * eigenvectors() accessors should be used for best performance.
      */
     void diagonalizeNoSymmetries ()
     {
@@ -175,6 +178,17 @@ public:
         sEigenvectors = EigenHelpers::denseToSparseBlock(denseEigenvectors, 0, 0, H.rows(), H.rows());
     }
 
+    /**
+     * Diagonalizes the Hamiltonian matrix using symmetries.
+     *
+     * Eploits symmetries defined in the basis (i.e. SymmetryOperators). The
+     * symmetries cast the Hamiltonian in a block-diagonal form and this method
+     * then diagonalizes blockwise. Usually the method is faster than the
+     * simpler diagonalizeNoSymmetries.
+     *
+     * Eigenvectors are stored in a sparse matrix so the eigenvalues() and
+     * eigenvectors() accessors should be used for best performance.
+     */
     void diagonalizeUsingSymmetries ()
     {
         dEigenvalues.resize(0);
@@ -187,6 +201,13 @@ public:
 
         EigenHelpers::MySelfAdjointEigenSolver<DMatrix> es;
 
+        /* 
+         * sorting the ranges according to size means we reduce the number of
+         * dynamic memory allocations in the EigenSolver. In practice the
+         * performance improvement is negligible. Starting with largest blocks
+         * first also means we could improve overall memory usage (by allocating
+         * memory for the eigenvectors only as they grow).
+         */
         std::vector<Range> rs = s.basis.getRanges();
         std::sort(rs.begin(), rs.end(), CompareSizeOfRanges());
         size_t evsSize = 0;
@@ -214,6 +235,17 @@ public:
         minEnergy = sEigenvalues.minCoeff();
     }
 
+    /**
+     * Diagonalizes the Hamiltonian matrix using symmetries.
+     *
+     * Similar to diagonalizeUsingSymmetries, but stores eigenvectors as an
+     * std::vector of dense matrices. Consequently, the accessors
+     * eigenvaluesBySectors() and eigenvectorsBySectors() should be used for
+     * best performance.
+     *
+     * Uses less memory than diagonalizeUsingSymmetries and is also a little bit
+     * faster.
+     */
     void diagonalizeUsingSymmetriesBySectors ()
     {
         sEigenvalues.resize(0);
@@ -348,17 +380,20 @@ protected:
 
     const System& s;
     SMatrix H;
-    SMatrix sEigenvectors;
-    DVector sEigenvalues;
-    std::vector<DMatrix> dEigenvectors;
-    std::vector<DVector> dEigenvalues;
+    SMatrix sEigenvectors; //simple or sparse eigenvectors
+    DVector sEigenvalues; //simple eigenvalues
+    std::vector<DMatrix> dEigenvectors; //dense eigenvectors
+    std::vector<DVector> dEigenvalues; //dense eigenvalues
     double minEnergy;
 };
 
 /**
  * Calculate the ensemble average.
  *
- * An operator. Example usage:
+ * Accesses eigenvectors as one big sparse matrix. Thus it should be used
+ * whenever Hamiltonian::diagonalizeNoSymmetries or
+ * Hamiltonian::diagonalizeUsingSymmetries is used, for best performance.
+ * Example usage:
  * @code
  * EnsembleAverage ensembleAverage(mySystem);
  * MyFunkyOperator O(mySystem);
@@ -387,7 +422,6 @@ public:
      */
     double operator() (double beta, const SMatrix& O)
     {
-        //std::cerr << "--> EnsembleAverage 1" << std::endl;
         double sum = 0;
         const DVector& eigenvalues = s.H.eigenvalues();
         const SMatrix& eigenvectors = s.H.eigenvectors();
@@ -398,7 +432,6 @@ public:
             if (m.nonZeros() != 0)
                 sum += std::exp(-beta * (eigenvalues(i) - s.H.Emin())) * m.coeffRef(0,0);
         }
-        //std::cerr << "--> EnsembleAverage 2" << std::endl;
         return sum / partitionFunction(beta);
     }
 
@@ -423,11 +456,15 @@ private:
 };
 
 /**
- * Calculate the ensemble average.
+ * Calculate the ensemble average "by sectors".
  *
- * An operator. Example usage:
+ * "By sectors" essentially means that the eigenvalues are accessed as an
+ * std::vector of dense vectors and the eigenvectors are accessed as an
+ * std::vector of dense matrices. Hence this class should be used whenever
+ * Hamiltonian::diagonlizeUsingSymmetriesBySectors is used, for best
+ * performance. Example usage:
  * @code
- * EnsembleAverage ensembleAverage(mySystem);
+ * EnsembleAverageBySectors ensembleAverage(mySystem);
  * MyFunkyOperator O(mySystem);
  * ensembleAverage(beta, O); //will expect and use mySystem.H
  * @endcode
@@ -454,46 +491,23 @@ public:
      */
     double operator() (double beta, const SMatrix& O)
     {
-        //std::cerr << "--> EnsembleAverage 1" << std::endl;
         double sum = 0;
         size_t index = 0;
         const std::vector<DVector>& eigenvalues = s.H.eigenvaluesBySectors();
         const std::vector<DMatrix>& eigenvectors = s.H.eigenvectorsBySectors();
-        //std::cerr << "------> O non zeros: " << O.nonZeros() << std::endl;
         for (size_t i=0; i<eigenvalues.size(); i++)
         {
-            const size_t size = eigenvalues[i].size();
-            //std::cerr << "Block " << i << " of size " << size << std::endl;
-            //TODO: optimize
-            //DMatrix dO(size,size);
-            //std::cerr << "Allocated" << std::endl;
-            //EigenHelpers::sparseToDenseBlockInPlace(O, dO, index, index, size, size);
-
             // note: usually O is very sparse, so it is essential to use a
             // sparse matrix for the block
             // TODO: maybe when we can do some more optimizations
+            const size_t size = eigenvalues[i].size();
             SMatrix O_block = EigenHelpers::sparseToSparseBlock(O, index, index, size, size);
-            //std::cerr << "-> matrix total size: " << size*size << ", non zero elements: " << sO.nonZeros() << std::endl;
-            //std::cerr << "Copied" << std::endl;
-            for (int j=0; j<eigenvalues[i].size(); j++)
-            {
-                //DVector v = sO * eigenvectors[i].col(j);
-                //v.dot(dO);
-                //v *= eigenvectors[i].col(j);
-                //assert(v.size() == 1);
-                //double d = eigenvectors[i].col(j).adjoint() * sO * eigenvectors[i].col(j);
-                //const double d = eigenvectors[i].col(j).dot(dO * eigenvectors[i].col(j));
-                //sum += std::exp(-beta * (eigenvalues[i](j) - s.H.Emin())) * d;
+            for (int j=0; j<size; j++)
                 sum += 
                     std::exp(-beta * (eigenvalues[i](j) - s.H.Emin())) * 
                     eigenvectors[i].col(j).adjoint() * O_block * eigenvectors[i].col(j);
-            }
-            //std::cerr << "Calculated" << std::endl;
             index += size;
         }
-
-        //std::cerr << "--> EnsembleAverage 2" << std::endl;
-        
         return sum / partitionFunction(beta);
     }
 
