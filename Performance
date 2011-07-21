@@ -311,3 +311,167 @@ just run two instances of runQca in parallel, so it doesn't matter.
 
 See http://listengine.tuxfamily.org/lists.tuxfamily.org/eigen/2010/03/msg00178.html
 And this still seems to be the current state as of today.
+
+
+
+
+
+
+
+
+
+
+Perfomance on different computers
+=================================
+
+July 18 2011
+
+
+I got an account on Aditya's computer, a 2 x quadcore Intel Xeon. However, my
+code runs much slower on this computer, whereas I would expect it to run
+faster.
+
+Note 1: I am using gcc 4.6.1 on both computers.
+
+Note 2: To see what flags gcc actually uses when specifying -march native,
+        compile some example code with "gcc -O3 -march=native -Q -v source.c"
+        (from http://ubuntuforums.org/showthread.php?t=1082658).
+
+1. Processors in computers
+--------------------------
+
+Aditya's computer:
+
+burkhard@null-001d4f4a1551:~$ sysctl -n machdep.cpu.brand_string
+Intel(R) Xeon(R) CPU           X5472  @ 3.00GHz
+burkhard@null-001d4f4a1551:~$ system_profiler | grep Processor
+      Processor Name: Quad-Core Intel Xeon
+      Processor Speed: 3 GHz
+      Number Of Processors: 2
+
+On my computer:
+
+burkhard@macheath:~$ sysctl -n machdep.cpu.brand_string
+Intel(R) Core(TM) i3 CPU         540  @ 3.07GHz
+burkhard@macheath:~$ system_profiler | grep Processor
+      Processor Name: Intel Core i3
+      Processor Speed: 3.06 GHz
+      Number Of Processors: 1
+      Processor Interconnect Speed: 5.86 GT/s
+
+
+2. Ubench
+---------
+
+Not sure how much this really says, but ubench yields:
+
+My computer (running ubench and ubench -s):
+Darwin 10.8.0 Darwin Kernel Version 10.8.0: Tue Jun  7 16:33:36 PDT 2011; root:xnu-1504.15.3~1/RELEASE_I386 i386
+Ubench CPU:  1020225
+Ubench MEM:   525038
+--------------------
+Ubench AVG:   772631
+
+Ubench Single CPU:   441868 (0.39s)
+Ubench Single MEM:   284252 (0.39s)
+-----------------------------------
+Ubench Single AVG:   363060
+
+
+Aditya's computer:
+Darwin 9.8.0 Darwin Kernel Version 9.8.0: Wed Jul 15 16:55:01 PDT 2009; root:xnu-1228.15.4~1/RELEASE_I386 i386
+Ubench CPU:  3143847
+Ubench MEM:   617933
+--------------------
+Ubench AVG:  1880890
+
+Ubench Single CPU:   432467 (0.40s)
+Ubench Single MEM:   381964 (0.40s)
+-----------------------------------
+Ubench Single AVG:   407215
+
+
+
+3. My simplistic benchmark
+--------------------------
+
+burkhard@macheath:~/o/src/ExactDiagonalization/Release (master)$ time ./runQca -m grand2DP -p 2 -t 1 -td 0 -ti 0 -a `c 1/160` -b `c 3*1/160` -Pext 0.1 -V0 1000 -beta 1000 -mu -300 -P 0,1 -N 0,1
+# program version: v2-5-ge92d02d
+# date: Mon Jul 18 12:11:07 2011 -0600
+# 
+# p = 2
+# t = 1
+# td = 0
+# ti = 0
+# V0 = 1000
+# mu = -300
+# Vext = 0
+# Pext = 0.1
+# a = 0.00625
+# b = 0.01875
+# beta = 1000
+# model = grand2DP
+# 
+# P0	P1	N0	N1
+0.930266	0.91957	2	2
+
+real	19m47.787s
+user	19m44.606s
+sys	0m2.528s
+
+
+burkhard@null-001d4f4a1551:~/o/src/ExactDiagonalization/Release (master)$ time ./runQca -m grand2DP -p 2 -t 1 -td 0 -ti 0 -a `c 1/160` -b `c 3*1/160` -Pext 0.1 -V0 1000 -beta 1000 -mu -300 -P 0,1 -N 0,1
+# program version: v2-5-ge92d02d
+# date: Mon Jul 18 16:58:47 2011 -0600
+#
+# p = 2
+# t = 1
+# td = 0
+# ti = 0
+# V0 = 1000
+# mu = -300
+# Vext = 0
+# Pext = 0.1
+# a = 0.00625
+# b = 0.01875
+# beta = 1000
+# model = grand2DP
+#
+# P0    P1      N0      N1
+0.930266        0.91957 2       2
+
+real    38m7.826s
+user    37m56.385s
+sys     0m11.010s
+
+
+
+When I am compiling with Apple's gcc 4.0.1 (/usr/bin/c++):
+
+burkhard@null-001d4f4a1551:~/o/src/ExactDiagonalization/Release (master *)$ time ./runQca -m grand2DP -p 2 -t 1 -td 0 -ti 0 -a `c 1/160` -b `c 3*1/160` -Pext 0.1 -V0 1000 -beta 1000 -mu -300 -P 0,1 -N 0,1
+# program version: v2-5-ge92d02d
+# date: Mon Jul 18 18:41:15 2011 -0600
+#
+# p = 2
+# t = 1
+# td = 0
+# ti = 0
+# V0 = 1000
+# mu = -300
+# Vext = 0
+# Pext = 0.1
+# a = 0.00625
+# b = 0.01875
+# beta = 1000
+# model = grand2DP
+#
+# P0    P1      N0      N1
+0.930266        0.91957 2       2
+
+real    46m41.322s
+user    46m30.798s
+sys     0m10.495s
+
+
+
+I just found out that on Aditya's machine everything from macports as well as my code was compiled for i368 -- 32 bit -- and not for x86_64 which is 64 bit. Thus I set "build_arch" to "x86_64" in /opt/local/etc/macports/macports.conf and now I am reinstalling / recompiling everything.

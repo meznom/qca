@@ -6,9 +6,9 @@ cmake_minimum_required(VERSION 2.6)
 ### set up paths and flags ###
 find_path(
 	EIGEN_INCLUDE_DIR 
-	Eigen/Eigen
+    NAMES Eigen/Sparse Eigen/Dense
 	PATHS ~/include ~/src/include ~/o/include ~/o/src/include /opt/local/include /sw/include
-	PATH_SUFFIXES eigen3
+	PATH_SUFFIXES eigen3 eigen
 )
 include_directories(
 	${EIGEN_INCLUDE_DIR}
