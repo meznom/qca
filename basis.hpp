@@ -290,13 +290,15 @@ public:
     void construct ()
     {
         /*
-         * Note: sizeof(N_basis) must be bigger than sizeof(num_t), because a
-         * FermionicState<num_t> can hold N = 2^(sizeof(num_t)) different
-         * states. However this number N is not representable in num_t (num_t's
-         * biggest number is N-1).
+         * N_basis should be of type size_t. If the size of the basis cannot be
+         * represented by size_t then we potentially have a problem anyway,
+         * because we are using std::vector which uses size_t. 
+         * The assertion checks that the number of states we are going to use
+         * is actually representable by N_basis (and thus size_t).
          */
         size_t N_basis;
-        assert(sizeof(N_basis) > sizeof(num_t));
+        assert(std::pow(2.0, static_cast<int>(N_orbital)) <= 
+               std::pow(2.0, static_cast<int>(sizeof(N_basis)*8)) - 1);
         N_basis = std::pow(2.0, static_cast<int>(N_orbital));
         State state(N_orbital);
         

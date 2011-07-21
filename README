@@ -18,16 +18,30 @@ Build:
  $ make
 To build and run the unit tests:
  $ make check
+To only build the tests:
+ $ make buildtest
 To generate the documentation:
  $ make doc
 
-Note: CMAKE_BUILD_TYPE and EIGEN_INCLUDE_DIR need to be set with cmake. Build
-type can be either Release or Debug. The latter builds with debugging
-information (surprise), assertions and is much, much slower.
+Example:
+In the source_dir:
+ $ mkdir Release
+ $ cd Release
+ $ rm -f CMakeCache.txt && CC=/usr/bin/icc CXX=/usr/bin/icpc cmake -DCMAKE_BUILD_TYPE=Release ..
+ $ make
+This clears the cmake cache and builds the program with the Intel compiler in
+Release mode.
 
-Note: On Mac OS X a ncurses related bug makes ccmake unusable. Use 
- $ cmake -DCMAKE_BUILD_TYPE=... -DEIGEN_INCLUDE_DIR=... source_dir
-instead.
+Useful cmake variables:
+ * CMAKE_BUILD_TYPE. Can be either Release or Debug. Defaults to Release.
+ * EIGEN_INCLUDE_DIR. Where to find Eigen 3. Should be detected automatically.
+ * BOOST_INCLUDE_DIR. Where to find Boost. Should be detected automatically.
+ * BOOST_LIBRARY. Where to find the boost dynamic library. Should be detected
+   automatically.
+ * USE_CXX_FLAGS_RELEASE. Compiler flags for Release build type. Reasonable
+   defaults should be set automatically, depending on which compiler is used
+   (GNU or Intel).
+ * USE_CXX_FLAGS_DEBUG. Compiler flags for Debug build type.
 
 
 Usage
@@ -38,17 +52,17 @@ After compilation a file runQca should be in the build_dir. Run
 to get startet.
 
 For example,
- $ runQca -E -m grandDP -p 1 -t 1 -td 0 -V0 1000 -a 0.01 -b 1000
+ $ ./runQca -E -m grand2DP -p 1 -t 1 -td 0 -V0 1000 -a 0.01 -b 1000
 calculates the energy spectrum for the one plaquet grand-canonical system (with
 a dead plaquet) and the given parameters, whereas
- $ runQca -P 0,1 -m quarterDP -p 2 -t 1 -td 0 -V0 1000 \
+ $ ./runQca -P 0,1 -m fixed2DP -p 2 -t 1 -td 0 -V0 1000 \
           -beta 0.01,0.1,1,10 -a 0.01 -b 0.0175,0.025 -Pext 1
 computes the polarisation of the first and second plaquet over beta, for the
-two plaquet quarter-filled system (again, the dead plaquet variant) and for two
+two plaquet fixed charge system (again, the dead plaquet variant) and for two
 different values of b, the inter-plaquet spacing.
 
 
-Burkhard Ritter (burkhard@ualberta.ca), January 2011
+Burkhard Ritter (burkhard@ualberta.ca), July 2011
 
 
 

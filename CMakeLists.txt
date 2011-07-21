@@ -4,13 +4,32 @@ cmake_minimum_required(VERSION 2.6)
 #set(CMAKE_VERBOSE_MAKEFILE ON)
 
 ### set up paths and flags ###
-set(EIGEN_INCLUDE_DIR "~/src/include" CACHE PATH "Include path for eigen3")
+find_path(
+	EIGEN_INCLUDE_DIR 
+	Eigen/Eigen
+	PATHS ~/include ~/src/include ~/o/include ~/o/src/include /opt/local/include /sw/include
+	PATH_SUFFIXES eigen3
+)
 include_directories(
 	${EIGEN_INCLUDE_DIR}
 )
 
-set(CMAKE_CXX_FLAGS_DEBUG "-O0 -Wall -ggdb -DEIGEN_YES_I_KNOW_SPARSE_MODULE_IS_NOT_STABLE_YET -I/usr/local/include -L/usr/local/lib")
-set(CMAKE_CXX_FLAGS_RELEASE "-O3 -Wall -fopenmp -march=native -DNDEBUG -DEIGEN_YES_I_KNOW_SPARSE_MODULE_IS_NOT_STABLE_YET -I/usr/local/include -L/usr/local/lib")
+### check compiler and set flags appropriately ###
+include(CheckCXXCompilerFlag)
+check_cxx_compiler_flag(-debug IS_INTEL_COMPILER)
+if (IS_INTEL_COMPILER)
+	message(STATUS "Intel compiler detected")
+	set(USE_CXX_FLAGS_DEBUG "-O0 -Wall -g -DEIGEN_YES_I_KNOW_SPARSE_MODULE_IS_NOT_STABLE_YET" CACHE STRING "")
+	#set(USE_CXX_FLAGS_RELEASE "-fast -openmp -Wall -DNDEBUG -DEIGEN_YES_I_KNOW_SPARSE_MODULE_IS_NOT_STABLE_YET" CACHE STRING "")
+	set(USE_CXX_FLAGS_RELEASE "-fast -Wall -DNDEBUG -DEIGEN_YES_I_KNOW_SPARSE_MODULE_IS_NOT_STABLE_YET" CACHE STRING "")
+else (IS_INTEL_COMPILER)
+	message(STATUS "GNU compiler detected")
+	set(USE_CXX_FLAGS_DEBUG "-m64 -O0 -Wall -ggdb -DEIGEN_YES_I_KNOW_SPARSE_MODULE_IS_NOT_STABLE_YET" CACHE STRING "")
+	set(USE_CXX_FLAGS_RELEASE "-m64 -O3 -Wall -fopenmp -march=native -DNDEBUG -DEIGEN_YES_I_KNOW_SPARSE_MODULE_IS_NOT_STABLE_YET" CACHE STRING "")
+endif (IS_INTEL_COMPILER)
+
+set(CMAKE_CXX_FLAGS_DEBUG ${USE_CXX_FLAGS_DEBUG})
+set(CMAKE_CXX_FLAGS_RELEASE ${USE_CXX_FLAGS_RELEASE})
 
 # make sure that the default is a Release
 if (NOT CMAKE_BUILD_TYPE)
