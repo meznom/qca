@@ -8,17 +8,6 @@
  * TODO
  * ----
  * 
- * * P-P for three plaquets (bond system)
- * * P-P with dead cell (bond and qf)
- * * energies with dead cell? -- shouldn't make much difference
- * * grand canonical
- *    * number of electrons per cell for different a and b
- *    * number of electrons, considering Vext or dead cell
- *    * P-P
- * * compare energy, P-P for bond, qf, gc
- *
- *
- *
  * Output for the following command does not look correct to me:
  * ./runQca -m bondDP -p 1 -P 0 -Pext 0,1,2,3 -a 1,2 -E 
  */
@@ -55,6 +44,8 @@ CommandLineOptions setupCLOptions ()
      .add("", "a", "Intra-plaquet spacing.")
      .add("", "b", "Inter-plaquet spacing.")
      .add("", "beta", "Inverse temperature.")
+     .add("", "epsilonr", "Relative permattiviy.")
+     .add("", "lambdaD", "Debye screening length. Set to zero to disable screening.")
      .add("energy-spectrum", "E", "Calculate the energy spectrum.")
      .add("polarisation", "P", "Calculate the polarisation for the specified plaquet(s).")
      .add("particle-number", "N", "Calculate the particle number for the specified plaquet(s).");
@@ -70,6 +61,8 @@ CommandLineOptions setupCLOptions ()
     o["a"].setDefault(1);
     o["b"].setDefault(1.75);
     o["beta"].setDefault(1);
+    o["epsilonr"].setDefault(QCA_EPSILON_R_DEFAULT_VALUE);
+    o["lambdaD"].setDefault(0);
 
     return o;
 }
@@ -178,6 +171,13 @@ public:
 
     void store ()
     {
+        // read parameters back from system, so we are sure we are printing the
+        // parameters that are actually used
+        OptionSection oUsed = s.getParameters();
+        for (OptionSection::OptionsType::iterator i=oUsed.getOptions().begin(); 
+                                                  i!=oUsed.getOptions().end(); i++)
+            o[i->getName()] = i->getValue();
+
         // always print energy spectrum as a separate block
         if (o["energy-spectrum"].isSet())
         {
@@ -336,8 +336,9 @@ void runMeasurement (Measurement& M, CommandLineOptions& opts, const std::vector
 template<class System>
 void run (CommandLineOptions& opts)
 {
-    const char* pnamesv[] = {"t","td","ti","V0","mu","Vext","Pext","a","b","beta"};
-    size_t pnamesc = 10;
+    const char* pnamesv[] = {"t","td","ti","V0","mu","Vext","Pext","a","b",
+                             "beta","epsilonr","lambdaD"};
+    size_t pnamesc = 12;
     std::vector<std::pair<std::string, size_t> > params;
     for (size_t i=0; i<pnamesc; i++)
     {
@@ -361,6 +362,8 @@ void run (CommandLineOptions& opts)
     cOpts["a"] = 1;
     cOpts["b"] = 1.75;
     cOpts["beta"] = 1;
+    cOpts["epsilonr"] = QCA_EPSILON_R_DEFAULT_VALUE;
+    cOpts["lambdaD"] = 0;
     Measurement<System> M(cOpts);
     runMeasurement(M, opts, params, 0);
 }

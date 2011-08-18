@@ -5,6 +5,9 @@
 #include "utilities.hpp"
 #include <limits>
 
+const double QCA_EPSILON_0_DEFAULT_VALUE = 8.8541878176E-12;
+const double QCA_EPSILON_R_DEFAULT_VALUE = 1/(4*M_PI*8.8541878176E-12);
+
 class Hopping
 {
 public:
@@ -45,16 +48,21 @@ private:
 class Coulomb
 {
 public:
-    Coulomb (double V0_, double a_, double b_)
-    : V0(V0_), a(a_), b(b_)
+    Coulomb (double V0_, double a_, double b_, double lambdaD_ = 0, 
+             double epsilonr_ = QCA_EPSILON_R_DEFAULT_VALUE, 
+             double epsilon0_ = QCA_EPSILON_0_DEFAULT_VALUE)
+    : V0(V0_), a(a_), b(b_), epsilon0(epsilon0_), epsilonr(epsilonr_), lambdaD(lambdaD_)
     {}
 
     double operator() (size_t i, size_t j) const
     {
         if (i == j)
             return V0;
-        return 1 / distance(i,j);
-
+        const double r = distance(i,j);
+        if (lambdaD == 0)
+            return 1 / (4*M_PI * epsilon0 * epsilonr * r);
+        else
+            return 1 / (4*M_PI * epsilon0 * epsilonr * r) * exp(- r / lambdaD);
     }
 
     double distance (size_t i_, size_t j_) const
@@ -80,7 +88,7 @@ public:
     }
 
 private:
-    const double V0, a, b;
+    const double V0, a, b, epsilon0, epsilonr, lambdaD;
 };
 
 template<class ParameterContainer>
@@ -108,7 +116,8 @@ class ExternalDeadPlaquet
 {
 public:
     ExternalDeadPlaquet (const ParameterContainer& c)
-    : coulomb(c.V0, c.a, c.b), P(c.Pext), electronsPerPlaquet(c.electronsPerPlaquet)
+    : coulomb(c.V0, c.a, c.b, c.lambdaD, c.epsilonr, c.epsilon0), 
+      P(c.Pext), electronsPerPlaquet(c.electronsPerPlaquet)
     {}
 
     double operator() (size_t i) const
@@ -148,7 +157,7 @@ public:
     void construct() 
     {
         Hopping hopping(s.t, s.td, s.ti);
-        Coulomb coulomb(s.V0, s.a, s.b);
+        Coulomb coulomb(s.V0, s.a, s.b, s.lambdaD, s.epsilonr, s.epsilon0);
         typename System::External external(s);
 
         H = SMatrix(s.basis.size(), s.basis.size());
@@ -333,7 +342,9 @@ public:
     QcaCommon (QcaSystem& s_, size_t N_p_, size_t electronsPerPlaquet_ = 2)
         : s(s_), N_p(N_p_), N_sites(4*N_p), electronsPerPlaquet(electronsPerPlaquet_), 
           H(s), ensembleAverage(s), P(s), N(s), 
-          t(1), td(0), ti(0), V0(1000), a(1.0), b(3*a), Vext(0), Pext(0), mu(0)
+          t(1), td(0), ti(0), V0(1000), a(1.0), b(3*a), Vext(0), Pext(0), mu(0),
+          epsilonr(QCA_EPSILON_R_DEFAULT_VALUE), lambdaD(0), 
+          epsilon0(QCA_EPSILON_0_DEFAULT_VALUE)
     {
         assert(electronsPerPlaquet == 2 || electronsPerPlaquet == 6);
     }
@@ -364,7 +375,7 @@ public:
     EnsembleAverageBySectors<S> ensembleAverage;
     Polarisation<S> P;
     ParticleNumber<S> N;
-    double t, td, ti, V0, a, b, Vext, Pext, mu;
+    double t, td, ti, V0, a, b, Vext, Pext, mu, epsilonr, lambdaD, epsilon0;
 };
 
 template<template <typename> class ExternalTC>
@@ -544,6 +555,26 @@ public:
         QcaSystem::Pext = os["Pext"].get<double>(0);
         QcaSystem::V0 = os["V0"].get<double>(1000); 
         QcaSystem::mu = os["mu"].get<double>(0);
+        QcaSystem::epsilonr = os["epsilonr"].get<double>(QCA_EPSILON_R_DEFAULT_VALUE);
+        QcaSystem::lambdaD = os["lambdaD"].get<double>(0);
+    }
+
+    OptionSection getParameters ()
+    {
+        OptionSection os;
+        os["p"] = QcaSystem::N_p;
+        os["t"] = QcaSystem::t;
+        os["td"] = QcaSystem::td;
+        os["ti"] = QcaSystem::ti;
+        os["V0"] = QcaSystem::V0;
+        os["mu"] = QcaSystem::mu;
+        os["Vext"] = QcaSystem::Vext;
+        os["Pext"] = QcaSystem::Pext;
+        os["a"] = QcaSystem::a;
+        os["b"] = QcaSystem::b;
+        os["epsilonr"] = QcaSystem::epsilonr;
+        os["lambdaD"] = QcaSystem::lambdaD;
+        return os;
     }
 };
 

@@ -749,15 +749,10 @@ public:
                     throw CommandLineOptionsException("Duplicate option: '" +
                                                       optionName + "'.");
                 /*
-                 * if there is a next argument and this argument isn't an
-                 * option specifier (i.e. not a '-' followed by a non-digit)
-                 * then this argument is the value for our option
+                 * if there is a next argument and this argument isn't an option
+                 * specifier then this argument is the value for our option
                  */
-                if (i+1 < argc &&   
-                    ( (std::strlen(argv[i+1]) > 0 && argv[i+1][0] != '-') || 
-                      (std::strlen(argv[i+1]) > 1 && std::isdigit(argv[i+1][1])) 
-                    )
-                   )
+                if (i+1 < argc && !isOptionSpecifier(argv[i+1]))
                 {
                     getOption(optionName).setValue(OptionValue(std::string(argv[i+1])));
                     i++;
@@ -862,6 +857,15 @@ private:
             pos = next+1;
         }
         return ws;
+    }
+
+    bool isOptionSpecifier(std::string s) const
+    {
+        if (s.length() > 1 && s[0] == '-' && std::isalpha(s[1]))
+            return true;
+        if (s.length() > 2 && s[0] == '-' && s[1] == '-' && std::isalpha(s[2]))
+            return true;
+        return false;
     }
 };
 

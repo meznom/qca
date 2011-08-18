@@ -475,3 +475,39 @@ sys     0m10.495s
 
 
 I just found out that on Aditya's machine everything from macports as well as my code was compiled for i368 -- 32 bit -- and not for x86_64 which is 64 bit. Thus I set "build_arch" to "x86_64" in /opt/local/etc/macports/macports.conf and now I am reinstalling / recompiling everything.
+
+
+----
+
+July 21 2011
+
+Turned out 64 bit vs 32 bit didn't make a difference for performance. It also
+turned out that all compilers I built myself (whether via macports or from
+scratch, also both 4.6 and 4.5) were buggy/produced buggy code with respect to
+exception handling. Some of my unit tests were failing. Now I am using the
+Intel 11 compilers. Performance is still not better:
+
+burkhard@null-001d4f4a1551:~/o/src/ExactDiagonalization/Release (master *)$ time ./runQca -m grand2DP -p 2 -t 1 -td 0 -ti 0 -a `c 1/160` -b `c 3*1/160` -Pext 0.1 -V0 1000 -beta 1000 -mu -300 -P 0,1 -N 0,1
+# program version: v2-5-ge92d02d
+# date: Wed Jul 20 18:40:42 2011 -0600
+#
+# p = 2
+# t = 1
+# td = 0
+# ti = 0
+# V0 = 1000
+# mu = -300
+# Vext = 0
+# Pext = 0.1
+# a = 0.00625
+# b = 0.01875
+# beta = 1000
+# model = grand2DP
+#
+# P0    P1      N0      N1
+0.930266        0.91957 2       2
+
+real    38m21.734s
+user    38m13.078s
+sys     0m8.645s
+

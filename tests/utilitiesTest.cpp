@@ -41,6 +41,11 @@ BOOST_AUTO_TEST_CASE ( OptionValue_type_conversion )
     BOOST_CHECK (vd[0] == 4.2);
     BOOST_CHECK_THROW (std::vector<int> vi = i, ConversionException);
 
+    i = ".32";
+    BOOST_CHECK (static_cast<double>(i) == 0.32);
+    i = "-.17";
+    BOOST_CHECK (static_cast<double>(i) == -0.17);
+
     i = -7.2;
     BOOST_CHECK (i == "-7.2");
     BOOST_CHECK (static_cast<double>(i) == -7.2);
@@ -389,6 +394,22 @@ BOOST_AUTO_TEST_CASE ( CommandLineOptions_parser )
     BOOST_CHECK (o.hasOption("b") == true);
     BOOST_CHECK (epsilonEqual(o["b"], 1.75));
     BOOST_CHECK (epsilonEqual(o["Vext"], 1.1));
+
+    o = setupCLOptions();
+    fillArgv(argv, "", "-m", "blub", "-t", ".3", "-P", "-p", "1", "--Vext", "-.1");
+    argc = 10;
+    o.parse(argc, const_cast<const char**>(argv));
+    BOOST_CHECK (o.hasOption("model") == true);
+    BOOST_CHECK (o["model"] == "blub");
+    BOOST_CHECK (o.hasOption("t") == true);
+    BOOST_CHECK (epsilonEqual(o["t"], 0.3));
+    BOOST_CHECK (o.hasOption("polarisation") == true);
+    BOOST_CHECK (static_cast<bool>(o["polarisation"]) == true);
+    BOOST_CHECK (static_cast<int>(o["p"]) == 1);
+    BOOST_CHECK (o.hasOption("a") == false);
+    BOOST_CHECK (o.hasOption("b") == true);
+    BOOST_CHECK (epsilonEqual(o["b"], 1.75));
+    BOOST_CHECK (epsilonEqual(o["Vext"], -0.1));
 
     o = setupCLOptions();
     fillArgv(argv, "", "-t", "2.1", "-a", "3.2", "-t", "1.1");
