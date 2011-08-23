@@ -5,8 +5,9 @@
 #include "utilities.hpp"
 #include <limits>
 
-const double QCA_EPSILON_0_DEFAULT_VALUE = 8.8541878176E-12;
-const double QCA_EPSILON_R_DEFAULT_VALUE = 1/(4*M_PI*8.8541878176E-12);
+const double QCA_ELEMENTARY_CHARGE = 1.602176565E-19;
+const double QCA_EPSILON_0 = 8.8541878176E-12;
+const double QCA_EPSILON_R_DEFAULT_VALUE = QCA_ELEMENTARY_CHARGE*QCA_ELEMENTARY_CHARGE / (4*M_PI*QCA_EPSILON_0);
 
 class Hopping
 {
@@ -50,7 +51,7 @@ class Coulomb
 public:
     Coulomb (double V0_, double a_, double b_, double lambdaD_ = 0, 
              double epsilonr_ = QCA_EPSILON_R_DEFAULT_VALUE, 
-             double epsilon0_ = QCA_EPSILON_0_DEFAULT_VALUE)
+             double epsilon0_ = QCA_EPSILON_0)
     : V0(V0_), a(a_), b(b_), epsilon0(epsilon0_), epsilonr(epsilonr_), lambdaD(lambdaD_)
     {}
 
@@ -60,9 +61,9 @@ public:
             return V0;
         const double r = distance(i,j);
         if (lambdaD == 0)
-            return 1 / (4*M_PI * epsilon0 * epsilonr * r);
+            return QCA_ELEMENTARY_CHARGE*QCA_ELEMENTARY_CHARGE / (4*M_PI * epsilon0 * epsilonr * r);
         else
-            return 1 / (4*M_PI * epsilon0 * epsilonr * r) * exp(- r / lambdaD);
+            return QCA_ELEMENTARY_CHARGE*QCA_ELEMENTARY_CHARGE / (4*M_PI * epsilon0 * epsilonr * r) * exp(- r / lambdaD);
     }
 
     double distance (size_t i_, size_t j_) const
@@ -344,7 +345,7 @@ public:
           H(s), ensembleAverage(s), P(s), N(s), 
           t(1), td(0), ti(0), V0(1000), a(1.0), b(3*a), Vext(0), Pext(0), mu(0),
           epsilonr(QCA_EPSILON_R_DEFAULT_VALUE), lambdaD(0), 
-          epsilon0(QCA_EPSILON_0_DEFAULT_VALUE)
+          epsilon0(QCA_EPSILON_0)
     {
         assert(electronsPerPlaquet == 2 || electronsPerPlaquet == 6);
     }
