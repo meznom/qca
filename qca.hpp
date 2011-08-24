@@ -165,10 +165,23 @@ public:
         H.setZero();
         for (size_t i=0; i<s.N_sites; i++)
         {
+            /*
+             * Eigen seems to truncate very small values in Sparse matrices. The
+             * epsilon value used for the truncation is defined in Eigen's
+             * NumTraits. To be safe we check that our values are bigger than
+             * this threshold. 
+             */
+            assert(coulomb(i,i)==0 || coulomb(i,i)>NumTraits<double>::dummy_precision());
+            assert((external(i)+s.mu)==0 || (external(i)+s.mu)> NumTraits<double>::dummy_precision());
+            
             H += coulomb(i,i) * s.n_updown(i);
             H += (external(i) + s.mu) * s.n(i);
             for (size_t j=i+1; j<s.N_sites; j++)
             {
+                assert(hopping(i,j)==0 || hopping(i,j)>NumTraits<double>::dummy_precision());
+                assert(hopping(j,i)==0 || hopping(j,i)>NumTraits<double>::dummy_precision());
+                assert(coulomb(i,j)==0 || coulomb(i,j)>NumTraits<double>::dummy_precision());
+                
                 H += - hopping(i,j) * s.ca(i,j) - hopping(j,i) * s.ca(j,i);
                 H += coulomb(i,j) * s.n(i) * s.n(j);
             }

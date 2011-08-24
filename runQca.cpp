@@ -15,7 +15,7 @@
 class EpsilonLess
 {
 public:
-    EpsilonLess (double e_ = 1E-10)
+    EpsilonLess (double e_ = 1E-20)
     : e(e_)
     {}
 
