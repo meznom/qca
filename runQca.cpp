@@ -48,7 +48,9 @@ CommandLineOptions setupCLOptions ()
      .add("", "lambdaD", "Debye screening length. Set to zero to disable screening.")
      .add("energy-spectrum", "E", "Calculate the energy spectrum.")
      .add("polarisation", "P", "Calculate the polarisation for the specified plaquet(s).")
-     .add("particle-number", "N", "Calculate the particle number for the specified plaquet(s).");
+     .add("particle-number", "N", "Calculate the particle number for the specified plaquet(s).")
+     .add("", "eV", "Use eV as energy unit.")
+     .add("", "nm", "Use nm as length unit.");
     
     o["p"].setDefault(1);
     o["t"].setDefault(1);

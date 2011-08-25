@@ -70,8 +70,15 @@ public:
     {
         const int i = static_cast<int>(i_);
         const int j = static_cast<int>(j_);
-        const double deltaY = a * ( (i/2-j/2)%2 );
-        assert( std::abs(deltaY-a) < 10E-20 || deltaY < 10E-20 );
+        
+        /*
+         * We compute deltaY and deltaX in units of a. This increases accuracy
+         * for the case that a becomes very small. a and b are expected to be
+         * roughly of the same order. Thus b/a~1 and deltaX~1 and deltaY~1. In
+         * contrast we might have a~10^-10.
+         */
+        const double deltaY = (i/2-j/2)%2;
+        assert( std::abs(deltaY-1) < 10E-20 || deltaY < 10E-20 );
 
         /*
          * 0 1   4 5   ...
@@ -80,12 +87,10 @@ public:
          * verified for 1, 2 and 3 plaquets, so seems to work correctly
          */
         const double deltaX = 
-            (a+b) * (i/4 - j/4) + 
-            a * ( ( ((i%4)%3==0)?0:1 ) - ( ((j%4)%3==0)?0:1 ) );
+            (1+b/a) * (i/4 - j/4) + 
+            ( ((i%4)%3==0)?0:1 ) - ( ((j%4)%3==0)?0:1 );
 
-        //std::cerr << i << "   " << j << "    " << deltaX << "   " << deltaY << std::endl;
-
-        return std::sqrt(deltaX*deltaX + deltaY*deltaY);
+        return a * std::sqrt(deltaX*deltaX + deltaY*deltaY);
     }
 
 private:
@@ -558,13 +563,15 @@ class DQcaGeneric : public QcaSystem
 {
 public:
     DQcaGeneric (OptionSection os)
-    : QcaSystem (os["p"])
+    : QcaSystem (os["p"]), eV(false), nm(false)
     {
         setParameters(os);
     }
 
     void setParameters (OptionSection os)
     {
+        eV = os["eV"].get<bool>(false);
+        nm = os["nm"].get<bool>(false);
         QcaSystem::t = os["t"].get<double>(1.0);
         QcaSystem::td = os["td"].get<double>(0); 
         QcaSystem::ti = os["ti"].get<double>(0); 
@@ -576,11 +583,22 @@ public:
         QcaSystem::mu = os["mu"].get<double>(0);
         QcaSystem::epsilonr = os["epsilonr"].get<double>(QCA_EPSILON_R_DEFAULT_VALUE);
         QcaSystem::lambdaD = os["lambdaD"].get<double>(0);
+
+        if (eV)
+            QcaSystem::epsilonr *= QCA_ELEMENTARY_CHARGE;
+        if (nm)
+        {
+            QcaSystem::a *= 1e-9;
+            QcaSystem::b *= 1e-9;
+            QcaSystem::lambdaD *= 1e-9;
+        }
     }
 
     OptionSection getParameters ()
     {
         OptionSection os;
+        os["eV"] = eV;
+        os["nm"] = nm;
         os["p"] = QcaSystem::N_p;
         os["t"] = QcaSystem::t;
         os["td"] = QcaSystem::td;
@@ -593,8 +611,20 @@ public:
         os["b"] = QcaSystem::b;
         os["epsilonr"] = QcaSystem::epsilonr;
         os["lambdaD"] = QcaSystem::lambdaD;
+
+        if (eV)
+            os["epsilonr"] = QcaSystem::epsilonr/QCA_ELEMENTARY_CHARGE;
+        if (nm)
+        {
+            os["a"] = QcaSystem::a/1e-9;
+            os["b"] = QcaSystem::b/1e-9;
+            os["lambdaD"] = QcaSystem::lambdaD/1e-9;
+        }
+
         return os;
     }
+
+    bool eV, nm;
 };
 
 /*
