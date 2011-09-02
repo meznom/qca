@@ -385,3 +385,183 @@ BOOST_AUTO_TEST_CASE ( compare_performance_qca_fixed_charge_with_and_without_usi
     std::cerr << "Time for diagonalizeUsingSymmetriesBySectors of two plaquet QCA quarterfilled system: " 
               << cpuTime << "s" << std::endl;
 }
+
+BOOST_AUTO_TEST_CASE ( test_scaling_of_parameters_for_grand_canonical_system )
+{
+    QcaGrandCanonical<ExternalPlain, 2> s1(1);
+    s1.Vext = 0;
+    s1.Pext = 0;
+    s1.t = 1;
+    s1.td = 0;
+    s1.a = 1.0/160.0;
+    s1.b = 3*s1.a;
+    s1.V0 = 1000;
+    s1.mu = -300;
+    s1.q = 0;
+
+    s1.update();
+    double N1 = s1.measure(0.1, s1.N(0));
+    double P1 = s1.measure(0.1, s1.P(0));
+
+    QcaGrandCanonical<ExternalPlain, 2> s2(1);
+    s2.Vext = 0;
+    s2.Pext = 0;
+    s2.t = 1 * 10;
+    s2.td = 0;
+    s2.a = 1.0/160.0 * 1.0/10.0;
+    s2.b = 3*s2.a;
+    s2.V0 = 1000 * 10;
+    s2.mu = -300 * 10;
+    s2.q = 0;
+
+    s2.update();
+    double N2 = s2.measure(0.1 * 1.0/10.0, s2.N(0));
+    double P2 = s2.measure(0.1 * 1.0/10.0, s2.P(0));
+
+    BOOST_CHECK (epsilonEqual(N1, N2));
+    BOOST_CHECK (epsilonEqual(P1, P2));
+
+
+    QcaGrandCanonical<ExternalPlain, 2> s3(1);
+    s3.Vext = 1;
+    s3.Pext = 0;
+    s3.t = 1;
+    s3.td = 0;
+    s3.a = 1.0/160.0;
+    s3.b = 3*s3.a;
+    s3.V0 = 1000;
+    s3.mu = -300;
+    s3.q = 0;
+
+    s3.update();
+    double N3 = s3.measure(0.1, s3.N(0));
+    double P3 = s3.measure(0.1, s3.P(0));
+
+    QcaGrandCanonical<ExternalPlain, 2> s4(1);
+    s4.Vext = 1 * 1000;
+    s4.Pext = 0;
+    s4.t = 1 * 1000;
+    s4.td = 0;
+    s4.a = 1.0/160.0 * 1.0/1000.0;
+    s4.b = 3*s4.a;
+    s4.V0 = 1000 * 1000;
+    s4.mu = -300 * 1000;
+    s4.q = 0;
+
+    s4.update();
+    double N4 = s4.measure(0.1 * 1.0/1000.0, s4.N(0));
+    double P4 = s4.measure(0.1 * 1.0/1000.0, s4.P(0));
+
+    BOOST_CHECK (epsilonEqual(N3, N4));
+    BOOST_CHECK (epsilonEqual(P3, P4));
+}
+
+BOOST_AUTO_TEST_CASE ( test_eV_and_nm_command_line_parameters_for_grand_canonical_system )
+{
+    OptionSection o1;
+    o1["p"] = 1;
+    o1["t"] = 0.1;
+    o1["td"] = 0;
+    o1["ti"] = 0;
+    o1["V0"] = 1;
+    o1["mu"] = -0.8;
+    o1["Vext"] = 0;
+    o1["Pext"] = 0;
+    o1["a"] = 0.3;
+    o1["b"] = 0;
+    o1["epsilonr"] = 8;
+    o1["lambdaD"] = 0;
+    o1["q"] = 0;
+    o1["eV"] = true;
+    o1["nm"] = true;
+
+    DQcaGrandCanonicalPlain s1(o1);
+    s1.update();
+    double N1 = s1.measure(10, s1.N(0));
+
+    const double scale = 1E10;
+    const double e = QCA_ELEMENTARY_CHARGE * scale;
+    OptionSection o2;
+    o2["p"] = 1;
+    o2["t"] = 0.1 * e;
+    o2["td"] = 0;
+    o2["ti"] = 0;
+    o2["V0"] = 1 * e;
+    o2["mu"] = -0.8 * e;
+    o2["Vext"] = 0;
+    o2["Pext"] = 0;
+    o2["a"] = 0.3 * 1E-9 / scale;
+    o2["b"] = 0;
+    o2["epsilonr"] = 8;
+    o2["lambdaD"] = 0;
+    o2["q"] = 0;
+    o2["eV"] = false;
+    o2["nm"] = false;
+
+    DQcaGrandCanonicalPlain s2(o2);
+    s2.update();
+    double N2 = s2.measure(10 / e, s2.N(0));
+
+    BOOST_CHECK (epsilonEqual(N1, N2, 1E-6));
+}
+
+BOOST_AUTO_TEST_CASE ( test_compensation_charge )
+{
+    QcaGrandCanonical<ExternalPlain, 2> s1(1);
+    s1.Vext = 0;
+    s1.Pext = 0;
+    s1.t = 1;
+    s1.td = 0;
+    s1.a = 1.0/160.0;
+    s1.b = 3*s1.a;
+    s1.V0 = 0; //TODO: why does V0 make a difference?
+    s1.mu = 0;
+    s1.q = 1;
+
+    s1.update();
+    BOOST_CHECK (epsilonEqual(s1.measure(10000, s1.N(0)), 4));
+
+    /*
+     * For the case that doubly occupied states are completely gapped out, the
+     * 2e per plaquet system without compensation charges and the 6e per plaquet
+     * system with compensation charges should behave identical.
+     * TODO: verify, refine this condition
+     */
+    QcaFixedCharge<ExternalPlain, 2> s2(2);
+    s2.Vext = 0.1;
+    s2.Pext = 0;
+    s2.t = 1;
+    s2.td = 0;
+    s2.a = 1.0/100.0;
+    s2.b = 2*s2.a;
+    s2.V0 = 10000;
+    s2.mu = 0;
+    s2.q = 0;
+
+    s2.update();
+    double P21 = s2.measure(10, s2.P(0));
+    double P22 = s2.measure(10, s2.P(1));
+
+    QcaFixedCharge<ExternalPlain, 6> s3(2);
+    s3.Vext = 0.1;
+    s3.Pext = 0;
+    s3.t = 1;
+    s3.td = 0;
+    s3.a = 1.0/100.0;
+    s3.b = 2*s3.a;
+    s3.V0 = 10000;
+    s3.mu = 0;
+    s3.q = 1;
+
+    s3.update();
+    double P31 = s3.measure(10, s3.P(0));
+    double P32 = s3.measure(10, s3.P(1));
+
+    //std::cerr << "P21 = " << P21 << ", P22 = " << P22 << std::endl;
+    //std::cerr << "P31 = " << P31 << ", P32 = " << P32 << std::endl;
+
+    BOOST_CHECK (epsilonEqual(P21, P31));
+    BOOST_CHECK (epsilonEqual(P22, P32));
+
+    //TODO: a similar equivalency shoud exist for the dead plaquet systems
+}

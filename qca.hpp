@@ -123,7 +123,7 @@ class ExternalDeadPlaquet
 public:
     ExternalDeadPlaquet (const ParameterContainer& c)
     : coulomb(c.V0, c.a, c.b, c.lambdaD, c.epsilonr, c.epsilon0), 
-      P(c.Pext), electronsPerPlaquet(c.electronsPerPlaquet)
+      P(c.Pext), electronsPerPlaquet(c.electronsPerPlaquet), q(c.q)
     {}
 
     double operator() (size_t i) const
@@ -135,20 +135,28 @@ public:
          * positive).
          */
         assert (electronsPerPlaquet == 2 || electronsPerPlaquet == 6);
+        
+        // Coulomb term: V_ij (n_i - q) (n_j - q)
+        // here we are calculating V_ij (n_i - q) where i runs over all sites of
+        // the dead plaquet
+        double n = 0; // electrons per site
+        if (electronsPerPlaquet == 6) n = 1;
+        n -= q; //compensation charge
         double V = 0;
+        for (int j=0; j<4; j++)
+            V += n * coulomb(j,i+4);
+        // put on two extra electrons according to the set polarisation
         for (int j=1; j<4; j+=2)
-            V += (P+1)/2 * 1/coulomb.distance(j,i+4);
+            V += (P+1)/2 * coulomb(j,i+4);
         for (int j=0; j<4; j+=2)
-            V += (1-P)/2 * 1/coulomb.distance(j,i+4);
-        if (electronsPerPlaquet == 6)
-            for (int j=0; j<4; j++)
-                V += 1/coulomb.distance(j,i+4);
+            V += (1-P)/2 * coulomb(j,i+4);
         return V;
     }
 private:
     const Coulomb coulomb;
     const double P;
     const size_t electronsPerPlaquet;
+    const double q;
 };
 
 template<class System>
@@ -166,6 +174,7 @@ public:
         Coulomb coulomb(s.V0, s.a, s.b, s.lambdaD, s.epsilonr, s.epsilon0);
         typename System::External external(s);
 
+        if (I.cols() == 0) constructIdentityMatrix();
         H = SMatrix(s.basis.size(), s.basis.size());
         H.setZero();
         for (size_t i=0; i<s.N_sites; i++)
@@ -182,7 +191,7 @@ public:
                    std::fabs((external(i)+s.mu))> NumTraits<double>::dummy_precision());
             
             H += coulomb(i,i) * s.n_updown(i);
-            H += (external(i) + s.mu) * s.n(i);
+            H += (external(i) + s.mu) * (s.n(i) - s.q * I);
             for (size_t j=i+1; j<s.N_sites; j++)
             {
                 assert(hopping(i,j)==0 || 
@@ -193,13 +202,28 @@ public:
                        std::fabs(coulomb(i,j))>NumTraits<double>::dummy_precision());
                 
                 H += - hopping(i,j) * s.ca(i,j) - hopping(j,i) * s.ca(j,i);
-                H += coulomb(i,j) * s.n(i) * s.n(j);
+                // V_ij (n_i - q) (n_j - q)
+                H += coulomb(i,j) * (s.n(i) * s.n(j) - s.q * s.n(i) - 
+                                     s.q * s.n(j) - s.q * s.q * I);
             }
         }
     }
 
 private:
+    void constructIdentityMatrix ()
+    {
+        I = SMatrix(s.basis.size(), s.basis.size());
+        I.setZero();
+        for (int i=0; i<I.cols(); i++)
+        {
+            I.startVec(i);
+            I.insertBack(i,i) = 1;
+        }
+        I.finalize();
+    }
+
     SMatrix& H;
+    SMatrix I;
     const System& s;
 };
 
@@ -368,7 +392,7 @@ public:
           H(s), ensembleAverage(s), P(s), N(s), 
           t(1), td(0), ti(0), V0(1000), a(1.0), b(3*a), Vext(0), Pext(0), mu(0),
           epsilonr(QCA_EPSILON_R_DEFAULT_VALUE), lambdaD(0), 
-          epsilon0(QCA_EPSILON_0)
+          epsilon0(QCA_EPSILON_0), q(0)
     {
         assert(electronsPerPlaquet == 2 || electronsPerPlaquet == 6);
     }
@@ -399,7 +423,7 @@ public:
     EnsembleAverageBySectors<S> ensembleAverage;
     Polarisation<S> P;
     ParticleNumber<S> N;
-    double t, td, ti, V0, a, b, Vext, Pext, mu, epsilonr, lambdaD, epsilon0;
+    double t, td, ti, V0, a, b, Vext, Pext, mu, epsilonr, lambdaD, epsilon0, q;
 };
 
 template<template <typename> class ExternalTC>
@@ -583,6 +607,7 @@ public:
         QcaSystem::mu = os["mu"].get<double>(0);
         QcaSystem::epsilonr = os["epsilonr"].get<double>(QCA_EPSILON_R_DEFAULT_VALUE);
         QcaSystem::lambdaD = os["lambdaD"].get<double>(0);
+        QcaSystem::q = os["q"].get<double>(0);
 
         if (eV)
             QcaSystem::epsilonr *= QCA_ELEMENTARY_CHARGE;
@@ -611,6 +636,7 @@ public:
         os["b"] = QcaSystem::b;
         os["epsilonr"] = QcaSystem::epsilonr;
         os["lambdaD"] = QcaSystem::lambdaD;
+        os["q"] = QcaSystem::q;
 
         if (eV)
             os["epsilonr"] = QcaSystem::epsilonr/QCA_ELEMENTARY_CHARGE;

@@ -44,6 +44,7 @@ CommandLineOptions setupCLOptions ()
      .add("", "a", "Intra-plaquet spacing.")
      .add("", "b", "Inter-plaquet spacing.")
      .add("", "beta", "Inverse temperature.")
+     .add("", "q", "Compensation charge. Defaults to 0.")
      .add("", "epsilonr", "Relative permattiviy.")
      .add("", "lambdaD", "Debye screening length. Set to zero to disable screening.")
      .add("energy-spectrum", "E", "Calculate the energy spectrum.")
@@ -63,6 +64,7 @@ CommandLineOptions setupCLOptions ()
     o["a"].setDefault(1);
     o["b"].setDefault(1.75);
     o["beta"].setDefault(1);
+    o["q"].setDefault(0);
     o["epsilonr"].setDefault(QCA_EPSILON_R_DEFAULT_VALUE);
     o["lambdaD"].setDefault(0);
 
@@ -339,7 +341,7 @@ template<class System>
 void run (CommandLineOptions& opts)
 {
     const char* pnamesv[] = {"t","td","ti","V0","mu","Vext","Pext","a","b",
-                             "beta","epsilonr","lambdaD"};
+                             "beta","q","epsilonr","lambdaD"};
     size_t pnamesc = 12;
     std::vector<std::pair<std::string, size_t> > params;
     for (size_t i=0; i<pnamesc; i++)
@@ -364,6 +366,7 @@ void run (CommandLineOptions& opts)
     cOpts["a"] = 1;
     cOpts["b"] = 1.75;
     cOpts["beta"] = 1;
+    cOpts["q"] = 0;
     cOpts["epsilonr"] = QCA_EPSILON_R_DEFAULT_VALUE;
     cOpts["lambdaD"] = 0;
     Measurement<System> M(cOpts);
