@@ -507,6 +507,10 @@ BOOST_AUTO_TEST_CASE ( test_eV_and_nm_command_line_parameters_for_grand_canonica
 
 BOOST_AUTO_TEST_CASE ( test_compensation_charge )
 {
+    /*
+     * Grand canonical, one plaquet: Should be four electrons per plaquet at 
+     * mu = 0.
+     */
     QcaGrandCanonical<ExternalPlain, 2> s1(1);
     s1.Vext = 0;
     s1.Pext = 0;
@@ -514,7 +518,7 @@ BOOST_AUTO_TEST_CASE ( test_compensation_charge )
     s1.td = 0;
     s1.a = 1.0/160.0;
     s1.b = 3*s1.a;
-    s1.V0 = 0; //TODO: why does V0 make a difference?
+    s1.V0 = 0;
     s1.mu = 0;
     s1.q = 1;
 
@@ -522,10 +526,10 @@ BOOST_AUTO_TEST_CASE ( test_compensation_charge )
     BOOST_CHECK (epsilonEqual(s1.measure(10000, s1.N(0)), 4));
 
     /*
-     * For the case that doubly occupied states are completely gapped out, the
-     * 2e per plaquet system without compensation charges and the 6e per plaquet
-     * system with compensation charges should behave identical.
-     * TODO: verify, refine this condition
+     * Fixed, two plaquets: For the case that doubly occupied states are
+     * completely gapped out, the 2e per plaquet system without compensation
+     * charges and the 6e per plaquet system with compensation charges should
+     * behave identical.
      */
     QcaFixedCharge<ExternalPlain, 2> s2(2);
     s2.Vext = 0.1;
@@ -563,5 +567,81 @@ BOOST_AUTO_TEST_CASE ( test_compensation_charge )
     BOOST_CHECK (epsilonEqual(P21, P31));
     BOOST_CHECK (epsilonEqual(P22, P32));
 
-    //TODO: a similar equivalency shoud exist for the dead plaquet systems
+    /*
+     * Grand canonical, one plaquet: The two electron dead plaquet system
+     * without compensation charge should be the same as the six electron dead
+     * plaquet system with compensation charge, provided we set the chemical
+     * potential correctly.
+     */
+    QcaGrandCanonical<ExternalDeadPlaquet, 6> s4(1);
+    s4.Vext = 0;
+    s4.Pext = 1;
+    s4.t = 1;
+    s4.td = 0;
+    s4.a = 1.0/100.0;
+    s4.b = 4*s4.a;
+    s4.V0 = 1000;
+    s4.mu = -1200;
+    s4.q = 1;
+
+    s4.update();
+    double P41 = s4.measure(10, s4.P(0));
+
+    QcaGrandCanonical<ExternalDeadPlaquet, 2> s5(1);
+    s5.Vext = 0;
+    s5.Pext = 1;
+    s5.t = 1;
+    s5.td = 0;
+    s5.a = 1.0/100.0;
+    s5.b = 4*s5.a;
+    s5.V0 = 1000;
+    s5.mu = -200; //1000 less than s4.mu (because V0=1000)
+    s5.q = 0;
+
+    s5.update();
+    double P51 = s5.measure(10, s5.P(0));
+
+    //std::cerr << "P41 = " << P41 << ", P51 = " << P51 << std::endl;
+
+    BOOST_CHECK (epsilonEqual(P41, P51));
+
+    /*
+     * Fixed, two plaquets: The 2e and 6e dead plaquet systems should be
+     * equivalent.
+     */
+    QcaFixedCharge<ExternalDeadPlaquet, 2> s6(2);
+    s6.Vext = 0;
+    s6.Pext = 1;
+    s6.t = 1;
+    s6.td = 0;
+    s6.a = 1.0/100.0;
+    s6.b = 4*s6.a;
+    s6.V0 = 1000;
+    s6.mu = 0;
+    s6.q = 0;
+
+    s6.update();
+    double P61 = s6.measure(10, s6.P(0));
+    double P62 = s6.measure(10, s6.P(1));
+
+    QcaFixedCharge<ExternalDeadPlaquet, 6> s7(2);
+    s7.Vext = 0;
+    s7.Pext = 1;
+    s7.t = 1;
+    s7.td = 0;
+    s7.a = 1.0/100.0;
+    s7.b = 4*s7.a;
+    s7.V0 = 1000;
+    s7.mu = 0;
+    s7.q = 1;
+
+    s7.update();
+    double P71 = s7.measure(10, s7.P(0));
+    double P72 = s7.measure(10, s7.P(1));
+
+    //std::cerr << "P61 = " << P61 << ", P62 = " << P62 << std::endl;
+    //std::cerr << "P71 = " << P71 << ", P72 = " << P72 << std::endl;
+
+    BOOST_CHECK (epsilonEqual(P61, P71));
+    BOOST_CHECK (epsilonEqual(P62, P72));
 }
