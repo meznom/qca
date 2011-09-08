@@ -40,7 +40,7 @@ CommandLineOptions setupCLOptions ()
      .add("", "V0", "On-site coulomb repulsion (Hubbard U).")
      .add("", "mu", "Chemical potential.")
      .add("", "Vext", "External potential.")
-     .add("", "Pext", "External, 'driving' polarisation of a 'dead plaquet' to the left of the linear chain system.")
+     .add("", "Pext", "External, 'driving' polarization of a 'dead plaquet' to the left of the linear chain system.")
      .add("", "a", "Intra-plaquet spacing.")
      .add("", "b", "Inter-plaquet spacing.")
      .add("", "beta", "Inverse temperature.")
@@ -48,7 +48,8 @@ CommandLineOptions setupCLOptions ()
      .add("", "epsilonr", "Relative permattiviy.")
      .add("", "lambdaD", "Debye screening length. Set to zero to disable screening.")
      .add("energy-spectrum", "E", "Calculate the energy spectrum.")
-     .add("polarisation", "P", "Calculate the polarisation for the specified plaquet(s).")
+     .add("polarization", "P", "Calculate the polarization for the specified plaquet(s).")
+     .add("polarization2", "P2", "Calculate the polarization for the specified plaquet(s). Uses a different definition for the polarization.")
      .add("particle-number", "N", "Calculate the particle number for the specified plaquet(s).")
      .add("", "eV", "Use eV as energy unit.")
      .add("", "nm", "Use nm as length unit.");
@@ -89,7 +90,8 @@ public:
         for (OptionSection::OptionsType::iterator i=o.getOptions().begin(); i!=o.getOptions().end(); i++)
             outputConfig[i->getName()] = Header;
         outputConfig["energy-spectrum"] = None;
-        outputConfig["polarisation"] = None;
+        outputConfig["polarization"] = None;
+        outputConfig["polarization2"] = None;
         outputConfig["particle-number"] = None;
         outputConfig["help"] = None;
         outputConfig["version"] = None;
@@ -115,8 +117,10 @@ public:
 
         if (o["energy-spectrum"].isSet())
             measureEnergies();
-        if (o["polarisation"].isSet())
-            measurePolarisation();
+        if (o["polarization"].isSet())
+            measurePolarization();
+        if (o["polarization2"].isSet())
+            measurePolarization2();
         if (o["particle-number"].isSet())
             measureParticleNumber();
 
@@ -141,19 +145,35 @@ public:
         }
     }
 
-    void measurePolarisation ()
+    void measurePolarization ()
     {
         P.resize(0);
-        std::vector<size_t> ps = o["polarisation"];
+        std::vector<size_t> ps = o["polarization"];
         for (size_t i=0; i<ps.size(); i++)
         {
             if (ps[i] >= s.N_p) 
             {
-                std::cerr << std::endl << "Polarisation: There is no plaquet " 
+                std::cerr << std::endl << "Polarization: There is no plaquet " 
                     << ps[i] << " in this system." << std::endl;
                 std::exit(EXIT_FAILURE);
             }
             P.push_back(s.measure(o["beta"], s.P(ps[i])));
+        }
+    }
+
+    void measurePolarization2 ()
+    {
+        P2.resize(0);
+        std::vector<size_t> ps = o["polarization2"];
+        for (size_t i=0; i<ps.size(); i++)
+        {
+            if (ps[i] >= s.N_p) 
+            {
+                std::cerr << std::endl << "Polarization2: There is no plaquet " 
+                    << ps[i] << " in this system." << std::endl;
+                std::exit(EXIT_FAILURE);
+            }
+            P2.push_back(s.measurePolarization2(o["beta"], ps[i]));
         }
     }
 
@@ -192,7 +212,7 @@ public:
             std::cout << std::endl;
         }
 
-        if (o["polarisation"].isSet() || o["particle-number"].isSet())
+        if (o["polarization"].isSet() || o["particle-number"].isSet() || o["polarization2"].isSet())
         {
             if (needHeader)
             {
@@ -207,14 +227,24 @@ public:
                         else first = false;
                         std::cout << i->first;
                     }
-                if (o["polarisation"].isSet())
+                if (o["polarization"].isSet())
                 {
-                    std::vector<size_t> ps = o["polarisation"];
+                    std::vector<size_t> ps = o["polarization"];
                     for (size_t i=0; i<ps.size(); i++)
                     {
                         if (!first) std::cout << "\t";
                         else first = false;
                         std::cout << "P" << ps[i];
+                    }
+                }
+                if (o["polarization2"].isSet())
+                {
+                    std::vector<size_t> ps = o["polarization2"];
+                    for (size_t i=0; i<ps.size(); i++)
+                    {
+                        if (!first) std::cout << "\t";
+                        else first = false;
+                        std::cout << "P2" << ps[i];
                     }
                 }
                 if (o["particle-number"].isSet())
@@ -240,12 +270,19 @@ public:
                     else first = false;
                     std::cout << o[i->first];
                 }
-            if (o["polarisation"].isSet())
+            if (o["polarization"].isSet())
                 for (size_t j=0; j<P.size(); j++)
                 {
                     if (!first) std::cout << "\t";
                     else first = false;
                     std::cout << P[j];
+                }
+            if (o["polarization2"].isSet())
+                for (size_t j=0; j<P2.size(); j++)
+                {
+                    if (!first) std::cout << "\t";
+                    else first = false;
+                    std::cout << P2[j];
                 }
             if (o["particle-number"].isSet())
                 for (size_t j=0; j<N.size(); j++)
@@ -305,6 +342,7 @@ private:
 
     std::vector<std::vector<double> > E;
     std::vector<double> P;
+    std::vector<double> P2;
     std::vector<double> N;
     
     bool needHeader, globalFirst;

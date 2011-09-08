@@ -645,3 +645,87 @@ BOOST_AUTO_TEST_CASE ( test_compensation_charge )
     BOOST_CHECK (epsilonEqual(P61, P71));
     BOOST_CHECK (epsilonEqual(P62, P72));
 }
+
+BOOST_AUTO_TEST_CASE ( compare_polarization_and_polarization2 )
+{
+    QcaGrandCanonical<ExternalDeadPlaquet, 6> s1(1);
+    s1.Vext = 0;
+    s1.Pext = 1;
+    s1.t = 1;
+    s1.td = 0;
+    s1.a = 1.0/100.0;
+    s1.b = 4*s1.a;
+    s1.V0 = 1000;
+    s1.mu = -1200;
+    s1.q = 1;
+
+    s1.update();
+    double P11 = s1.measure(10, s1.P(0));
+    double P12 = s1.measurePolarization2(10, 0);
+
+    //std::cerr << "P11 = " << P11 << ", P12 = " << P12 << std::endl;
+    BOOST_CHECK (epsilonEqual(s1.measure(10, s1.N(0)), 6));
+    BOOST_CHECK (epsilonEqual(P11, P12, 1e-5));
+
+    QcaGrandCanonical<ExternalDeadPlaquet, 6> s2(1);
+    s2.Vext = 0;
+    s2.Pext = 1;
+    s2.t = 1;
+    s2.td = 0;
+    s2.a = 1.0/100.0;
+    s2.b = 4*s2.a;
+    s2.V0 = 10;
+    s2.mu = -200;
+    s2.q = 1;
+
+    s2.update();
+    double P21 = s2.measure(10, s2.P(0));
+    double P22 = s2.measurePolarization2(10, 0);
+
+    //std::cerr << "P21 = " << P21 << ", P22 = " << P22 << std::endl;
+    BOOST_CHECK (epsilonEqual(s2.measure(10, s2.N(0)), 6));
+    BOOST_CHECK (P21 > 0.9);
+    BOOST_CHECK (P22 < 0.1);
+
+    QcaFixedCharge<ExternalDeadPlaquet, 6> s3(2);
+    s3.Vext = 0;
+    s3.Pext = 1;
+    s3.t = 1;
+    s3.td = 0;
+    s3.a = 1.0/100.0;
+    s3.b = 4*s3.a;
+    s3.V0 = 1000;
+    s3.mu = 0;
+    s3.q = 1;
+
+    s3.update();
+    double P311 = s3.measure(10, s3.P(0));
+    double P312 = s3.measure(10, s3.P(1));
+    double P321= s3.measurePolarization2(10, 0);
+    double P322= s3.measurePolarization2(10, 1);
+
+    BOOST_CHECK (epsilonEqual(P311, P321, 1e-5));
+    BOOST_CHECK (epsilonEqual(P312, P322, 1e-5));
+
+    QcaFixedCharge<ExternalDeadPlaquet, 6> s4(2);
+    s4.Vext = 0;
+    s4.Pext = 1;
+    s4.t = 1;
+    s4.td = 0;
+    s4.a = 1.0/100.0;
+    s4.b = 4*s4.a;
+    s4.V0 = 10;
+    s4.mu = 0;
+    s4.q = 1;
+
+    s4.update();
+    double P411 = s4.measure(10, s4.P(0));
+    double P412 = s4.measure(10, s4.P(1));
+    double P421= s4.measurePolarization2(10, 0);
+    double P422= s4.measurePolarization2(10, 1);
+
+    BOOST_CHECK (std::fabs(P411) > 0.9);
+    BOOST_CHECK (std::fabs(P412) > 0.9);
+    BOOST_CHECK (std::fabs(P421) < 0.1);
+    BOOST_CHECK (std::fabs(P422) < 0.1);
+}

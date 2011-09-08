@@ -145,7 +145,7 @@ public:
         double V = 0;
         for (int j=0; j<4; j++)
             V += n * coulomb(j,i+4);
-        // put on two extra electrons according to the set polarisation
+        // put on two extra electrons according to the set polarization
         for (int j=1; j<4; j+=2)
             V += (P+1)/2 * coulomb(j,i+4);
         for (int j=0; j<4; j+=2)
@@ -228,10 +228,10 @@ private:
 };
 
 template<class System>
-class Polarisation
+class Polarization
 {
 public:
-    Polarisation (const System& s_)
+    Polarization (const System& s_)
     : s(s_)
     {}
 
@@ -408,6 +408,28 @@ public:
         return ensembleAverage(beta, O);
     }
 
+    double measurePolarization2 (double beta, size_t p)
+    {
+        /*
+         *        (n_0+n_2)^2 - (n_0-n_2)^2
+         * d_02 = -------------------------
+         *               (n_0+n_2)^2
+         *
+         * d_02 measures how evenly distributed the charges are along the
+         * diagonal 02. d_02 = 1 => evenly distributed. d_02 = 0 => unevenly
+         * distributed.
+         *
+         * P = d_02 * d_13 * 1/2 * (n_1 + n_3 - n_0 - n_2)
+         */
+        const size_t o = 4*p;
+        const double n0 = ensembleAverage(beta, s.n(o+0));
+        const double n1 = ensembleAverage(beta, s.n(o+1));
+        const double n2 = ensembleAverage(beta, s.n(o+2));
+        const double n3 = ensembleAverage(beta, s.n(o+3));
+        return 8 * n0*n1*n2*n3 * (n1+n3-n0-n2) / 
+               ( (n0+n2)*(n0+n2) * (n1+n3)*(n1+n3) );
+    }
+
     const DVector& energies ()
     {
         return H.eigenvalues();
@@ -421,7 +443,7 @@ public:
     size_t N_p, N_sites, electronsPerPlaquet;
     QcaHamiltonian<S> H;
     EnsembleAverageBySectors<S> ensembleAverage;
-    Polarisation<S> P;
+    Polarization<S> P;
     ParticleNumber<S> N;
     double t, td, ti, V0, a, b, Vext, Pext, mu, epsilonr, lambdaD, epsilon0, q;
 };
