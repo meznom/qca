@@ -51,8 +51,7 @@ CommandLineOptions setupCLOptions ()
      .add("polarization", "P", "Calculate the polarization for the specified plaquet(s).")
      .add("polarization2", "P2", "Calculate the polarization for the specified plaquet(s). Uses a different definition for the polarization.")
      .add("particle-number", "N", "Calculate the particle number for the specified plaquet(s).")
-     .add("", "eV", "Use eV as energy unit.")
-     .add("", "nm", "Use nm as length unit.");
+     .add("natural", "n", "Use natural units. Effectively uses a Coulomb potential 1/r by setting epsilon_r = e^2/(4pi epsilon_0) (in eV).");
     
     o["p"].setDefault(1);
     o["t"].setDefault(1);
@@ -66,7 +65,7 @@ CommandLineOptions setupCLOptions ()
     o["b"].setDefault(1.75);
     o["beta"].setDefault(1);
     o["q"].setDefault(0);
-    o["epsilonr"].setDefault(QCA_EPSILON_R_DEFAULT_VALUE);
+    o["epsilonr"].setDefault(1);
     o["lambdaD"].setDefault(0);
 
     return o;
@@ -95,6 +94,7 @@ public:
         outputConfig["particle-number"] = None;
         outputConfig["help"] = None;
         outputConfig["version"] = None;
+        outputConfig["natural"] = None;
     }
 
     void setParam (const std::string& param, const OptionValue& value)
@@ -378,9 +378,12 @@ void runMeasurement (Measurement& M, CommandLineOptions& opts, const std::vector
 template<class System>
 void run (CommandLineOptions& opts)
 {
+    if (opts["natural"].isSet())
+        opts["epsilonr"] = QCA_NATURAL_EPSILON_R;
+
     const char* pnamesv[] = {"t","td","ti","V0","mu","Vext","Pext","a","b",
                              "beta","q","epsilonr","lambdaD"};
-    size_t pnamesc = 12;
+    size_t pnamesc = 13;
     std::vector<std::pair<std::string, size_t> > params;
     for (size_t i=0; i<pnamesc; i++)
     {
@@ -405,7 +408,7 @@ void run (CommandLineOptions& opts)
     cOpts["b"] = 1.75;
     cOpts["beta"] = 1;
     cOpts["q"] = 0;
-    cOpts["epsilonr"] = QCA_EPSILON_R_DEFAULT_VALUE;
+    cOpts["epsilonr"] = 1;
     cOpts["lambdaD"] = 0;
     Measurement<System> M(cOpts);
     runMeasurement(M, opts, params, 0);

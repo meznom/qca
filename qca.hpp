@@ -7,7 +7,7 @@
 
 const double QCA_ELEMENTARY_CHARGE = 1.602176565E-19;
 const double QCA_EPSILON_0 = 8.8541878176E-12;
-const double QCA_EPSILON_R_DEFAULT_VALUE = QCA_ELEMENTARY_CHARGE*QCA_ELEMENTARY_CHARGE / (4*M_PI*QCA_EPSILON_0);
+const double QCA_NATURAL_EPSILON_R = QCA_ELEMENTARY_CHARGE / (4*M_PI*QCA_EPSILON_0*1e-9);
 
 class Hopping
 {
@@ -50,7 +50,7 @@ class Coulomb
 {
 public:
     Coulomb (double V0_, double a_, double b_, double lambdaD_ = 0, 
-             double epsilonr_ = QCA_EPSILON_R_DEFAULT_VALUE, 
+             double epsilonr_ = QCA_NATURAL_EPSILON_R, 
              double epsilon0_ = QCA_EPSILON_0)
     : V0(V0_), a(a_), b(b_), epsilon0(epsilon0_), epsilonr(epsilonr_), lambdaD(lambdaD_)
     {}
@@ -61,9 +61,11 @@ public:
             return V0;
         const double r = distance(i,j);
         if (lambdaD == 0)
-            return QCA_ELEMENTARY_CHARGE*QCA_ELEMENTARY_CHARGE / (4*M_PI * epsilon0 * epsilonr * r);
+            return QCA_ELEMENTARY_CHARGE / 
+                   (4*M_PI * epsilon0 * epsilonr * r * 1e-9);
         else
-            return QCA_ELEMENTARY_CHARGE*QCA_ELEMENTARY_CHARGE / (4*M_PI * epsilon0 * epsilonr * r) * exp(- r / lambdaD);
+            return QCA_ELEMENTARY_CHARGE * exp(- r / lambdaD) / 
+                   (4*M_PI * epsilon0 * epsilonr * r * 1e-9);
     }
 
     double distance (size_t i_, size_t j_) const
@@ -191,7 +193,7 @@ public:
                    std::fabs((external(i)+s.mu))> NumTraits<double>::dummy_precision());
             
             H += coulomb(i,i) * s.n_updown(i);
-            H += (external(i) + s.mu) * (s.n(i) - s.q * I);
+            H += (external(i) - s.mu) * s.n(i);
             for (size_t j=i+1; j<s.N_sites; j++)
             {
                 assert(hopping(i,j)==0 || 
@@ -391,7 +393,7 @@ public:
         : s(s_), N_p(N_p_), N_sites(4*N_p), electronsPerPlaquet(electronsPerPlaquet_), 
           H(s), ensembleAverage(s), P(s), N(s), 
           t(1), td(0), ti(0), V0(1000), a(1.0), b(3*a), Vext(0), Pext(0), mu(0),
-          epsilonr(QCA_EPSILON_R_DEFAULT_VALUE), lambdaD(0), 
+          epsilonr(QCA_NATURAL_EPSILON_R), lambdaD(0), 
           epsilon0(QCA_EPSILON_0), q(0)
     {
         assert(electronsPerPlaquet == 2 || electronsPerPlaquet == 6);
@@ -609,15 +611,13 @@ class DQcaGeneric : public QcaSystem
 {
 public:
     DQcaGeneric (OptionSection os)
-    : QcaSystem (os["p"]), eV(false), nm(false)
+    : QcaSystem (os["p"])
     {
         setParameters(os);
     }
 
     void setParameters (OptionSection os)
     {
-        eV = os["eV"].get<bool>(false);
-        nm = os["nm"].get<bool>(false);
         QcaSystem::t = os["t"].get<double>(1.0);
         QcaSystem::td = os["td"].get<double>(0); 
         QcaSystem::ti = os["ti"].get<double>(0); 
@@ -627,25 +627,14 @@ public:
         QcaSystem::Pext = os["Pext"].get<double>(0);
         QcaSystem::V0 = os["V0"].get<double>(1000); 
         QcaSystem::mu = os["mu"].get<double>(0);
-        QcaSystem::epsilonr = os["epsilonr"].get<double>(QCA_EPSILON_R_DEFAULT_VALUE);
+        QcaSystem::epsilonr = os["epsilonr"].get<double>(1);
         QcaSystem::lambdaD = os["lambdaD"].get<double>(0);
         QcaSystem::q = os["q"].get<double>(0);
-
-        if (eV)
-            QcaSystem::epsilonr *= QCA_ELEMENTARY_CHARGE;
-        if (nm)
-        {
-            QcaSystem::a *= 1e-9;
-            QcaSystem::b *= 1e-9;
-            QcaSystem::lambdaD *= 1e-9;
-        }
     }
 
     OptionSection getParameters ()
     {
         OptionSection os;
-        os["eV"] = eV;
-        os["nm"] = nm;
         os["p"] = QcaSystem::N_p;
         os["t"] = QcaSystem::t;
         os["td"] = QcaSystem::td;
@@ -660,19 +649,8 @@ public:
         os["lambdaD"] = QcaSystem::lambdaD;
         os["q"] = QcaSystem::q;
 
-        if (eV)
-            os["epsilonr"] = QcaSystem::epsilonr/QCA_ELEMENTARY_CHARGE;
-        if (nm)
-        {
-            os["a"] = QcaSystem::a/1e-9;
-            os["b"] = QcaSystem::b/1e-9;
-            os["lambdaD"] = QcaSystem::lambdaD/1e-9;
-        }
-
         return os;
     }
-
-    bool eV, nm;
 };
 
 /*

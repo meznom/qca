@@ -1,6 +1,14 @@
 ExactDiagonalization
 ====================
 
+TODO
+----
+
+ * unit test for natural units
+ * change command line parameters, so that they resemble command line
+   parameters of the classical qca code as much as possible
+
+
 Installation
 ------------
 

@@ -317,7 +317,7 @@ BOOST_AUTO_TEST_CASE ( simple_sanity_checks_for_qca_grand_canonical_system )
     s1.a = 1.0/160.0;
     s1.b = 3*s1.a;
     s1.V0 = 1000;
-    s1.mu = -300;
+    s1.mu = 300;
     
     s1.Pext = 0;
     s1.update();
@@ -338,7 +338,7 @@ BOOST_AUTO_TEST_CASE ( simple_sanity_checks_for_qca_grand_canonical_system )
     s2.a = 1.0/160.0;
     s2.b = 4*s2.a;
     s2.V0 = 1000;
-    s2.mu = -1800;
+    s2.mu = 1800;
     
     s2.Pext = 0;
     s2.update();
@@ -396,7 +396,7 @@ BOOST_AUTO_TEST_CASE ( test_scaling_of_parameters_for_grand_canonical_system )
     s1.a = 1.0/160.0;
     s1.b = 3*s1.a;
     s1.V0 = 1000;
-    s1.mu = -300;
+    s1.mu = 300;
     s1.q = 0;
 
     s1.update();
@@ -411,7 +411,7 @@ BOOST_AUTO_TEST_CASE ( test_scaling_of_parameters_for_grand_canonical_system )
     s2.a = 1.0/160.0 * 1.0/10.0;
     s2.b = 3*s2.a;
     s2.V0 = 1000 * 10;
-    s2.mu = -300 * 10;
+    s2.mu = 300 * 10;
     s2.q = 0;
 
     s2.update();
@@ -430,7 +430,7 @@ BOOST_AUTO_TEST_CASE ( test_scaling_of_parameters_for_grand_canonical_system )
     s3.a = 1.0/160.0;
     s3.b = 3*s3.a;
     s3.V0 = 1000;
-    s3.mu = -300;
+    s3.mu = 300;
     s3.q = 0;
 
     s3.update();
@@ -445,7 +445,7 @@ BOOST_AUTO_TEST_CASE ( test_scaling_of_parameters_for_grand_canonical_system )
     s4.a = 1.0/160.0 * 1.0/1000.0;
     s4.b = 3*s4.a;
     s4.V0 = 1000 * 1000;
-    s4.mu = -300 * 1000;
+    s4.mu = 300 * 1000;
     s4.q = 0;
 
     s4.update();
@@ -454,55 +454,6 @@ BOOST_AUTO_TEST_CASE ( test_scaling_of_parameters_for_grand_canonical_system )
 
     BOOST_CHECK (epsilonEqual(N3, N4));
     BOOST_CHECK (epsilonEqual(P3, P4));
-}
-
-BOOST_AUTO_TEST_CASE ( test_eV_and_nm_command_line_parameters_for_grand_canonical_system )
-{
-    OptionSection o1;
-    o1["p"] = 1;
-    o1["t"] = 0.1;
-    o1["td"] = 0;
-    o1["ti"] = 0;
-    o1["V0"] = 1;
-    o1["mu"] = -0.8;
-    o1["Vext"] = 0;
-    o1["Pext"] = 0;
-    o1["a"] = 0.3;
-    o1["b"] = 0;
-    o1["epsilonr"] = 8;
-    o1["lambdaD"] = 0;
-    o1["q"] = 0;
-    o1["eV"] = true;
-    o1["nm"] = true;
-
-    DQcaGrandCanonicalPlain s1(o1);
-    s1.update();
-    double N1 = s1.measure(10, s1.N(0));
-
-    const double scale = 1E10;
-    const double e = QCA_ELEMENTARY_CHARGE * scale;
-    OptionSection o2;
-    o2["p"] = 1;
-    o2["t"] = 0.1 * e;
-    o2["td"] = 0;
-    o2["ti"] = 0;
-    o2["V0"] = 1 * e;
-    o2["mu"] = -0.8 * e;
-    o2["Vext"] = 0;
-    o2["Pext"] = 0;
-    o2["a"] = 0.3 * 1E-9 / scale;
-    o2["b"] = 0;
-    o2["epsilonr"] = 8;
-    o2["lambdaD"] = 0;
-    o2["q"] = 0;
-    o2["eV"] = false;
-    o2["nm"] = false;
-
-    DQcaGrandCanonicalPlain s2(o2);
-    s2.update();
-    double N2 = s2.measure(10 / e, s2.N(0));
-
-    BOOST_CHECK (epsilonEqual(N1, N2, 1E-6));
 }
 
 BOOST_AUTO_TEST_CASE ( test_compensation_charge )
@@ -581,7 +532,7 @@ BOOST_AUTO_TEST_CASE ( test_compensation_charge )
     s4.a = 1.0/100.0;
     s4.b = 4*s4.a;
     s4.V0 = 1000;
-    s4.mu = -1200;
+    s4.mu = 1200;
     s4.q = 1;
 
     s4.update();
@@ -595,7 +546,7 @@ BOOST_AUTO_TEST_CASE ( test_compensation_charge )
     s5.a = 1.0/100.0;
     s5.b = 4*s5.a;
     s5.V0 = 1000;
-    s5.mu = -200; //1000 less than s4.mu (because V0=1000)
+    s5.mu = 200; //1000 less than s4.mu (because V0=1000)
     s5.q = 0;
 
     s5.update();
@@ -656,7 +607,7 @@ BOOST_AUTO_TEST_CASE ( compare_polarization_and_polarization2 )
     s1.a = 1.0/100.0;
     s1.b = 4*s1.a;
     s1.V0 = 1000;
-    s1.mu = -1200;
+    s1.mu = 1200;
     s1.q = 1;
 
     s1.update();
@@ -675,7 +626,7 @@ BOOST_AUTO_TEST_CASE ( compare_polarization_and_polarization2 )
     s2.a = 1.0/100.0;
     s2.b = 4*s2.a;
     s2.V0 = 10;
-    s2.mu = -200;
+    s2.mu = 200;
     s2.q = 1;
 
     s2.update();
