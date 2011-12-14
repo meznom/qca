@@ -7,6 +7,8 @@ TODO
  * unit test for natural units
  * change command line parameters, so that they resemble command line
    parameters of the classical qca code as much as possible
+ * change bond basis so that it works for 6 electrons per plaquet instead of
+   2 (particle-hole transformation)
 
 
 Installation
