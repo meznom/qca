@@ -189,7 +189,7 @@ public:
                     << ns[i] << " in this system." << std::endl;
                 std::exit(EXIT_FAILURE);
             }
-            N.push_back(s.measure(o["beta"], s.N(ns[i])));
+            N.push_back(s.measureParticleNumber(o["beta"], ns[i]));
         }
     }
 
@@ -234,7 +234,7 @@ public:
                     {
                         if (!first) std::cout << "\t";
                         else first = false;
-                        std::cout << "P" << ps[i];
+                        std::cout << "P_" << ps[i];
                     }
                 }
                 if (o["polarization2"].isSet())
@@ -244,7 +244,7 @@ public:
                     {
                         if (!first) std::cout << "\t";
                         else first = false;
-                        std::cout << "P2" << ps[i];
+                        std::cout << "P2_" << ps[i];
                     }
                 }
                 if (o["particle-number"].isSet())
@@ -254,7 +254,10 @@ public:
                     {
                         if (!first) std::cout << "\t";
                         else first = false;
-                        std::cout << "N" << ns[i];
+                        std::cout 
+                            << "N_" << ns[i] 
+                            << "\tN_" << ns[i] << "_0" << "\tN_" << ns[i] << "_1"
+                            << "\tN_" << ns[i] << "_2" << "\tN_" << ns[i] << "_3";
                     }
                 }
                 std::cout << std::endl;
@@ -289,7 +292,12 @@ public:
                 {
                     if (!first) std::cout << "\t";
                     else first = false;
-                    std::cout << N[j];
+                    // by convention the last entry is the total number of
+                    // particles for each plaquet
+                    const size_t n = N[j].size();
+                    std::cout << N[j][n-1];
+                    for (size_t k=0; k<n-1; k++)
+                        std::cout << "\t" << N[j][k];
                 }
             std::cout << std::endl;
         }
@@ -343,7 +351,7 @@ private:
     std::vector<std::vector<double> > E;
     std::vector<double> P;
     std::vector<double> P2;
-    std::vector<double> N;
+    std::vector<std::vector<double> > N;
     
     bool needHeader, globalFirst;
     typedef std::map<std::string, OutputMode> OutputMap;

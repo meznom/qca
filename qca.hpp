@@ -432,6 +432,22 @@ public:
                ( (n0+n2)*(n0+n2) * (n1+n3)*(n1+n3) );
     }
 
+    std::vector<double> measureParticleNumber (double beta, size_t p)
+    {
+        const size_t o = 4*p;
+        const double n0 = ensembleAverage(beta, s.n(o+0));
+        const double n1 = ensembleAverage(beta, s.n(o+1));
+        const double n2 = ensembleAverage(beta, s.n(o+2));
+        const double n3 = ensembleAverage(beta, s.n(o+3));
+        std::vector<double> ns;
+        ns.push_back(n0);
+        ns.push_back(n1);
+        ns.push_back(n2);
+        ns.push_back(n3);
+        ns.push_back(n0+n1+n2+n3);
+        return ns;
+    }
+
     const DVector& energies ()
     {
         return H.eigenvalues();
