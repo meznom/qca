@@ -3,14 +3,7 @@
 #include <map>
 #include "version.hpp"
 #include <ctime>
-
-/*
- * TODO
- * ----
- * 
- * Output for the following command does not look correct to me:
- * ./runQca -m bondDP -p 1 -P 0 -Pext 0,1,2,3 -a 1,2 -E 
- */
+#include <iomanip>
 
 class EpsilonLess
 {
@@ -79,12 +72,18 @@ void printUsage (CommandLineOptions& o)
 
 enum OutputMode {Header, Line, None};
 
+/**
+ * Run and store measurements.
+ *
+ * This simple implementation does not really store results of measurements, but
+ * prints them straight to the standard output.
+ */
 template<class System>
 class Measurement
 {
 public:
     Measurement (OptionSection o_)
-    : o(o_), s(o_), needHeader(true), globalFirst(true)
+    : o(o_), s(o_), needHeader(true), globalFirst(true), lineCount(0)
     {
         for (OptionSection::OptionsType::iterator i=o.getOptions().begin(); i!=o.getOptions().end(); i++)
             outputConfig[i->getName()] = Header;
@@ -127,6 +126,12 @@ public:
         store();
     }
 
+    void setOutputMode (std::string param, OutputMode mode)
+    {
+        outputConfig[param] = mode;
+    }
+
+private:
     void measureEnergies ()
     {
         E.resize(0);
@@ -193,114 +198,152 @@ public:
         }
     }
 
+    /**
+     * "Store" measurements.
+     *
+     * This simple implementation just prints the results to stdout.
+     */
     void store ()
     {
+        // configure output formatting
+        std::cout << std::setprecision(6);
+        std::cout << std::left;
+
         // read parameters back from system, so we are sure we are printing the
         // parameters that are actually used
+        updateParametersFromSystem();
+
+        if (needHeader)
+        {
+            //begin a new block in output
+            printHeader();
+            lineCount = 0;
+            needHeader = false;
+        }
+
+        // print table heading every twenty lines for easier readability
+        if (lineCount%20 == 0)
+            printTableHeading();
+        
+        // print all results (each parameter in a separate column, all in one
+        // line)
+        std::cout << "  ";
+        for (typename OutputMap::const_iterator i=outputConfig.begin(); i!=outputConfig.end(); i++)
+            if (i->second == Line)
+            {
+                std::cout << std::setw(width) << o[i->first];
+            }
+        if (o["polarization"].isSet())
+            for (size_t j=0; j<P.size(); j++)
+            {
+                std::cout << std::setw(width) << P[j];
+            }
+        if (o["polarization2"].isSet())
+            for (size_t j=0; j<P2.size(); j++)
+            {
+                std::cout << std::setw(width) << P2[j];
+            }
+        if (o["particle-number"].isSet())
+            for (size_t j=0; j<N.size(); j++)
+            {
+                // by convention the last entry is the total number of
+                // particles for each plaquet
+                const size_t n = N[j].size();
+                std::cout << std::setw(width) << N[j][n-1];
+                for (size_t k=0; k<n-1; k++)
+                    std::cout << std::setw(width) << N[j][k];
+            }
+        if (o["energy-spectrum"].isSet())
+            for (size_t i=0; i<E.size(); i++)
+                std::cout << std::setw(width) << E[i][0]
+                          << std::setw(width) << E[i][1]
+                          << std::setw(width) << E[i][2];
+        std::cout << std::endl;
+        lineCount++;
+    }
+
+    void updateParametersFromSystem ()
+    {
         OptionSection oUsed = s.getParameters();
         for (OptionSection::OptionsType::iterator i=oUsed.getOptions().begin(); 
                                                   i!=oUsed.getOptions().end(); i++)
             o[i->getName()] = i->getValue();
+    }
 
-        // always print energy spectrum as a separate block
+    /**
+     * Prints the heading for the table of results.
+     *
+     * Here table means the columns of all measured observables (e.g.
+     * polarization, particle number).
+     */
+    void printTableHeading ()
+    {
+        std::cout << "# ";
+        for (typename OutputMap::const_iterator i=outputConfig.begin(); i!=outputConfig.end(); i++)
+            if (i->second == Line)
+            {
+                std::cout << std::setw(width) << i->first;
+            }
+        if (o["polarization"].isSet())
+        {
+            std::vector<size_t> ps = o["polarization"];
+            for (size_t i=0; i<ps.size(); i++)
+            {
+                std::stringstream ss;
+                ss << "P_" << ps[i];
+                std::string s(ss.str());
+                std::cout << std::setw(width) << s;
+            }
+        }
+        if (o["polarization2"].isSet())
+        {
+            std::vector<size_t> ps = o["polarization2"];
+            for (size_t i=0; i<ps.size(); i++)
+            {
+                std::stringstream ss;
+                ss << "P2_" << ps[i];
+                std::string s(ss.str());
+                std::cout << std::setw(width) << s;
+            }
+        }
+        if (o["particle-number"].isSet())
+        {
+            std::vector<size_t> ns = o["particle-number"];
+            for (size_t i=0; i<ns.size(); i++)
+            {
+                std::stringstream ss;
+                ss << "N_" << ns[i];
+                std::string s(ss.str());
+                std::string s0 = s + "_0";
+                std::string s1 = s + "_1";
+                std::string s2 = s + "_2";
+                std::string s3 = s + "_3";
+                std::cout << std::setw(width) << s
+                          << std::setw(width) << s0
+                          << std::setw(width) << s1
+                          << std::setw(width) << s2
+                          << std::setw(width) << s3;
+            }
+        }
         if (o["energy-spectrum"].isSet())
         {
-            printHeaderAll();
-            std::cout << "# " << std::endl << "# E\tE-Emin\tDegeneracy" << std::endl;
             for (size_t i=0; i<E.size(); i++)
-                std::cout << E[i][0] << "\t" << E[i][1] << "\t" << E[i][2] << std::endl;
-            std::cout << std::endl;
-        }
-
-        if (o["polarization"].isSet() || o["particle-number"].isSet() || o["polarization2"].isSet())
-        {
-            if (needHeader)
             {
-                printHeader();
-
-                std::cout << "# " << std::endl << "# ";
-                bool first = true;
-                for (typename OutputMap::const_iterator i=outputConfig.begin(); i!=outputConfig.end(); i++)
-                    if (i->second == Line)
-                    {
-                        if (!first) std::cout << "\t";
-                        else first = false;
-                        std::cout << i->first;
-                    }
-                if (o["polarization"].isSet())
-                {
-                    std::vector<size_t> ps = o["polarization"];
-                    for (size_t i=0; i<ps.size(); i++)
-                    {
-                        if (!first) std::cout << "\t";
-                        else first = false;
-                        std::cout << "P_" << ps[i];
-                    }
-                }
-                if (o["polarization2"].isSet())
-                {
-                    std::vector<size_t> ps = o["polarization2"];
-                    for (size_t i=0; i<ps.size(); i++)
-                    {
-                        if (!first) std::cout << "\t";
-                        else first = false;
-                        std::cout << "P2_" << ps[i];
-                    }
-                }
-                if (o["particle-number"].isSet())
-                {
-                    std::vector<size_t> ns = o["particle-number"];
-                    for (size_t i=0; i<ns.size(); i++)
-                    {
-                        if (!first) std::cout << "\t";
-                        else first = false;
-                        std::cout 
-                            << "N_" << ns[i] 
-                            << "\tN_" << ns[i] << "_0" << "\tN_" << ns[i] << "_1"
-                            << "\tN_" << ns[i] << "_2" << "\tN_" << ns[i] << "_3";
-                    }
-                }
-                std::cout << std::endl;
-                
-                needHeader = false;
+                std::stringstream ss;
+                ss << "E_" << i;
+                std::string s1(ss.str());
+                ss.str("");
+                ss << "E_" << i << "-E_0";
+                std::string s2(ss.str());
+                ss.str("");
+                ss << "n_deg_" << i; //degeneracy
+                std::string s3(ss.str());
+                std::cout << std::setw(width) << s1
+                          << std::setw(width) << s2
+                          << std::setw(width) << s3;
             }
-            
-            bool first = true;
-            for (typename OutputMap::const_iterator i=outputConfig.begin(); i!=outputConfig.end(); i++)
-                if (i->second == Line)
-                {
-                    if (!first) std::cout << "\t";
-                    else first = false;
-                    std::cout << o[i->first];
-                }
-            if (o["polarization"].isSet())
-                for (size_t j=0; j<P.size(); j++)
-                {
-                    if (!first) std::cout << "\t";
-                    else first = false;
-                    std::cout << P[j];
-                }
-            if (o["polarization2"].isSet())
-                for (size_t j=0; j<P2.size(); j++)
-                {
-                    if (!first) std::cout << "\t";
-                    else first = false;
-                    std::cout << P2[j];
-                }
-            if (o["particle-number"].isSet())
-                for (size_t j=0; j<N.size(); j++)
-                {
-                    if (!first) std::cout << "\t";
-                    else first = false;
-                    // by convention the last entry is the total number of
-                    // particles for each plaquet
-                    const size_t n = N[j].size();
-                    std::cout << N[j][n-1];
-                    for (size_t k=0; k<n-1; k++)
-                        std::cout << "\t" << N[j][k];
-                }
-            std::cout << std::endl;
         }
+        std::cout << std::endl;
     }
 
     void printHeader ()
@@ -313,23 +356,7 @@ public:
         for (OptionSection::OptionsType::iterator i=o.getOptions().begin(); i!=o.getOptions().end(); i++)
             if (outputConfig[i->getName()] == Header)
                 std::cout << "# " << i->getName() << " = " << i->getValue() << std::endl;
-    }
-
-    void printHeaderAll ()
-    {
-        if (!globalFirst) std::cout << std::endl;
-        else globalFirst = false;
-        std::cout << "# program version: " << GIT_PROGRAM_VERSION << std::endl
-                  << "# date: " << getDate() << std::endl
-                  << "# " << std::endl;
-        for (OptionSection::OptionsType::iterator i=o.getOptions().begin(); i!=o.getOptions().end(); i++)
-            if (outputConfig[i->getName()] != None)
-                std::cout << "# " << i->getName() << " = " << i->getValue() << std::endl;
-    }
-
-    void setOutputMode (std::string param, OutputMode mode)
-    {
-        outputConfig[param] = mode;
+        std::cout << "# " << std::endl;
     }
 
     std::string getDate () const
@@ -356,7 +383,9 @@ private:
     bool needHeader, globalFirst;
     typedef std::map<std::string, OutputMode> OutputMap;
     OutputMap outputConfig;
-    std::vector<std::string> changed;
+    unsigned int lineCount;
+
+    enum {width=14}; //column width for output
 };
 
 bool comparePair (const std::pair<std::string, size_t>& p1, 
