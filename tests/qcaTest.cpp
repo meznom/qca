@@ -106,6 +106,23 @@ BOOST_AUTO_TEST_CASE ( test_qca_bond_system_for_some_parameters )
     s3.Pext = 0.1;
     s3.update();
     BOOST_CHECK (epsilonEqual(s3.measure(1000000, s3.P(0)), 0.93, 0.01));
+
+    QcaBond<ExternalDeadPlaquet> s4(3);
+    s4.Vext = 0;
+    s4.Pext = 1;
+    s4.t = 1;
+    s4.td = 0;
+    s4.ti = 0;
+    s4.a = 0.01;
+    s4.b =  0.023;
+    s4.q = 0;
+    s4.epsilonr = QCA_NATURAL_EPSILON_R; // natural units
+    s4.lambdaD = 0; 
+    s4.V0 = 1000;
+    s4.update();
+    BOOST_CHECK (epsilonEqual(s4.measure(1, s4.P(0)), 0.670243, 1E-5));
+    BOOST_CHECK (epsilonEqual(s4.measure(1, s4.P(1)), 0.462795, 1E-5));
+    BOOST_CHECK (epsilonEqual(s4.measure(1, s4.P(2)), 0.295182, 1E-5));
 }
 
 BOOST_AUTO_TEST_CASE ( test_construct_qca_fixed_charge_system )
@@ -683,16 +700,97 @@ BOOST_AUTO_TEST_CASE ( compare_polarization_and_polarization2 )
 
 BOOST_AUTO_TEST_CASE ( test_basic_layouts )
 {
-    Layout l;
-    l.addDot(Vector2d(0,1))
-     .addDot(1,1)
-     .addDot(1,0)
-     .addDot(0,0)
-     .addCharge(-1,1,1);
+    Layout l1;
+    l1.addDot(0,0)
+      .addDot(0,1)
+      .addDot(1,1)
+      .addDot(1,0)
+      .addCharge(-1,1,1);
+    BOOST_CHECK (l1.r(0,1) == 1);
+    BOOST_CHECK (l1.r(1,3) == std::sqrt(2));
+    BOOST_CHECK (l1.r_charge_dot(0,3) == std::sqrt(5));
 
-    BOOST_CHECK (l.r(0,1) == 1);
-    BOOST_CHECK (l.r(1,3) == std::sqrt(2));
-    BOOST_CHECK (l.r_charge_dot(0,2) == std::sqrt(5));
+    Layout l2;
+    l2.addCell(0,0,0.2)
+      .addCell(0,2,0.2)
+      .addDriverCell(1,0,0.2,1)
+      .addDot(1,1)
+      .addCharge(0,-1,0.5);
+    BOOST_CHECK(epsilonEqual(l2.r(0,3), 0.2));
+    BOOST_CHECK(epsilonEqual(l2.r(4,6), std::sqrt(0.2*0.2+0.2*0.2)));
+    BOOST_CHECK(epsilonEqual(l2.r(0,4), 2));
+    BOOST_CHECK(epsilonEqual(l2.r(1,7), std::sqrt(1.8*1.8+0.2*0.2)));
+    BOOST_CHECK(epsilonEqual(l2.r_charge_dot(0,0), 1));
+    BOOST_CHECK(epsilonEqual(l2.r_charge_dot(2,1), 1.2));
+    BOOST_CHECK(epsilonEqual(l2.r(0,8), std::sqrt(2)));
+    BOOST_CHECK(epsilonEqual(l2.r(6,8), std::sqrt(1.2*1.2+0.8*0.8)));
+    BOOST_CHECK(epsilonEqual(l2.r_charge_dot(4,3), std::sqrt(1+0.2*0.2)));
+    BOOST_CHECK(l2.N_dots() == 9);
+    BOOST_CHECK(l2.N_charges() == 5);
 
-    //TODO: test cell, driver cell and wires
+    Layout l3;
+    l3.addWire(10,10, 4, 0.2, 0.4, 0.7);
+    BOOST_CHECK(l3.N_dots() == 16);
+    BOOST_CHECK(l3.N_charges() == 4);
+    BOOST_CHECK(epsilonEqual(
+                0.5*(l3.charge(0)+l3.charge(2)-l3.charge(1)-l3.charge(3)), 
+                0.7
+    ));
+    BOOST_CHECK(epsilonEqual(
+                l3.r(4,14), 
+                std::sqrt((3*0.2+2*0.4)*(3*0.2+2*0.4)+0.2*0.2)
+    ));
+    BOOST_CHECK(epsilonEqual(
+                l3.r_charge_dot(0,0), 
+                0.2+0.4
+    ));
+    BOOST_CHECK(epsilonEqual(
+                l3.r_charge_dot(2,4), 
+                std::sqrt((2*0.4+1*0.2)*(2*0.4+1*0.2)+0.2*0.2)
+    ));
+
+    Layout l4;
+    std::vector<double> bs;
+    bs.push_back(0.4);
+    bs.push_back(0.4);
+    bs.push_back(0.4);
+    bs.push_back(0.4);
+    l4.addNonuniformWire(3.2,3.2, 4, 0.2, bs, -0.2);
+    BOOST_CHECK(l4.N_dots() == 16);
+    BOOST_CHECK(l4.N_charges() == 4);
+    BOOST_CHECK(epsilonEqual(
+                0.5*(l4.charge(0)+l4.charge(2)-l4.charge(1)-l4.charge(3)), 
+                -0.2
+    ));
+    BOOST_CHECK(epsilonEqual(
+                l4.r(4,14), 
+                std::sqrt((3*0.2+2*0.4)*(3*0.2+2*0.4)+0.2*0.2)
+    ));
+    BOOST_CHECK(epsilonEqual(
+                l4.r_charge_dot(0,0), 
+                0.2+0.4
+    ));
+    BOOST_CHECK(epsilonEqual(
+                l4.r_charge_dot(2,4), 
+                std::sqrt((2*0.4+1*0.2)*(2*0.4+1*0.2)+0.2*0.2)
+    ));
+
+    Layout l5;
+    bs.clear();
+    bs.push_back(1);
+    bs.push_back(1);
+    bs.push_back(1.2);
+    l5.addNonuniformWire(0,0, 3, 0.1, bs, 0);
+    BOOST_CHECK(epsilonEqual(
+                l5.r_charge_dot(0,0),
+                1.1
+    ));
+    BOOST_CHECK(epsilonEqual(
+                l5.r(7,8),
+                1.2
+    ));
+    BOOST_CHECK(epsilonEqual(
+                l5.r(0,9),
+                std::sqrt((2*0.1+1+1.2)*(2*0.1+1+1.2)+0.1*0.1)
+    ));
 }

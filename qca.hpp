@@ -16,44 +16,34 @@ public:
     std::vector<Vector2d> r_charges;
     std::vector<double> charges;
 
-    Layout& addDot (Vector2d r)
-    {
-        r_dots.push_back(r);
-        return *this;
-    }
-
     Layout& addDot (double r_x, double r_y)
     {
-        return addDot(Vector2d(r_x, r_y));
-    }
-
-    Layout& addCharge (Vector2d r, double c)
-    {
-        r_charges.push_back(r);
-        charges.push_back(c);
+        r_dots.push_back(Vector2d(r_x, r_y));
         return *this;
     }
-    
+
     Layout& addCharge (double r_x, double r_y, double c)
     {
-        return addCharge(Vector2d(r_x, r_y), c);
+        r_charges.push_back(Vector2d(r_x, r_y));
+        charges.push_back(c);
+        return *this;
     }
 
     Layout& addCell (double r_x, double r_y, double a)
     {
+        addDot(r_x, r_y);
         addDot(r_x, r_y+a);
         addDot(r_x+a, r_y+a);
         addDot(r_x+a, r_y);
-        addDot(r_x, r_y);
         return *this;
     }
 
     Layout& addDriverCell (double r_x, double r_y, double a, double P)
     {
+        addCharge(r_x, r_y, (P+1)/2);
         addCharge(r_x, r_y+a, (1-P)/2);
         addCharge(r_x+a, r_y+a, (P+1)/2);
         addCharge(r_x+a, r_y, (1-P)/2);
-        addCharge(r_x, r_y, (P+1)/2);
         return *this;
     }
 
@@ -61,17 +51,21 @@ public:
     {
         addDriverCell (r_x-b-a, r_y, a, P);
         for (int i=0; i<N_p; i++)
-            addCell(r_x+i*b, r_y, a);
+            addCell(r_x+i*(a+b), r_y, a);
         return *this;
     }
 
     Layout& addNonuniformWire (double r_x, double r_y, int N_p, double a, 
                                std::vector<double> bs, double P)
     {
-        assert (N_p+1 == static_cast<int>(bs.size()));
+        assert (N_p == static_cast<int>(bs.size()));
         addDriverCell (r_x-bs[0]-a, r_y, a, P);
-        for (int i=1; i<static_cast<int>(bs.size()); i++)
-            addCell(r_x+(i-1)*bs[i], r_y, a);
+        double x_off=0;
+        for (int i=0; i<static_cast<int>(bs.size()); i++)
+        {
+            if (i!=0) x_off += a+bs[i];
+            addCell(x_off+r_x, r_y, a);
+        }
         return *this;
     }
 
@@ -96,6 +90,11 @@ public:
     {
         const Vector2d d = r_charges[i] - r_dots[j];
         return d.norm();
+    }
+
+    double charge (int i) const
+    {
+        return charges[i];
     }
 };
 
