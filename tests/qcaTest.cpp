@@ -680,3 +680,19 @@ BOOST_AUTO_TEST_CASE ( compare_polarization_and_polarization2 )
     BOOST_CHECK (std::fabs(P421) < 0.1);
     BOOST_CHECK (std::fabs(P422) < 0.1);
 }
+
+BOOST_AUTO_TEST_CASE ( test_basic_layouts )
+{
+    Layout l;
+    l.addDot(Vector2d(0,1))
+     .addDot(1,1)
+     .addDot(1,0)
+     .addDot(0,0)
+     .addCharge(-1,1,1);
+
+    BOOST_CHECK (l.r(0,1) == 1);
+    BOOST_CHECK (l.r(1,3) == std::sqrt(2));
+    BOOST_CHECK (l.r_charge_dot(0,2) == std::sqrt(5));
+
+    //TODO: test cell, driver cell and wires
+}

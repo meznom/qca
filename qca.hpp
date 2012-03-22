@@ -9,6 +9,96 @@ const double QCA_ELEMENTARY_CHARGE = 1.602176565E-19;
 const double QCA_EPSILON_0 = 8.8541878176E-12;
 const double QCA_NATURAL_EPSILON_R = QCA_ELEMENTARY_CHARGE / (4*M_PI*QCA_EPSILON_0*1e-9);
 
+class Layout
+{
+public:
+    std::vector<Vector2d> r_dots;
+    std::vector<Vector2d> r_charges;
+    std::vector<double> charges;
+
+    Layout& addDot (Vector2d r)
+    {
+        r_dots.push_back(r);
+        return *this;
+    }
+
+    Layout& addDot (double r_x, double r_y)
+    {
+        return addDot(Vector2d(r_x, r_y));
+    }
+
+    Layout& addCharge (Vector2d r, double c)
+    {
+        r_charges.push_back(r);
+        charges.push_back(c);
+        return *this;
+    }
+    
+    Layout& addCharge (double r_x, double r_y, double c)
+    {
+        return addCharge(Vector2d(r_x, r_y), c);
+    }
+
+    Layout& addCell (double r_x, double r_y, double a)
+    {
+        addDot(r_x, r_y+a);
+        addDot(r_x+a, r_y+a);
+        addDot(r_x+a, r_y);
+        addDot(r_x, r_y);
+        return *this;
+    }
+
+    Layout& addDriverCell (double r_x, double r_y, double a, double P)
+    {
+        addCharge(r_x, r_y+a, (1-P)/2);
+        addCharge(r_x+a, r_y+a, (P+1)/2);
+        addCharge(r_x+a, r_y, (1-P)/2);
+        addCharge(r_x, r_y, (P+1)/2);
+        return *this;
+    }
+
+    Layout& addWire (double r_x, double r_y, int N_p, double a, double b, double P)
+    {
+        addDriverCell (r_x-b-a, r_y, a, P);
+        for (int i=0; i<N_p; i++)
+            addCell(r_x+i*b, r_y, a);
+        return *this;
+    }
+
+    Layout& addNonuniformWire (double r_x, double r_y, int N_p, double a, 
+                               std::vector<double> bs, double P)
+    {
+        assert (N_p+1 == static_cast<int>(bs.size()));
+        addDriverCell (r_x-bs[0]-a, r_y, a, P);
+        for (int i=1; i<static_cast<int>(bs.size()); i++)
+            addCell(r_x+(i-1)*bs[i], r_y, a);
+        return *this;
+    }
+
+    int N_dots () const
+    {
+        return static_cast<int>(r_dots.size());
+    }
+
+    int N_charges () const
+    {
+        assert (r_charges.size() == charges.size());
+        return static_cast<int>(r_charges.size());
+    }
+
+    double r (int i, int j) const
+    {
+        const Vector2d d = r_dots[i] - r_dots[j];
+        return d.norm();
+    }
+
+    double r_charge_dot (int i, int j) const
+    {
+        const Vector2d d = r_charges[i] - r_dots[j];
+        return d.norm();
+    }
+};
+
 class Hopping
 {
 public:
