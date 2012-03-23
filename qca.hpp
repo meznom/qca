@@ -8,13 +8,21 @@
 const double QCA_ELEMENTARY_CHARGE = 1.602176565E-19;
 const double QCA_EPSILON_0 = 8.8541878176E-12;
 const double QCA_NATURAL_EPSILON_R = QCA_ELEMENTARY_CHARGE / (4*M_PI*QCA_EPSILON_0*1e-9);
+enum ElectronsPerCell {epc2 = 2, epc6 = 6};
 
+// TODO: for the header-part of the printout -- how to best report the layout
+// used; this includes: a, b, Pext
 class Layout
 {
-public:
+private:
     std::vector<Vector2d> r_dots;
     std::vector<Vector2d> r_charges;
     std::vector<double> charges;
+    ElectronsPerCell epc;
+public:
+    Layout (ElectronsPerCell epc_ = epc2)
+    : epc(epc_)
+    {}
 
     Layout& addDot (double r_x, double r_y)
     {
@@ -38,12 +46,14 @@ public:
         return *this;
     }
 
-    Layout& addDriverCell (double r_x, double r_y, double a, double P, int epc=2)
+    Layout& addDriverCell (double r_x, double r_y, double a, double P)
     {
-        assert(epc==2 || epc==6);
         // compensation charge. 
         // q=0 for 2 electrons per cell, q=1 for 6 electrons per cell
-        double q = (epc-2)/4; 
+        assert(epc==2 || epc==6);
+        double q = 0;
+        if (epc==2) q=0;
+        if (epc==6) q=1;
         addCharge(r_x, r_y, q + (P+1)/2);
         addCharge(r_x, r_y+a, q + (1-P)/2);
         addCharge(r_x+a, r_y+a, q + (P+1)/2);
@@ -51,15 +61,15 @@ public:
         return *this;
     }
 
-    Layout& addWire (double r_x, double r_y, int N_p, double a, double b, double P, int epc=2)
+    Layout& addWire (double r_x, double r_y, int N_p, double a, double b, double P)
     {
-        addDriverCell (r_x-b-a, r_y, a, P, epc);
+        addDriverCell (r_x-b-a, r_y, a, P);
         for (int i=0; i<N_p; i++)
             addCell(r_x+i*(a+b), r_y, a);
         return *this;
     }
 
-    Layout& addWireNoDriver (double r_x, double r_y, int N_p, double a, double b, double P, int epc=2)
+    Layout& addWireNoDriver (double r_x, double r_y, int N_p, double a, double b)
     {
         for (int i=0; i<N_p; i++)
             addCell(r_x+i*(a+b), r_y, a);
@@ -67,10 +77,10 @@ public:
     }
 
     Layout& addNonuniformWire (double r_x, double r_y, int N_p, double a, 
-                               std::vector<double> bs, double P, int epc=2)
+                               std::vector<double> bs, double P)
     {
         assert (N_p == static_cast<int>(bs.size()));
-        addDriverCell (r_x-bs[0]-a, r_y, a, P, epc);
+        addDriverCell (r_x-bs[0]-a, r_y, a, P);
         double x_off=0;
         for (int i=0; i<static_cast<int>(bs.size()); i++)
         {
@@ -106,6 +116,34 @@ public:
     double charge (int i) const
     {
         return charges[i];
+    }
+
+    int electronsPerCell () const
+    {
+        return epc;
+    }
+};
+
+class WireNoDriver : public Layout
+{
+public:
+    WireNoDriver (int N_p_, double a_ = 1, double b_ = 3, ElectronsPerCell epc = epc2)
+    : Layout(epc), N_p(N_p_), a(a_), b(b_)
+    {
+        addWireNoDriver(0,0, N_p, a, b);
+    }
+
+    int N_p;
+    double a, b;
+};
+
+class Wire : public Layout
+{
+public:
+    Wire (int N_p, double a = 1, double b = 3, double P = 0, ElectronsPerCell epc = epc2)
+    : Layout(epc)
+    {
+        addWire(0,0, N_p, a, b, P);
     }
 };
 
@@ -170,6 +208,8 @@ private:
         I.finalize();
     }
     
+    //TODO: rewrite this so that hopping depends on the distance, i.e. t_ij =
+    //t_ij(r_ij)
     double hopping (size_t i, size_t j) const
     {
         /*
@@ -199,7 +239,7 @@ private:
     {
         if (i == j)
             return s.V0;
-        const double r = s.layout.r(i,j);
+        const double r = s.l.r(i,j);
         if (s.lambdaD == 0)
             return QCA_ELEMENTARY_CHARGE / 
                    (4*M_PI * s.epsilon0 * s.epsilonr * r * 1e-9);
@@ -220,14 +260,14 @@ private:
 
         // external potential due to static charges, e.g. a driver cell
         // formerly I called this dead plaquet
-        for (int j=0; j<s.layout.N_charges(); j++)
+        for (int j=0; j<s.l.N_charges(); j++)
         {
-            const double r = s.layout.r_charge_dot(j,i);
+            const double r = s.l.r_charge_dot(j,i);
             if (s.lambdaD == 0)
-                V += (s.layout.charge(j) - s.q) * QCA_ELEMENTARY_CHARGE / 
+                V += (s.l.charge(j) - s.q) * QCA_ELEMENTARY_CHARGE / 
                        (4*M_PI * s.epsilon0 * s.epsilonr * r * 1e-9);
             else
-                V += (s.layout.charge(j) - s.q) * QCA_ELEMENTARY_CHARGE * exp(- r / s.lambdaD) / 
+                V += (s.l.charge(j) - s.q) * QCA_ELEMENTARY_CHARGE * exp(- r / s.lambdaD) / 
                        (4*M_PI * s.epsilon0 * s.epsilonr * r * 1e-9);
         }
         
@@ -399,50 +439,19 @@ private:
     S& s;
 
 public:
-    //QcaCommon (QcaSystem& s_, const Layout& layout_, size_t electronsPerPlaquet_ = 2)
-    //    : s(s_), N_p(layout_.N_dots()/4), N_sites(layout_.N_dots()), 
-    //      electronsPerPlaquet(electronsPerPlaquet_), 
-    //      layout(layout_), 
-    //      H(s), ensembleAverage(s), P(s), N(s), 
-    //      t(1), td(0), ti(0), V0(1000), a(1.0), b(3*a), Vext(0), Pext(0), mu(0),
-    //      epsilonr(QCA_NATURAL_EPSILON_R), lambdaD(0), 
-    //      epsilon0(QCA_EPSILON_0), q(0)
-    //{
-    //    assert(electronsPerPlaquet == 2 || electronsPerPlaquet == 6);
-    //    assert(layout.N_dots() == N_p*4);
-    //    assert(layout.N_charges() == 4);
-    //}
-
-    QcaCommon (QcaSystem& s_, size_t N_p_, size_t electronsPerPlaquet_ = 2, bool driverCell_ = true)
-        : s(s_), N_p(N_p_), N_sites(4*N_p_), 
-          electronsPerPlaquet(electronsPerPlaquet_), 
-          driverCell(driverCell_),
+    QcaCommon (QcaSystem& s_, const Layout& l_)
+        : s(s_), l(l_), N_p(l_.N_dots()/4), N_sites(l_.N_dots()), 
           H(s), ensembleAverage(s), P(s), N(s), 
-          t(1), td(0), ti(0), V0(1000), a(1.0), b(3*a), Vext(0), Pext(0), mu(0),
+          t(1), td(0), ti(0), V0(1000), Vext(0), mu(0),
           epsilonr(QCA_NATURAL_EPSILON_R), lambdaD(0), 
           epsilon0(QCA_EPSILON_0), q(0)
     {
-        assert(electronsPerPlaquet == 2 || electronsPerPlaquet == 6);
-        //assert(layout.N_dots() == N_p*4);
-        //assert(layout.N_charges() == 4);
-        
-        //only temporary
-        layout = Layout();
-        if (driverCell)
-            layout.addWire(0,0, N_p, a, b, Pext, electronsPerPlaquet);
-        else
-            layout.addWireNoDriver(0,0, N_p, a, b, Pext, electronsPerPlaquet);
+        assert(l_.N_dots() == static_cast<int>(N_p*4));
+        assert(l_.N_charges()==4 || l_.N_charges()==0);
     }
 
     void update ()
     {
-        //only temporary
-        layout = Layout();
-        if (driverCell)
-            layout.addWire(0,0, N_p, a, b, Pext, electronsPerPlaquet);
-        else
-            layout.addWireNoDriver(0,0, N_p, a, b, Pext, electronsPerPlaquet);
-
         H.construct();
         H.diagonalizeUsingSymmetriesBySectors();
     }
@@ -500,15 +509,13 @@ public:
         return H.Emin();
     }
 
-    size_t N_p, N_sites, electronsPerPlaquet;
-    //const Layout& layout;
-    Layout layout;
-    bool driverCell;
+    const Layout& l;
+    size_t N_p, N_sites;
     QcaHamiltonian<S> H;
     EnsembleAverageBySectors<S> ensembleAverage;
     Polarization<S> P;
     ParticleNumber<S> N;
-    double t, td, ti, V0, a, b, Vext, Pext, mu, epsilonr, lambdaD, epsilon0, q;
+    double t, td, ti, V0, Vext, mu, epsilonr, lambdaD, epsilon0, q;
 };
 
 class QcaBond : public QcaCommon<QcaBond>
@@ -517,8 +524,8 @@ public:
     typedef QcaBond Self;
     typedef QcaCommon<Self> Base;
 
-    QcaBond (size_t N_p_, bool driverCell_ = true)
-        : Base(*this, N_p_, 2, driverCell_), basis(plaquetSize*N_p_), ca(*this, plaquetSize), 
+    QcaBond (const Layout& l_)
+        : Base(*this, l_), basis(plaquetSize*Base::N_p), ca(*this, plaquetSize), 
           PPSO(plaquetSize)
     {
         basis.addSymmetryOperator(&PPSO);
@@ -553,14 +560,13 @@ public:
     typedef QcaFixedCharge Self;
     typedef QcaCommon<Self> Base;
 
-    //epc = electrons per cell
-    QcaFixedCharge (size_t N_p_, int epc = 2, bool driverCell_ = true)
-        : Base(*this, N_p_, epc, driverCell_), basis(plaquetSize*N_p_), 
+    QcaFixedCharge (const Layout& l_)
+        : Base(*this, l_), basis(plaquetSize*Base::N_p), 
           creatorAnnihilator(*this, plaquetSize), PPSO(plaquetSize)
     {
         basis.addSymmetryOperator(&PPSO);
         basis.addSymmetryOperator(&SSO);
-        int filterValue = PPSO.valueForNElectronsPerPlaquet(epc, Base::N_p);
+        int filterValue = PPSO.valueForNElectronsPerPlaquet(l_.electronsPerCell(), Base::N_p);
         basis.setFilter(constructSector(filterValue));
         basis.construct();
         creatorAnnihilator.construct();
@@ -611,9 +617,9 @@ public:
     typedef QcaGrandCanonical Self;
     typedef QcaCommon<Self> Base;
 
-    QcaGrandCanonical (size_t N_p_, int epc = 2, bool driverCell_ = true)
-        : Base(*this, N_p_, epc, driverCell_), 
-          basis(plaquetSize*N_p_), creator(*this), 
+    QcaGrandCanonical (const Layout& l_)
+        : Base(*this, l_), 
+          basis(plaquetSize*Base::N_p), creator(*this), 
           annihilator(*this) 
     {
         basis.addSymmetryOperator(&PSO);
@@ -663,52 +669,52 @@ private:
     SpinSymmetryOperator SSO;
 };
 
-template<class QcaSystem>
-class DQcaGeneric : public QcaSystem
-{
-public:
-    DQcaGeneric (OptionSection os)
-    : QcaSystem (os["p"])
-    {
-        setParameters(os);
-    }
-
-    void setParameters (OptionSection os)
-    {
-        QcaSystem::t = os["t"].get<double>(1.0);
-        QcaSystem::td = os["td"].get<double>(0); 
-        QcaSystem::ti = os["ti"].get<double>(0); 
-        QcaSystem::a = os["a"].get<double>(1.0); 
-        QcaSystem::b = os["b"].get<double>(3);
-        QcaSystem::Vext = os["Vext"].get<double>(0);
-        QcaSystem::Pext = os["Pext"].get<double>(0);
-        QcaSystem::V0 = os["V0"].get<double>(1000); 
-        QcaSystem::mu = os["mu"].get<double>(0);
-        QcaSystem::epsilonr = os["epsilonr"].get<double>(1);
-        QcaSystem::lambdaD = os["lambdaD"].get<double>(0);
-        QcaSystem::q = os["q"].get<double>(0);
-    }
-
-    OptionSection getParameters ()
-    {
-        OptionSection os;
-        os["p"] = QcaSystem::N_p;
-        os["t"] = QcaSystem::t;
-        os["td"] = QcaSystem::td;
-        os["ti"] = QcaSystem::ti;
-        os["V0"] = QcaSystem::V0;
-        os["mu"] = QcaSystem::mu;
-        os["Vext"] = QcaSystem::Vext;
-        os["Pext"] = QcaSystem::Pext;
-        os["a"] = QcaSystem::a;
-        os["b"] = QcaSystem::b;
-        os["epsilonr"] = QcaSystem::epsilonr;
-        os["lambdaD"] = QcaSystem::lambdaD;
-        os["q"] = QcaSystem::q;
-
-        return os;
-    }
-};
+// template<class QcaSystem>
+// class DQcaGeneric : public QcaSystem
+// {
+// public:
+//     DQcaGeneric (OptionSection os)
+//     : QcaSystem (os["p"])
+//     {
+//         setParameters(os);
+//     }
+// 
+//     void setParameters (OptionSection os)
+//     {
+//         QcaSystem::t = os["t"].get<double>(1.0);
+//         QcaSystem::td = os["td"].get<double>(0); 
+//         QcaSystem::ti = os["ti"].get<double>(0); 
+//         QcaSystem::a = os["a"].get<double>(1.0); 
+//         QcaSystem::b = os["b"].get<double>(3);
+//         QcaSystem::Vext = os["Vext"].get<double>(0);
+//         QcaSystem::Pext = os["Pext"].get<double>(0);
+//         QcaSystem::V0 = os["V0"].get<double>(1000); 
+//         QcaSystem::mu = os["mu"].get<double>(0);
+//         QcaSystem::epsilonr = os["epsilonr"].get<double>(1);
+//         QcaSystem::lambdaD = os["lambdaD"].get<double>(0);
+//         QcaSystem::q = os["q"].get<double>(0);
+//     }
+// 
+//     OptionSection getParameters ()
+//     {
+//         OptionSection os;
+//         os["p"] = QcaSystem::N_p;
+//         os["t"] = QcaSystem::t;
+//         os["td"] = QcaSystem::td;
+//         os["ti"] = QcaSystem::ti;
+//         os["V0"] = QcaSystem::V0;
+//         os["mu"] = QcaSystem::mu;
+//         os["Vext"] = QcaSystem::Vext;
+//         os["Pext"] = QcaSystem::Pext;
+//         os["a"] = QcaSystem::a;
+//         os["b"] = QcaSystem::b;
+//         os["epsilonr"] = QcaSystem::epsilonr;
+//         os["lambdaD"] = QcaSystem::lambdaD;
+//         os["q"] = QcaSystem::q;
+// 
+//         return os;
+//     }
+// };
 
 // /*
 //  * Useful typedefs
