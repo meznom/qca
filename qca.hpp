@@ -38,28 +38,32 @@ public:
         return *this;
     }
 
-    Layout& addDriverCell (double r_x, double r_y, double a, double P)
+    Layout& addDriverCell (double r_x, double r_y, double a, double P, int epc=2)
     {
-        addCharge(r_x, r_y, (P+1)/2);
-        addCharge(r_x, r_y+a, (1-P)/2);
-        addCharge(r_x+a, r_y+a, (P+1)/2);
-        addCharge(r_x+a, r_y, (1-P)/2);
+        assert(epc==2 || epc==6);
+        // compensation charge. 
+        // q=0 for 2 electrons per cell, q=1 for 6 electrons per cell
+        double q = (epc-2)/4; 
+        addCharge(r_x, r_y, q + (P+1)/2);
+        addCharge(r_x, r_y+a, q + (1-P)/2);
+        addCharge(r_x+a, r_y+a, q + (P+1)/2);
+        addCharge(r_x+a, r_y, q + (1-P)/2);
         return *this;
     }
 
-    Layout& addWire (double r_x, double r_y, int N_p, double a, double b, double P)
+    Layout& addWire (double r_x, double r_y, int N_p, double a, double b, double P, int epc=2)
     {
-        addDriverCell (r_x-b-a, r_y, a, P);
+        addDriverCell (r_x-b-a, r_y, a, P, epc);
         for (int i=0; i<N_p; i++)
             addCell(r_x+i*(a+b), r_y, a);
         return *this;
     }
 
     Layout& addNonuniformWire (double r_x, double r_y, int N_p, double a, 
-                               std::vector<double> bs, double P)
+                               std::vector<double> bs, double P, int epc=2)
     {
         assert (N_p == static_cast<int>(bs.size()));
-        addDriverCell (r_x-bs[0]-a, r_y, a, P);
+        addDriverCell (r_x-bs[0]-a, r_y, a, P, epc);
         double x_off=0;
         for (int i=0; i<static_cast<int>(bs.size()); i++)
         {
@@ -135,57 +139,29 @@ private:
     const double t, td, ti;
 };
 
+template<class System>
 class Coulomb
 {
 public:
-    Coulomb (double V0_, double a_, double b_, double lambdaD_ = 0, 
-             double epsilonr_ = QCA_NATURAL_EPSILON_R, 
-             double epsilon0_ = QCA_EPSILON_0)
-    : V0(V0_), a(a_), b(b_), epsilon0(epsilon0_), epsilonr(epsilonr_), lambdaD(lambdaD_)
+    Coulomb (const System& s_)
+    : s(s_) 
     {}
 
     double operator() (size_t i, size_t j) const
     {
         if (i == j)
-            return V0;
-        const double r = distance(i,j);
-        if (lambdaD == 0)
+            return s.V0;
+        const double r = s.layout.r(i,j);
+        if (s.lambdaD == 0)
             return QCA_ELEMENTARY_CHARGE / 
-                   (4*M_PI * epsilon0 * epsilonr * r * 1e-9);
+                   (4*M_PI * s.epsilon0 * s.epsilonr * r * 1e-9);
         else
-            return QCA_ELEMENTARY_CHARGE * exp(- r / lambdaD) / 
-                   (4*M_PI * epsilon0 * epsilonr * r * 1e-9);
-    }
-
-    double distance (size_t i_, size_t j_) const
-    {
-        const int i = static_cast<int>(i_);
-        const int j = static_cast<int>(j_);
-        
-        /*
-         * We compute deltaY and deltaX in units of a. This increases accuracy
-         * for the case that a becomes very small. a and b are expected to be
-         * roughly of the same order. Thus b/a~1 and deltaX~1 and deltaY~1. In
-         * contrast we might have a~10^-10.
-         */
-        const double deltaY = (i/2-j/2)%2;
-        assert( std::abs(deltaY-1) < 10E-20 || deltaY < 10E-20 );
-
-        /*
-         * 0 1   4 5   ...
-         * 3 2   7 6   ...
-         *
-         * verified for 1, 2 and 3 plaquets, so seems to work correctly
-         */
-        const double deltaX = 
-            (1+b/a) * (i/4 - j/4) + 
-            ( ((i%4)%3==0)?0:1 ) - ( ((j%4)%3==0)?0:1 );
-
-        return a * std::sqrt(deltaX*deltaX + deltaY*deltaY);
+            return QCA_ELEMENTARY_CHARGE * exp(- r / s.lambdaD) / 
+                   (4*M_PI * s.epsilon0 * s.epsilonr * r * 1e-9);
     }
 
 private:
-    const double V0, a, b, epsilon0, epsilonr, lambdaD;
+    const System& s;
 };
 
 template<class ParameterContainer>
@@ -198,9 +174,9 @@ public:
 
     double operator() (size_t i) const
     {
-        if (i==0)
+        if (i==1)
             return Vext;
-        if (i==3)
+        if (i==0)
             return -Vext;
         return 0;
     }
@@ -208,13 +184,13 @@ private:
     double Vext;
 };
 
-template<class ParameterContainer>
+template<class System>
 class ExternalDeadPlaquet
 {
 public:
-    ExternalDeadPlaquet (const ParameterContainer& c)
-    : coulomb(c.V0, c.a, c.b, c.lambdaD, c.epsilonr, c.epsilon0), 
-      P(c.Pext), electronsPerPlaquet(c.electronsPerPlaquet), q(c.q)
+    ExternalDeadPlaquet (const System& s_)
+    : s(s_), 
+      P(s_.Pext), electronsPerPlaquet(s_.electronsPerPlaquet), q(s_.q)
     {}
 
     double operator() (size_t i) const
@@ -226,25 +202,47 @@ public:
          * positive).
          */
         assert (electronsPerPlaquet == 2 || electronsPerPlaquet == 6);
+
+        
+
+
+        double V=0;
+        for (int j=0; j<s.layout.N_charges(); j++)
+        {
+            const double r = s.layout.r_charge_dot(j,i);
+            if (s.lambdaD == 0)
+                V += (s.layout.charge(j) - s.q) * QCA_ELEMENTARY_CHARGE / 
+                       (4*M_PI * s.epsilon0 * s.epsilonr * r * 1e-9);
+            else
+                V += (s.layout.charge(j) - s.q) * QCA_ELEMENTARY_CHARGE * exp(- r / s.lambdaD) / 
+                       (4*M_PI * s.epsilon0 * s.epsilonr * r * 1e-9);
+        }
+        return V;
+
+
+
+
+
         
         // Coulomb term: V_ij (n_i - q) (n_j - q)
         // here we are calculating V_ij (n_i - q) where i runs over all sites of
         // the dead plaquet
-        double n = 0; // electrons per site
-        if (electronsPerPlaquet == 6) n = 1;
-        n -= q; //compensation charge
-        double V = 0;
-        for (int j=0; j<4; j++)
-            V += n * coulomb(j,i+4);
-        // put on two extra electrons according to the set polarization
-        for (int j=1; j<4; j+=2)
-            V += (P+1)/2 * coulomb(j,i+4);
-        for (int j=0; j<4; j+=2)
-            V += (1-P)/2 * coulomb(j,i+4);
-        return V;
+        
+        // double n = 0; // electrons per site
+        // if (electronsPerPlaquet == 6) n = 1;
+        // n -= q; //compensation charge
+        // double V = 0;
+        // for (int j=0; j<4; j++)
+        //     V += n * coulomb(j,i+4);
+        // // put on two extra electrons according to the set polarization
+        // for (int j=1; j<4; j+=2)
+        //     V += (P+1)/2 * coulomb(j,i+4);
+        // for (int j=0; j<4; j+=2)
+        //     V += (1-P)/2 * coulomb(j,i+4);
+        // return V;
     }
 private:
-    const Coulomb coulomb;
+    const System& s;
     const double P;
     const size_t electronsPerPlaquet;
     const double q;
@@ -262,7 +260,7 @@ public:
     void construct() 
     {
         Hopping hopping(s.t, s.td, s.ti);
-        Coulomb coulomb(s.V0, s.a, s.b, s.lambdaD, s.epsilonr, s.epsilon0);
+        Coulomb<System> coulomb(s);
         typename System::External external(s);
 
         if (I.cols() == 0) constructIdentityMatrix();
@@ -282,6 +280,8 @@ public:
                    std::fabs((external(i)+s.mu))> NumTraits<double>::dummy_precision());
             
             H += coulomb(i,i) * s.n_updown(i);
+            //TODO: What about the compensation charge? Should it not be n-q for
+            //the external term -- this might be a serious bug
             H += (external(i) - s.mu) * s.n(i);
             for (size_t j=i+1; j<s.N_sites; j++)
             {
@@ -329,7 +329,7 @@ public:
     SMatrix operator() (size_t p) const
     {
         const size_t o = 4*p;
-        return 1.0/2.0 * ( s.n(o+1)+s.n(o+3) - s.n(o+0)-s.n(o+2) );
+        return 1.0/2.0 * ( s.n(o+0)+s.n(o+2) - s.n(o+1)-s.n(o+3) );
     }
 
 private:
@@ -478,18 +478,42 @@ private:
     S& s;
 
 public:
+    //QcaCommon (QcaSystem& s_, const Layout& layout_, size_t electronsPerPlaquet_ = 2)
+    //    : s(s_), N_p(layout_.N_dots()/4), N_sites(layout_.N_dots()), 
+    //      electronsPerPlaquet(electronsPerPlaquet_), 
+    //      layout(layout_), 
+    //      H(s), ensembleAverage(s), P(s), N(s), 
+    //      t(1), td(0), ti(0), V0(1000), a(1.0), b(3*a), Vext(0), Pext(0), mu(0),
+    //      epsilonr(QCA_NATURAL_EPSILON_R), lambdaD(0), 
+    //      epsilon0(QCA_EPSILON_0), q(0)
+    //{
+    //    assert(electronsPerPlaquet == 2 || electronsPerPlaquet == 6);
+    //    assert(layout.N_dots() == N_p*4);
+    //    assert(layout.N_charges() == 4);
+    //}
+
     QcaCommon (QcaSystem& s_, size_t N_p_, size_t electronsPerPlaquet_ = 2)
-        : s(s_), N_p(N_p_), N_sites(4*N_p), electronsPerPlaquet(electronsPerPlaquet_), 
+        : s(s_), N_p(N_p_), N_sites(4*N_p_), 
+          electronsPerPlaquet(electronsPerPlaquet_), 
           H(s), ensembleAverage(s), P(s), N(s), 
           t(1), td(0), ti(0), V0(1000), a(1.0), b(3*a), Vext(0), Pext(0), mu(0),
           epsilonr(QCA_NATURAL_EPSILON_R), lambdaD(0), 
           epsilon0(QCA_EPSILON_0), q(0)
     {
         assert(electronsPerPlaquet == 2 || electronsPerPlaquet == 6);
+        //assert(layout.N_dots() == N_p*4);
+        //assert(layout.N_charges() == 4);
+        //only temporary
+        layout = Layout();
+        layout.addWire(0,0, N_p, a, b, Pext, electronsPerPlaquet);
     }
 
     void update ()
     {
+        //only temporary
+        layout = Layout();
+        layout.addWire(0,0, N_p, a, b, Pext, electronsPerPlaquet);
+
         H.construct();
         H.diagonalizeUsingSymmetriesBySectors();
     }
@@ -517,7 +541,7 @@ public:
         const double n1 = ensembleAverage(beta, s.n(o+1));
         const double n2 = ensembleAverage(beta, s.n(o+2));
         const double n3 = ensembleAverage(beta, s.n(o+3));
-        return 8 * n0*n1*n2*n3 * (n1+n3-n0-n2) / 
+        return 8 * n0*n1*n2*n3 * (n0+n2-n1-n3) / 
                ( (n0+n2)*(n0+n2) * (n1+n3)*(n1+n3) );
     }
 
@@ -548,6 +572,8 @@ public:
     }
 
     size_t N_p, N_sites, electronsPerPlaquet;
+    //const Layout& layout;
+    Layout layout;
     QcaHamiltonian<S> H;
     EnsembleAverageBySectors<S> ensembleAverage;
     Polarization<S> P;

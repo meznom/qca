@@ -68,6 +68,7 @@ BOOST_AUTO_TEST_CASE ( test_qca_bond_system_for_some_parameters )
     s1.a = 1;
     s1.b = 1;
     s1.V0 = 10;
+    s1.layout.addWire(0,0, 1, s1.a, s1.b, 0);
     s1.H.construct();
     s1.H.diagonalizeNoSymmetries();
     BOOST_CHECK (s1.energies().size() == 6);
@@ -755,7 +756,7 @@ BOOST_AUTO_TEST_CASE ( test_basic_layouts )
     bs.push_back(0.4);
     bs.push_back(0.4);
     bs.push_back(0.4);
-    l4.addNonuniformWire(3.2,3.2, 4, 0.2, bs, -0.2);
+    l4.addNonuniformWire(3.2,3.2, 4, 0.2, bs, -0.2, 6);
     BOOST_CHECK(l4.N_dots() == 16);
     BOOST_CHECK(l4.N_charges() == 4);
     BOOST_CHECK(epsilonEqual(
@@ -792,5 +793,19 @@ BOOST_AUTO_TEST_CASE ( test_basic_layouts )
     BOOST_CHECK(epsilonEqual(
                 l5.r(0,9),
                 std::sqrt((2*0.1+1+1.2)*(2*0.1+1+1.2)+0.1*0.1)
+    ));
+
+    Layout l6;
+    l6.addDriverCell(0,0, 1, 0.3, 6);
+    BOOST_CHECK(epsilonEqual(
+                0.5*(l6.charge(0)+l6.charge(2)-l6.charge(1)-l6.charge(3)), 
+                0.3
+    ));
+
+    Layout l7;
+    l7.addDriverCell(0,0, 1, -0.12, 6);
+    BOOST_CHECK(epsilonEqual(
+                0.5*(l7.charge(0)+l7.charge(2)-l7.charge(1)-l7.charge(3)), 
+                -0.12
     ));
 }
