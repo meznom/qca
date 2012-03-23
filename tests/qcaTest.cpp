@@ -46,13 +46,13 @@ BOOST_AUTO_TEST_CASE ( test_particle_number_per_plaquet_symmetry_operator )
 
 BOOST_AUTO_TEST_CASE ( test_construct_qca_bond_system )
 {
-    QcaBond<ExternalPlain> s1(1);
+    QcaBond s1(1, false);
     BOOST_CHECK (s1.basis.size() == 6);
 
-    QcaBond<ExternalPlain> s2(2);
+    QcaBond s2(2, false);
     BOOST_CHECK (s2.basis.size() == 36);
 
-    QcaBond<ExternalPlain> s3(3);
+    QcaBond s3(3, false);
     BOOST_CHECK (s3.basis.size() == 216);
 }
 
@@ -61,14 +61,15 @@ BOOST_AUTO_TEST_CASE ( test_qca_bond_system_for_some_parameters )
     /*
      * These values here are coming from tests/NotesAndTests.txt.
      */
-    QcaBond<ExternalPlain> s1(1);
+    QcaBond s1(1, false);
     s1.Vext = 0;
     s1.t = 0.2;
     s1.td = 0.04;
     s1.a = 1;
     s1.b = 1;
     s1.V0 = 10;
-    s1.layout.addWire(0,0, 1, s1.a, s1.b, 0);
+    s1.layout = Layout();
+    s1.layout.addWireNoDriver(0,0, 1, s1.a, s1.b, 0);
     s1.H.construct();
     s1.H.diagonalizeNoSymmetries();
     BOOST_CHECK (s1.energies().size() == 6);
@@ -77,7 +78,7 @@ BOOST_AUTO_TEST_CASE ( test_qca_bond_system_for_some_parameters )
     for (size_t i=0; i<expected1.size(); i++)
         BOOST_CHECK (epsilonEqual(expected1[i], s1.energies()(i), 0.01));
 
-    QcaBond<ExternalPlain> s2(2);
+    QcaBond s2(2, false);
     s2.Vext = 0.1;
     s2.t = 1;
     s2.td = 0;
@@ -91,7 +92,7 @@ BOOST_AUTO_TEST_CASE ( test_qca_bond_system_for_some_parameters )
     for (size_t i=0; i<expected2.size(); i++)
         BOOST_CHECK (epsilonEqual(expected2[i], s2.energies()(i), 0.01));
 
-    QcaBond<ExternalDeadPlaquet> s3(1);
+    QcaBond s3(1, true);
     s3.Vext = 0;
     s3.Pext = 0;
     s3.t = 1;
@@ -108,7 +109,7 @@ BOOST_AUTO_TEST_CASE ( test_qca_bond_system_for_some_parameters )
     s3.update();
     BOOST_CHECK (epsilonEqual(s3.measure(1000000, s3.P(0)), 0.93, 0.01));
 
-    QcaBond<ExternalDeadPlaquet> s4(3);
+    QcaBond s4(3, true);
     s4.Vext = 0;
     s4.Pext = 1;
     s4.t = 1;
@@ -128,31 +129,31 @@ BOOST_AUTO_TEST_CASE ( test_qca_bond_system_for_some_parameters )
 
 BOOST_AUTO_TEST_CASE ( test_construct_qca_fixed_charge_system )
 {
-    QcaFixedCharge<ExternalPlain, 2> s1(1);
+    QcaFixedCharge s1(1, 2, false);
     BOOST_CHECK (s1.basis.size() == 28);
     BOOST_CHECK (s1.basis.getRanges().size() == 3);
 
-    QcaFixedCharge<ExternalPlain, 2> s2(2);
+    QcaFixedCharge s2(2, 2, false);
     BOOST_CHECK (s2.basis.size() == 28*28);
     BOOST_CHECK (s2.basis.getRanges().size() == 5);
 
 #ifdef NDEBUG
-    QcaFixedCharge<ExternalPlain, 2> s3(3);
+    QcaFixedCharge s3(3, 2, false);
     BOOST_CHECK (s3.basis.size() == 28*28*28);
     BOOST_CHECK (s3.basis.getRanges().size() == 7);
 #endif
 
-    QcaFixedCharge<ExternalPlain, 6> s4(1);
+    QcaFixedCharge s4(1, 6, false);
     BOOST_CHECK (s4.basis.size() == 28);
 
-    QcaFixedCharge<ExternalPlain, 6> s5(2);
+    QcaFixedCharge s5(2, 6, false);
     BOOST_CHECK (s5.basis.size() == 28*28);
 }
 
 BOOST_AUTO_TEST_CASE ( test_qca_fixed_charge_system_for_some_parameters )
 {
     //see tests/NotesAndTests.txt
-    QcaFixedCharge<ExternalDeadPlaquet, 2> s1(1);
+    QcaFixedCharge s1(1, 2, true);
     s1.Vext = 0;
     s1.Pext = 0;
     s1.t = 1;
@@ -171,7 +172,7 @@ BOOST_AUTO_TEST_CASE ( test_qca_fixed_charge_system_for_some_parameters )
     BOOST_CHECK (epsilonEqual(s1.measure(1000, s1.P(0)), 0.895, 0.001));
 
 
-    QcaFixedCharge<ExternalDeadPlaquet, 2> s2(2);
+    QcaFixedCharge s2(2, 2, true);
     s2.Vext = 0;
     s2.Pext = 0;
     s2.t = 1;
@@ -216,7 +217,7 @@ BOOST_AUTO_TEST_CASE ( test_qca_fixed_charge_system_for_some_parameters )
     BOOST_CHECK (epsilonEqual(s2.measure(1000000, s2.P(1)), -0.850, 0.001));
 
 
-    QcaFixedCharge<ExternalDeadPlaquet, 6> s3(1);
+    QcaFixedCharge s3(1, 6, true);
     s3.Vext = 0;
     s3.Pext = 0;
     s3.t = 1;
@@ -236,7 +237,7 @@ BOOST_AUTO_TEST_CASE ( test_qca_fixed_charge_system_for_some_parameters )
     BOOST_CHECK (epsilonEqual(s3.measure(1000, s3.P(0)), 0.213, 0.001));
 
 
-    QcaFixedCharge<ExternalDeadPlaquet, 6> s4(2);
+    QcaFixedCharge s4(2, 6, true);
     s4.Vext = 0;
     s4.Pext = 0;
     s4.t = 1;
@@ -259,17 +260,17 @@ BOOST_AUTO_TEST_CASE ( test_qca_fixed_charge_system_for_some_parameters )
 
 BOOST_AUTO_TEST_CASE ( test_construct_qca_grandcanonical_system )
 {
-    QcaGrandCanonical<ExternalPlain> s1(1);
+    QcaGrandCanonical s1(1, 2, false);
     BOOST_CHECK (s1.basis.size() == 256);
     BOOST_CHECK (s1.basis.getRanges().size() == 1+2+3+4+5+4+3+2+1);
 
-    QcaGrandCanonical<ExternalPlain> s2(2);
+    QcaGrandCanonical s2(2, 2, false);
     BOOST_CHECK (s2.basis.size() == 256*256);
 }
 
 BOOST_AUTO_TEST_CASE ( test_diagonalization_of_qca_grand_canonical_system )
 {
-    QcaGrandCanonical<ExternalPlain> s1(1);
+    QcaGrandCanonical s1(1, 2, false);
     s1.H.construct();
     s1.H.diagonalizeNoSymmetries();
     DVector ev1_ = s1.energies();
@@ -300,7 +301,7 @@ BOOST_AUTO_TEST_CASE ( test_diagonalization_of_qca_grand_canonical_system )
         BOOST_CHECK (epsilonEqual(ev1[i], ev3[i]));
     }
 
-    QcaGrandCanonical<ExternalPlain> s2(2);
+    QcaGrandCanonical s2(2, 2, false);
     s2.H.construct();
 
     /*
@@ -327,7 +328,7 @@ BOOST_AUTO_TEST_CASE ( test_diagonalization_of_qca_grand_canonical_system )
 
 BOOST_AUTO_TEST_CASE ( simple_sanity_checks_for_qca_grand_canonical_system )
 {
-    QcaGrandCanonical<ExternalDeadPlaquet, 2> s1(1);
+    QcaGrandCanonical s1(1, 2, true);
     s1.Vext = 0;
     s1.Pext = 0;
     s1.t = 1;
@@ -348,7 +349,7 @@ BOOST_AUTO_TEST_CASE ( simple_sanity_checks_for_qca_grand_canonical_system )
     BOOST_CHECK (P > 0.1 && P < 1);
 
 
-    QcaGrandCanonical<ExternalDeadPlaquet, 6> s2(1);
+    QcaGrandCanonical s2(1, 6, true);
     s2.Vext = 0;
     s2.Pext = 0;
     s2.t = 1;
@@ -375,7 +376,7 @@ BOOST_AUTO_TEST_CASE ( compare_performance_qca_fixed_charge_with_and_without_usi
     double cpuTime = 0;
 
     startCPUTime = std::clock();
-    QcaFixedCharge<ExternalDeadPlaquet, 2> s(2);
+    QcaFixedCharge s(2, 2, true);
     s.H.construct();
     endCPUTime = std::clock();
     cpuTime = static_cast<double>(endCPUTime-startCPUTime)/CLOCKS_PER_SEC;
@@ -406,7 +407,7 @@ BOOST_AUTO_TEST_CASE ( compare_performance_qca_fixed_charge_with_and_without_usi
 
 BOOST_AUTO_TEST_CASE ( test_scaling_of_parameters_for_grand_canonical_system )
 {
-    QcaGrandCanonical<ExternalPlain, 2> s1(1);
+    QcaGrandCanonical s1(1, 2, false);
     s1.Vext = 0;
     s1.Pext = 0;
     s1.t = 1;
@@ -421,7 +422,7 @@ BOOST_AUTO_TEST_CASE ( test_scaling_of_parameters_for_grand_canonical_system )
     double N1 = s1.measure(0.1, s1.N(0));
     double P1 = s1.measure(0.1, s1.P(0));
 
-    QcaGrandCanonical<ExternalPlain, 2> s2(1);
+    QcaGrandCanonical s2(1, 2, false);
     s2.Vext = 0;
     s2.Pext = 0;
     s2.t = 1 * 10;
@@ -440,7 +441,7 @@ BOOST_AUTO_TEST_CASE ( test_scaling_of_parameters_for_grand_canonical_system )
     BOOST_CHECK (epsilonEqual(P1, P2));
 
 
-    QcaGrandCanonical<ExternalPlain, 2> s3(1);
+    QcaGrandCanonical s3(1, 2, false);
     s3.Vext = 1;
     s3.Pext = 0;
     s3.t = 1;
@@ -455,7 +456,7 @@ BOOST_AUTO_TEST_CASE ( test_scaling_of_parameters_for_grand_canonical_system )
     double N3 = s3.measure(0.1, s3.N(0));
     double P3 = s3.measure(0.1, s3.P(0));
 
-    QcaGrandCanonical<ExternalPlain, 2> s4(1);
+    QcaGrandCanonical s4(1, 2, false);
     s4.Vext = 1 * 1000;
     s4.Pext = 0;
     s4.t = 1 * 1000;
@@ -480,7 +481,7 @@ BOOST_AUTO_TEST_CASE ( test_compensation_charge )
      * Grand canonical, one plaquet: Should be four electrons per plaquet at 
      * mu = 0.
      */
-    QcaGrandCanonical<ExternalPlain, 2> s1(1);
+    QcaGrandCanonical s1(1, 2, false);
     s1.Vext = 0;
     s1.Pext = 0;
     s1.t = 1;
@@ -500,7 +501,7 @@ BOOST_AUTO_TEST_CASE ( test_compensation_charge )
      * charges and the 6e per plaquet system with compensation charges should
      * behave identical.
      */
-    QcaFixedCharge<ExternalPlain, 2> s2(2);
+    QcaFixedCharge s2(2, 2, false);
     s2.Vext = 0.1;
     s2.Pext = 0;
     s2.t = 1;
@@ -515,7 +516,7 @@ BOOST_AUTO_TEST_CASE ( test_compensation_charge )
     double P21 = s2.measure(10, s2.P(0));
     double P22 = s2.measure(10, s2.P(1));
 
-    QcaFixedCharge<ExternalPlain, 6> s3(2);
+    QcaFixedCharge s3(2, 6, false);
     s3.Vext = 0.1;
     s3.Pext = 0;
     s3.t = 1;
@@ -542,7 +543,7 @@ BOOST_AUTO_TEST_CASE ( test_compensation_charge )
      * plaquet system with compensation charge, provided we set the chemical
      * potential correctly.
      */
-    QcaGrandCanonical<ExternalDeadPlaquet, 6> s4(1);
+    QcaGrandCanonical s4(1, 6, true);
     s4.Vext = 0;
     s4.Pext = 1;
     s4.t = 1;
@@ -556,7 +557,7 @@ BOOST_AUTO_TEST_CASE ( test_compensation_charge )
     s4.update();
     double P41 = s4.measure(10, s4.P(0));
 
-    QcaGrandCanonical<ExternalDeadPlaquet, 2> s5(1);
+    QcaGrandCanonical s5(1, 2, true);
     s5.Vext = 0;
     s5.Pext = 1;
     s5.t = 1;
@@ -578,7 +579,7 @@ BOOST_AUTO_TEST_CASE ( test_compensation_charge )
      * Fixed, two plaquets: The 2e and 6e dead plaquet systems should be
      * equivalent.
      */
-    QcaFixedCharge<ExternalDeadPlaquet, 2> s6(2);
+    QcaFixedCharge s6(2, 2, true);
     s6.Vext = 0;
     s6.Pext = 1;
     s6.t = 1;
@@ -593,7 +594,7 @@ BOOST_AUTO_TEST_CASE ( test_compensation_charge )
     double P61 = s6.measure(10, s6.P(0));
     double P62 = s6.measure(10, s6.P(1));
 
-    QcaFixedCharge<ExternalDeadPlaquet, 6> s7(2);
+    QcaFixedCharge s7(2, 6, true);
     s7.Vext = 0;
     s7.Pext = 1;
     s7.t = 1;
@@ -617,7 +618,7 @@ BOOST_AUTO_TEST_CASE ( test_compensation_charge )
 
 BOOST_AUTO_TEST_CASE ( compare_polarization_and_polarization2 )
 {
-    QcaGrandCanonical<ExternalDeadPlaquet, 6> s1(1);
+    QcaGrandCanonical s1(1, 6, true);
     s1.Vext = 0;
     s1.Pext = 1;
     s1.t = 1;
@@ -636,7 +637,7 @@ BOOST_AUTO_TEST_CASE ( compare_polarization_and_polarization2 )
     BOOST_CHECK (epsilonEqual(s1.measure(10, s1.N(0)), 6));
     BOOST_CHECK (epsilonEqual(P11, P12, 1e-5));
 
-    QcaGrandCanonical<ExternalDeadPlaquet, 6> s2(1);
+    QcaGrandCanonical s2(1, 6, true);
     s2.Vext = 0;
     s2.Pext = 1;
     s2.t = 1;
@@ -656,7 +657,7 @@ BOOST_AUTO_TEST_CASE ( compare_polarization_and_polarization2 )
     BOOST_CHECK (P21 > 0.9);
     BOOST_CHECK (P22 < 0.1);
 
-    QcaFixedCharge<ExternalDeadPlaquet, 6> s3(2);
+    QcaFixedCharge s3(2, 6, true);
     s3.Vext = 0;
     s3.Pext = 1;
     s3.t = 1;
@@ -676,7 +677,7 @@ BOOST_AUTO_TEST_CASE ( compare_polarization_and_polarization2 )
     BOOST_CHECK (epsilonEqual(P311, P321, 1e-5));
     BOOST_CHECK (epsilonEqual(P312, P322, 1e-5));
 
-    QcaFixedCharge<ExternalDeadPlaquet, 6> s4(2);
+    QcaFixedCharge s4(2, 6, true);
     s4.Vext = 0;
     s4.Pext = 1;
     s4.t = 1;

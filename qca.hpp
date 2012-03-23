@@ -59,6 +59,13 @@ public:
         return *this;
     }
 
+    Layout& addWireNoDriver (double r_x, double r_y, int N_p, double a, double b, double P, int epc=2)
+    {
+        for (int i=0; i<N_p; i++)
+            addCell(r_x+i*(a+b), r_y, a);
+        return *this;
+    }
+
     Layout& addNonuniformWire (double r_x, double r_y, int N_p, double a, 
                                std::vector<double> bs, double P, int epc=2)
     {
@@ -102,152 +109,6 @@ public:
     }
 };
 
-class Hopping
-{
-public:
-    Hopping (double t_, double td_, double ti_)
-    : t(t_), td(td_), ti(ti_)
-    {}
-
-    double operator() (size_t i, size_t j) const
-    {
-        /*
-         * Same plaquet
-         */
-        if (i/4 == j/4)
-        {
-            if (std::abs( static_cast<int>(i) - static_cast<int>(j) ) == 2)
-                return td;
-            else if (i != j)
-                return t;
-        }
-        /*
-         * Neighbouring plaquets
-         */
-        else if (std::abs( static_cast<int>(i/4) - static_cast<int>(j/4) ) == 1)
-        {
-            //TODO: this is untested
-            const size_t l = std::min(i, j); //left plaquet
-            const size_t r = std::max(i, j); //right plaquet
-            if ( (l%4 == 1 && r%4 == 0) || (l%4 == 2 && r%4 == 3) )
-                return ti;
-        }
-        return 0;
-    }
-
-private:
-    const double t, td, ti;
-};
-
-template<class System>
-class Coulomb
-{
-public:
-    Coulomb (const System& s_)
-    : s(s_) 
-    {}
-
-    double operator() (size_t i, size_t j) const
-    {
-        if (i == j)
-            return s.V0;
-        const double r = s.layout.r(i,j);
-        if (s.lambdaD == 0)
-            return QCA_ELEMENTARY_CHARGE / 
-                   (4*M_PI * s.epsilon0 * s.epsilonr * r * 1e-9);
-        else
-            return QCA_ELEMENTARY_CHARGE * exp(- r / s.lambdaD) / 
-                   (4*M_PI * s.epsilon0 * s.epsilonr * r * 1e-9);
-    }
-
-private:
-    const System& s;
-};
-
-template<class ParameterContainer>
-class ExternalPlain
-{
-public:
-    ExternalPlain (const ParameterContainer& c)
-    : Vext(c.Vext)
-    {}
-
-    double operator() (size_t i) const
-    {
-        if (i==1)
-            return Vext;
-        if (i==0)
-            return -Vext;
-        return 0;
-    }
-private:
-    double Vext;
-};
-
-template<class System>
-class ExternalDeadPlaquet
-{
-public:
-    ExternalDeadPlaquet (const System& s_)
-    : s(s_), 
-      P(s_.Pext), electronsPerPlaquet(s_.electronsPerPlaquet), q(s_.q)
-    {}
-
-    double operator() (size_t i) const
-    {
-        /*
-         * Physically the dead plaquet sits to the left of the linear chain
-         * system, at -4,-3,-2,-1. To use our Coulomb distance method we shift
-         * the whole system one plaquet to the right (and thus all sites are
-         * positive).
-         */
-        assert (electronsPerPlaquet == 2 || electronsPerPlaquet == 6);
-
-        
-
-
-        double V=0;
-        for (int j=0; j<s.layout.N_charges(); j++)
-        {
-            const double r = s.layout.r_charge_dot(j,i);
-            if (s.lambdaD == 0)
-                V += (s.layout.charge(j) - s.q) * QCA_ELEMENTARY_CHARGE / 
-                       (4*M_PI * s.epsilon0 * s.epsilonr * r * 1e-9);
-            else
-                V += (s.layout.charge(j) - s.q) * QCA_ELEMENTARY_CHARGE * exp(- r / s.lambdaD) / 
-                       (4*M_PI * s.epsilon0 * s.epsilonr * r * 1e-9);
-        }
-        return V;
-
-
-
-
-
-        
-        // Coulomb term: V_ij (n_i - q) (n_j - q)
-        // here we are calculating V_ij (n_i - q) where i runs over all sites of
-        // the dead plaquet
-        
-        // double n = 0; // electrons per site
-        // if (electronsPerPlaquet == 6) n = 1;
-        // n -= q; //compensation charge
-        // double V = 0;
-        // for (int j=0; j<4; j++)
-        //     V += n * coulomb(j,i+4);
-        // // put on two extra electrons according to the set polarization
-        // for (int j=1; j<4; j+=2)
-        //     V += (P+1)/2 * coulomb(j,i+4);
-        // for (int j=0; j<4; j+=2)
-        //     V += (1-P)/2 * coulomb(j,i+4);
-        // return V;
-    }
-private:
-    const System& s;
-    const double P;
-    const size_t electronsPerPlaquet;
-    const double q;
-};
-
 template<class System>
 class QcaHamiltonian : public Hamiltonian<System>
 {
@@ -259,10 +120,6 @@ public:
 
     void construct() 
     {
-        Hopping hopping(s.t, s.td, s.ti);
-        Coulomb<System> coulomb(s);
-        typename System::External external(s);
-
         if (I.cols() == 0) constructIdentityMatrix();
         H = SMatrix(s.basis.size(), s.basis.size());
         H.setZero();
@@ -311,6 +168,70 @@ private:
             I.insertBack(i,i) = 1;
         }
         I.finalize();
+    }
+    
+    double hopping (size_t i, size_t j) const
+    {
+        /*
+         * Same plaquet
+         */
+        if (i/4 == j/4)
+        {
+            if (std::abs( static_cast<int>(i) - static_cast<int>(j) ) == 2)
+                return s.td;
+            else if (i != j)
+                return s.t;
+        }
+        /*
+         * Neighbouring plaquets
+         */
+        else if (std::abs( static_cast<int>(i/4) - static_cast<int>(j/4) ) == 1)
+        {
+            const size_t l = std::min(i, j); //left plaquet
+            const size_t r = std::max(i, j); //right plaquet
+            if ( (l%4 == 1 && r%4 == 0) || (l%4 == 2 && r%4 == 3) )
+                return s.ti;
+        }
+        return 0;
+    }
+    
+    double coulomb (size_t i, size_t j) const
+    {
+        if (i == j)
+            return s.V0;
+        const double r = s.layout.r(i,j);
+        if (s.lambdaD == 0)
+            return QCA_ELEMENTARY_CHARGE / 
+                   (4*M_PI * s.epsilon0 * s.epsilonr * r * 1e-9);
+        else
+            return QCA_ELEMENTARY_CHARGE * exp(- r / s.lambdaD) / 
+                   (4*M_PI * s.epsilon0 * s.epsilonr * r * 1e-9);
+    }
+
+    double external (size_t i) const
+    {
+        double V=0;
+        
+        // simple external potential
+        if (i==1)
+            V += s.Vext;
+        if (i==0)
+            V += -s.Vext;
+
+        // external potential due to static charges, e.g. a driver cell
+        // formerly I called this dead plaquet
+        for (int j=0; j<s.layout.N_charges(); j++)
+        {
+            const double r = s.layout.r_charge_dot(j,i);
+            if (s.lambdaD == 0)
+                V += (s.layout.charge(j) - s.q) * QCA_ELEMENTARY_CHARGE / 
+                       (4*M_PI * s.epsilon0 * s.epsilonr * r * 1e-9);
+            else
+                V += (s.layout.charge(j) - s.q) * QCA_ELEMENTARY_CHARGE * exp(- r / s.lambdaD) / 
+                       (4*M_PI * s.epsilon0 * s.epsilonr * r * 1e-9);
+        }
+        
+        return V;
     }
 
     SMatrix& H;
@@ -492,9 +413,10 @@ public:
     //    assert(layout.N_charges() == 4);
     //}
 
-    QcaCommon (QcaSystem& s_, size_t N_p_, size_t electronsPerPlaquet_ = 2)
+    QcaCommon (QcaSystem& s_, size_t N_p_, size_t electronsPerPlaquet_ = 2, bool driverCell_ = true)
         : s(s_), N_p(N_p_), N_sites(4*N_p_), 
           electronsPerPlaquet(electronsPerPlaquet_), 
+          driverCell(driverCell_),
           H(s), ensembleAverage(s), P(s), N(s), 
           t(1), td(0), ti(0), V0(1000), a(1.0), b(3*a), Vext(0), Pext(0), mu(0),
           epsilonr(QCA_NATURAL_EPSILON_R), lambdaD(0), 
@@ -503,16 +425,23 @@ public:
         assert(electronsPerPlaquet == 2 || electronsPerPlaquet == 6);
         //assert(layout.N_dots() == N_p*4);
         //assert(layout.N_charges() == 4);
+        
         //only temporary
         layout = Layout();
-        layout.addWire(0,0, N_p, a, b, Pext, electronsPerPlaquet);
+        if (driverCell)
+            layout.addWire(0,0, N_p, a, b, Pext, electronsPerPlaquet);
+        else
+            layout.addWireNoDriver(0,0, N_p, a, b, Pext, electronsPerPlaquet);
     }
 
     void update ()
     {
         //only temporary
         layout = Layout();
-        layout.addWire(0,0, N_p, a, b, Pext, electronsPerPlaquet);
+        if (driverCell)
+            layout.addWire(0,0, N_p, a, b, Pext, electronsPerPlaquet);
+        else
+            layout.addWireNoDriver(0,0, N_p, a, b, Pext, electronsPerPlaquet);
 
         H.construct();
         H.diagonalizeUsingSymmetriesBySectors();
@@ -574,6 +503,7 @@ public:
     size_t N_p, N_sites, electronsPerPlaquet;
     //const Layout& layout;
     Layout layout;
+    bool driverCell;
     QcaHamiltonian<S> H;
     EnsembleAverageBySectors<S> ensembleAverage;
     Polarization<S> P;
@@ -581,16 +511,14 @@ public:
     double t, td, ti, V0, a, b, Vext, Pext, mu, epsilonr, lambdaD, epsilon0, q;
 };
 
-template<template <typename> class ExternalTC>
-class QcaBond : public QcaCommon< QcaBond<ExternalTC> >
+class QcaBond : public QcaCommon<QcaBond>
 {
 public:
-    typedef QcaBond<ExternalTC> Self;
+    typedef QcaBond Self;
     typedef QcaCommon<Self> Base;
-    typedef ExternalTC<Self> External;
 
-    QcaBond (size_t N_p_)
-        : Base(*this, N_p_), basis(plaquetSize*N_p_), ca(*this, plaquetSize), 
+    QcaBond (size_t N_p_, bool driverCell_ = true)
+        : Base(*this, N_p_, 2, driverCell_), basis(plaquetSize*N_p_), ca(*this, plaquetSize), 
           PPSO(plaquetSize)
     {
         basis.addSymmetryOperator(&PPSO);
@@ -619,21 +547,20 @@ private:
     ParticleNumberPerPlaquetSymmetryOperator PPSO;
 };
 
-template<template <typename> class ExternalTC, size_t numberOfElectronsPerPlaquet = 2>
-class QcaFixedCharge : public QcaCommon< QcaFixedCharge<ExternalTC, numberOfElectronsPerPlaquet> >
+class QcaFixedCharge : public QcaCommon<QcaFixedCharge>
 {
 public:
-    typedef QcaFixedCharge<ExternalTC, numberOfElectronsPerPlaquet> Self;
+    typedef QcaFixedCharge Self;
     typedef QcaCommon<Self> Base;
-    typedef ExternalTC<Self> External;
 
-    QcaFixedCharge (size_t N_p_)
-        : Base(*this, N_p_, numberOfElectronsPerPlaquet), basis(plaquetSize*N_p_), 
+    //epc = electrons per cell
+    QcaFixedCharge (size_t N_p_, int epc = 2, bool driverCell_ = true)
+        : Base(*this, N_p_, epc, driverCell_), basis(plaquetSize*N_p_), 
           creatorAnnihilator(*this, plaquetSize), PPSO(plaquetSize)
     {
         basis.addSymmetryOperator(&PPSO);
         basis.addSymmetryOperator(&SSO);
-        int filterValue = PPSO.valueForNElectronsPerPlaquet(numberOfElectronsPerPlaquet, Base::N_p);
+        int filterValue = PPSO.valueForNElectronsPerPlaquet(epc, Base::N_p);
         basis.setFilter(constructSector(filterValue));
         basis.construct();
         creatorAnnihilator.construct();
@@ -678,16 +605,15 @@ private:
     SpinSymmetryOperator SSO;
 };
 
-template<template <typename> class ExternalTC, size_t numberOfElectronsPerPlaquet = 2>
-class QcaGrandCanonical : public QcaCommon< QcaGrandCanonical<ExternalTC, numberOfElectronsPerPlaquet> >
+class QcaGrandCanonical : public QcaCommon<QcaGrandCanonical>
 {
 public:
-    typedef QcaGrandCanonical<ExternalTC, numberOfElectronsPerPlaquet> Self;
+    typedef QcaGrandCanonical Self;
     typedef QcaCommon<Self> Base;
-    typedef ExternalTC<Self> External;
 
-    QcaGrandCanonical (size_t N_p_)
-        : Base(*this, N_p_, numberOfElectronsPerPlaquet), basis(plaquetSize*N_p_), creator(*this), 
+    QcaGrandCanonical (size_t N_p_, int epc = 2, bool driverCell_ = true)
+        : Base(*this, N_p_, epc, driverCell_), 
+          basis(plaquetSize*N_p_), creator(*this), 
           annihilator(*this) 
     {
         basis.addSymmetryOperator(&PSO);
@@ -784,27 +710,27 @@ public:
     }
 };
 
-/*
- * Useful typedefs
- */
-typedef QcaBond<ExternalPlain> QcaBondPlain;
-typedef QcaBond<ExternalDeadPlaquet> QcaBondDeadPlaquet;
-typedef QcaFixedCharge<ExternalPlain, 2> QcaFixedCharge2Plain;
-typedef QcaFixedCharge<ExternalPlain, 6> QcaFixedCharge6Plain;
-typedef QcaFixedCharge<ExternalDeadPlaquet, 2> QcaFixedCharge2DeadPlaquet;
-typedef QcaFixedCharge<ExternalDeadPlaquet, 6> QcaFixedCharge6DeadPlaquet;
-typedef QcaGrandCanonical<ExternalPlain> QcaGrandCanonicalPlain;
-typedef QcaGrandCanonical<ExternalDeadPlaquet, 2> QcaGrandCanonical2DeadPlaquet;
-typedef QcaGrandCanonical<ExternalDeadPlaquet, 6> QcaGrandCanonical6DeadPlaquet;
-
-typedef DQcaGeneric<QcaBond<ExternalPlain> > DQcaBondPlain;
-typedef DQcaGeneric<QcaBond<ExternalDeadPlaquet> > DQcaBondDeadPlaquet;
-typedef DQcaGeneric<QcaFixedCharge<ExternalPlain, 2> > DQcaFixedCharge2Plain;
-typedef DQcaGeneric<QcaFixedCharge<ExternalPlain, 6> > DQcaFixedCharge6Plain;
-typedef DQcaGeneric<QcaFixedCharge<ExternalDeadPlaquet, 2> > DQcaFixedCharge2DeadPlaquet;
-typedef DQcaGeneric<QcaFixedCharge<ExternalDeadPlaquet, 6> > DQcaFixedCharge6DeadPlaquet;
-typedef DQcaGeneric<QcaGrandCanonical<ExternalPlain> > DQcaGrandCanonicalPlain;
-typedef DQcaGeneric<QcaGrandCanonical<ExternalDeadPlaquet, 2> > DQcaGrandCanonical2DeadPlaquet;
-typedef DQcaGeneric<QcaGrandCanonical<ExternalDeadPlaquet, 6> > DQcaGrandCanonical6DeadPlaquet;
+// /*
+//  * Useful typedefs
+//  */
+// typedef QcaBond<ExternalPlain> QcaBondPlain;
+// typedef QcaBond<ExternalDeadPlaquet> QcaBondDeadPlaquet;
+// typedef QcaFixedCharge<ExternalPlain, 2> QcaFixedCharge2Plain;
+// typedef QcaFixedCharge<ExternalPlain, 6> QcaFixedCharge6Plain;
+// typedef QcaFixedCharge<ExternalDeadPlaquet, 2> QcaFixedCharge2DeadPlaquet;
+// typedef QcaFixedCharge<ExternalDeadPlaquet, 6> QcaFixedCharge6DeadPlaquet;
+// typedef QcaGrandCanonical<ExternalPlain> QcaGrandCanonicalPlain;
+// typedef QcaGrandCanonical<ExternalDeadPlaquet, 2> QcaGrandCanonical2DeadPlaquet;
+// typedef QcaGrandCanonical<ExternalDeadPlaquet, 6> QcaGrandCanonical6DeadPlaquet;
+// 
+// typedef DQcaGeneric<QcaBond<ExternalPlain> > DQcaBondPlain;
+// typedef DQcaGeneric<QcaBond<ExternalDeadPlaquet> > DQcaBondDeadPlaquet;
+// typedef DQcaGeneric<QcaFixedCharge<ExternalPlain, 2> > DQcaFixedCharge2Plain;
+// typedef DQcaGeneric<QcaFixedCharge<ExternalPlain, 6> > DQcaFixedCharge6Plain;
+// typedef DQcaGeneric<QcaFixedCharge<ExternalDeadPlaquet, 2> > DQcaFixedCharge2DeadPlaquet;
+// typedef DQcaGeneric<QcaFixedCharge<ExternalDeadPlaquet, 6> > DQcaFixedCharge6DeadPlaquet;
+// typedef DQcaGeneric<QcaGrandCanonical<ExternalPlain> > DQcaGrandCanonicalPlain;
+// typedef DQcaGeneric<QcaGrandCanonical<ExternalDeadPlaquet, 2> > DQcaGrandCanonical2DeadPlaquet;
+// typedef DQcaGeneric<QcaGrandCanonical<ExternalDeadPlaquet, 6> > DQcaGrandCanonical6DeadPlaquet;
 
 #endif // __QCA_HPP__
