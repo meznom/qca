@@ -90,6 +90,18 @@ public:
         return *this;
     }
 
+    void wire (int N_p, double a=1, double b=3, double P=0)
+    {
+        clear();
+        addWire(0,0, N_p, a, b, P);
+    }
+
+    void wireNoDriver (int N_p, double a=1, double b=3)
+    {
+        clear();
+        addWireNoDriver(0,0, N_p, a, b);
+    }
+
     int N_dots () const
     {
         return static_cast<int>(r_dots.size());
@@ -118,23 +130,42 @@ public:
         return charges[i];
     }
 
-    int electronsPerCell () const
+    int getElectronsPerCell () const
     {
         return epc;
+    }
+
+    void setElectronsPerCell (ElectronsPerCell epc_)
+    {
+        epc = epc_;
+    }
+
+    void clear ()
+    {
+        r_dots.clear();
+        r_charges.clear();
+        charges.clear();
     }
 };
 
 class WireNoDriver : public Layout
 {
 public:
-    WireNoDriver (int N_p_, double a_ = 1, double b_ = 3, ElectronsPerCell epc = epc2)
-    : Layout(epc), N_p(N_p_), a(a_), b(b_)
+    WireNoDriver (int N_p, double a = 1, double b = 3, ElectronsPerCell epc = epc2)
+    : Layout(epc)
     {
-        addWireNoDriver(0,0, N_p, a, b);
+        wireNoDriver(N_p, a, b);
     }
+};
 
-    int N_p;
-    double a, b;
+class WireNoDriver6e : public Layout
+{
+public:
+    WireNoDriver6e (int N_p, double a = 1, double b = 3)
+    : Layout(epc6)
+    {
+        wireNoDriver(N_p, a, b);
+    }
 };
 
 class Wire : public Layout
@@ -143,7 +174,17 @@ public:
     Wire (int N_p, double a = 1, double b = 3, double P = 0, ElectronsPerCell epc = epc2)
     : Layout(epc)
     {
-        addWire(0,0, N_p, a, b, P);
+        wire(N_p, a, b, P);
+    }
+};
+
+class Wire6e : public Layout
+{
+public:
+    Wire6e (int N_p, double a = 1, double b = 3, double P = 0)
+    : Layout(epc6)
+    {
+        wire(N_p, a, b, P);
     }
 };
 
@@ -439,7 +480,7 @@ private:
     S& s;
 
 public:
-    QcaCommon (QcaSystem& s_, const Layout& l_)
+    QcaCommon (QcaSystem& s_, Layout l_)
         : s(s_), l(l_), N_p(l_.N_dots()/4), N_sites(l_.N_dots()), 
           H(s), ensembleAverage(s), P(s), N(s), 
           t(1), td(0), ti(0), V0(1000), Vext(0), mu(0),
@@ -452,6 +493,9 @@ public:
 
     void update ()
     {
+        assert(l.N_dots() == static_cast<int>(N_sites));
+        if (l.N_dots() != static_cast<int>(N_sites))
+            return;
         H.construct();
         H.diagonalizeUsingSymmetriesBySectors();
     }
@@ -509,8 +553,8 @@ public:
         return H.Emin();
     }
 
-    const Layout& l;
-    size_t N_p, N_sites;
+    Layout l;
+    const size_t N_p, N_sites;
     QcaHamiltonian<S> H;
     EnsembleAverageBySectors<S> ensembleAverage;
     Polarization<S> P;
@@ -524,7 +568,7 @@ public:
     typedef QcaBond Self;
     typedef QcaCommon<Self> Base;
 
-    QcaBond (const Layout& l_)
+    QcaBond (Layout l_)
         : Base(*this, l_), basis(plaquetSize*Base::N_p), ca(*this, plaquetSize), 
           PPSO(plaquetSize)
     {
@@ -560,13 +604,13 @@ public:
     typedef QcaFixedCharge Self;
     typedef QcaCommon<Self> Base;
 
-    QcaFixedCharge (const Layout& l_)
+    QcaFixedCharge (Layout l_)
         : Base(*this, l_), basis(plaquetSize*Base::N_p), 
           creatorAnnihilator(*this, plaquetSize), PPSO(plaquetSize)
     {
         basis.addSymmetryOperator(&PPSO);
         basis.addSymmetryOperator(&SSO);
-        int filterValue = PPSO.valueForNElectronsPerPlaquet(l_.electronsPerCell(), Base::N_p);
+        int filterValue = PPSO.valueForNElectronsPerPlaquet(l_.getElectronsPerCell(), Base::N_p);
         basis.setFilter(constructSector(filterValue));
         basis.construct();
         creatorAnnihilator.construct();
@@ -617,7 +661,7 @@ public:
     typedef QcaGrandCanonical Self;
     typedef QcaCommon<Self> Base;
 
-    QcaGrandCanonical (const Layout& l_)
+    QcaGrandCanonical (Layout l_)
         : Base(*this, l_), 
           basis(plaquetSize*Base::N_p), creator(*this), 
           annihilator(*this) 
