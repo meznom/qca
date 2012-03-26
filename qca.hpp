@@ -15,7 +15,7 @@ enum ElectronsPerCell {epc2 = 2, epc6 = 6};
 class Layout
 {
 private:
-    std::vector<Vector2d> r_dots;
+    std::vector<Vector2d> r_sites;
     std::vector<Vector2d> r_charges;
     std::vector<double> charges;
     ElectronsPerCell epc;
@@ -24,9 +24,9 @@ public:
     : epc(epc_)
     {}
 
-    Layout& addDot (double r_x, double r_y)
+    Layout& addSite (double r_x, double r_y)
     {
-        r_dots.push_back(Vector2d(r_x, r_y));
+        r_sites.push_back(Vector2d(r_x, r_y));
         return *this;
     }
 
@@ -39,10 +39,10 @@ public:
 
     Layout& addCell (double r_x, double r_y, double a)
     {
-        addDot(r_x, r_y);
-        addDot(r_x, r_y+a);
-        addDot(r_x+a, r_y+a);
-        addDot(r_x+a, r_y);
+        addSite(r_x, r_y);
+        addSite(r_x, r_y+a);
+        addSite(r_x+a, r_y+a);
+        addSite(r_x+a, r_y);
         return *this;
     }
 
@@ -90,21 +90,43 @@ public:
         return *this;
     }
 
-    void wire (int N_p, double a=1, double b=3, double P=0)
+    void wire (int N_p, double a, double b, double P, ElectronsPerCell epc_)
     {
         clear();
+        setElectronsPerCell(epc_);
         addWire(0,0, N_p, a, b, P);
     }
 
-    void wireNoDriver (int N_p, double a=1, double b=3)
+    void wire2e (int N_p, double a=1, double b=3, double P=0)
+    {
+        wire(N_p, a, b, P, epc2);
+    }
+
+    void wire6e (int N_p, double a=1, double b=3, double P=0)
+    {
+        wire(N_p, a, b, P, epc6);
+    }
+
+    void wireNoDriver (int N_p, double a, double b, ElectronsPerCell epc_)
     {
         clear();
+        setElectronsPerCell(epc_);
         addWireNoDriver(0,0, N_p, a, b);
     }
 
-    int N_dots () const
+    void wireNoDriver2e (int N_p, double a=1, double b=3)
     {
-        return static_cast<int>(r_dots.size());
+        wireNoDriver(N_p, a, b, epc2);
+    }
+
+    void wireNoDriver6e (int N_p, double a=1, double b=3)
+    {
+        wireNoDriver(N_p, a, b, epc6);
+    }
+
+    int N_sites () const
+    {
+        return static_cast<int>(r_sites.size());
     }
 
     int N_charges () const
@@ -115,13 +137,13 @@ public:
 
     double r (int i, int j) const
     {
-        const Vector2d d = r_dots[i] - r_dots[j];
+        const Vector2d d = r_sites[i] - r_sites[j];
         return d.norm();
     }
 
     double r_charge_dot (int i, int j) const
     {
-        const Vector2d d = r_charges[i] - r_dots[j];
+        const Vector2d d = r_charges[i] - r_sites[j];
         return d.norm();
     }
 
@@ -142,39 +164,18 @@ public:
 
     void clear ()
     {
-        r_dots.clear();
+        r_sites.clear();
         r_charges.clear();
         charges.clear();
     }
 };
 
-class WireNoDriver : public Layout
+class Wire2e : public Layout
 {
 public:
-    WireNoDriver (int N_p, double a = 1, double b = 3, ElectronsPerCell epc = epc2)
-    : Layout(epc)
+    Wire2e (int N_p, double a = 1, double b = 3, double P = 0)
     {
-        wireNoDriver(N_p, a, b);
-    }
-};
-
-class WireNoDriver6e : public Layout
-{
-public:
-    WireNoDriver6e (int N_p, double a = 1, double b = 3)
-    : Layout(epc6)
-    {
-        wireNoDriver(N_p, a, b);
-    }
-};
-
-class Wire : public Layout
-{
-public:
-    Wire (int N_p, double a = 1, double b = 3, double P = 0, ElectronsPerCell epc = epc2)
-    : Layout(epc)
-    {
-        wire(N_p, a, b, P);
+        wire2e(N_p, a, b, P);
     }
 };
 
@@ -182,9 +183,26 @@ class Wire6e : public Layout
 {
 public:
     Wire6e (int N_p, double a = 1, double b = 3, double P = 0)
-    : Layout(epc6)
     {
-        wire(N_p, a, b, P);
+        wire6e(N_p, a, b, P);
+    }
+};
+
+class WireNoDriver2e : public Layout
+{
+public:
+    WireNoDriver2e (int N_p, double a = 1, double b = 3)
+    {
+        wireNoDriver2e(N_p, a, b);
+    }
+};
+
+class WireNoDriver6e : public Layout
+{
+public:
+    WireNoDriver6e (int N_p, double a = 1, double b = 3)
+    {
+        wireNoDriver6e(N_p, a, b);
     }
 };
 
@@ -199,10 +217,10 @@ public:
 
     void construct() 
     {
-        if (I.cols() == 0) constructIdentityMatrix();
+        constructIdentityMatrix();
         H = SMatrix(s.basis.size(), s.basis.size());
         H.setZero();
-        for (size_t i=0; i<s.N_sites; i++)
+        for (int i=0; i<s.N_sites(); i++)
         {
             /*
              * Eigen seems to truncate very small values in Sparse matrices. The
@@ -219,7 +237,7 @@ public:
             //TODO: What about the compensation charge? Should it not be n-q for
             //the external term -- this might be a serious bug
             H += (external(i) - s.mu) * s.n(i);
-            for (size_t j=i+1; j<s.N_sites; j++)
+            for (int j=i+1; j<s.N_sites(); j++)
             {
                 assert(hopping(i,j)==0 || 
                        std::fabs(hopping(i,j))>NumTraits<double>::dummy_precision());
@@ -251,32 +269,25 @@ private:
     
     //TODO: rewrite this so that hopping depends on the distance, i.e. t_ij =
     //t_ij(r_ij)
-    double hopping (size_t i, size_t j) const
+    double hopping (int i, int j) const
     {
         /*
-         * Same plaquet
+         * Same cell
          */
         if (i/4 == j/4)
         {
-            if (std::abs( static_cast<int>(i) - static_cast<int>(j) ) == 2)
+            if (std::abs(i-j) == 2)
                 return s.td;
             else if (i != j)
                 return s.t;
         }
         /*
-         * Neighbouring plaquets
+         * No inter-cell hopping for now
          */
-        else if (std::abs( static_cast<int>(i/4) - static_cast<int>(j/4) ) == 1)
-        {
-            const size_t l = std::min(i, j); //left plaquet
-            const size_t r = std::max(i, j); //right plaquet
-            if ( (l%4 == 1 && r%4 == 0) || (l%4 == 2 && r%4 == 3) )
-                return s.ti;
-        }
         return 0;
     }
     
-    double coulomb (size_t i, size_t j) const
+    double coulomb (int i, int j) const
     {
         if (i == j)
             return s.V0;
@@ -289,7 +300,7 @@ private:
                    (4*M_PI * s.epsilon0 * s.epsilonr * r * 1e-9);
     }
 
-    double external (size_t i) const
+    double external (int i) const
     {
         double V=0;
         
@@ -355,7 +366,7 @@ public:
     SMatrix operator() () const
     {
         SMatrix N(s.basis.size(), s.basis.size());
-        for (size_t i=0; i<s.N_sites; i++)
+        for (int i=0; i<s.N_sites(); i++)
             N += s.n(i);
         return N;
     }
@@ -368,24 +379,25 @@ template<class System>
 class CreatorAnnihilator
 {
 public:
-    CreatorAnnihilator (const System& s_, size_t plaquetSize_)
-    : s(s_), plaquetSize(plaquetSize_), cas(s.N_p * plaquetSize * plaquetSize) 
+    CreatorAnnihilator (const System& s_)
+    : s(s_)
     {}
 
     void construct ()
     {
+        cas = std::vector<SMatrix>(s.N_p() * s.plaquetSize * s.plaquetSize);
         zeroMatrix = SMatrix(s.basis.size(), s.basis.size());
         //TODO: optimise - c_i a_j = (c_j a_i)^{\dag}
-        for (size_t p=0; p<s.N_p; p++)
-            for (size_t i=0; i<plaquetSize; i++)
-                for (size_t j=0; j<plaquetSize; j++)
-                    constructMatrix(plaquetSize*p + i, plaquetSize*p + j);
+        for (int p=0; p<s.N_p(); p++)
+            for (int i=0; i<s.plaquetSize; i++)
+                for (int j=0; j<s.plaquetSize; j++)
+                    constructMatrix(s.plaquetSize*p + i, s.plaquetSize*p + j);
     }
 
     const SMatrix& operator() (size_t i, size_t j) const
     {
-        // no interplaquet hopping => return a 0-matrix
-        if (i/plaquetSize != j/plaquetSize)
+        // no inter-cell hopping => return a 0-matrix
+        if (i/s.plaquetSize != j/s.plaquetSize)
             return zeroMatrix;
         return cas[I(i,j)];
     }
@@ -422,15 +434,14 @@ private:
 
     size_t I (size_t i, size_t j) const
     {
-        const size_t p = i/plaquetSize;
-        assert(p == j/plaquetSize);
-        const size_t ii = i%plaquetSize;
-        const size_t jj = j%plaquetSize;
-        return plaquetSize * plaquetSize * p + plaquetSize * ii + jj;
+        const size_t p = i/s.plaquetSize;
+        assert(p == j/s.plaquetSize);
+        const size_t ii = i%s.plaquetSize;
+        const size_t jj = j%s.plaquetSize;
+        return s.plaquetSize * s.plaquetSize * p + s.plaquetSize * ii + jj;
     }
 
     const System& s;
-    const size_t plaquetSize;
     std::vector<SMatrix> cas;
     SMatrix zeroMatrix;
 };
@@ -455,12 +466,12 @@ public:
         return N;
     }
 
-    int valueForNElectronsPerPlaquet (int N, size_t N_p) const
+    int valueForNElectronsPerPlaquet (int N, int N_p) const
     {
-        assert(N_p <= static_cast<size_t>(std::numeric_limits<int>::digits10));
+        assert(N_p <= std::numeric_limits<int>::digits10);
         int value = 0;
         int multiplier = 1;
-        for (size_t i=0; i<N_p; i++)
+        for (int i=0; i<N_p; i++)
         {
             value += N*multiplier;
             multiplier *= 10;
@@ -478,34 +489,54 @@ class QcaCommon
 private:
     typedef QcaSystem S;
     S& s;
+    int N_p_, N_sites_;
 
 public:
-    QcaCommon (QcaSystem& s_, Layout l_)
-        : s(s_), l(l_), N_p(l_.N_dots()/4), N_sites(l_.N_dots()), 
+    QcaHamiltonian<S> H;
+    EnsembleAverageBySectors<S> ensembleAverage;
+    Polarization<S> P;
+    ParticleNumber<S> N;
+    Layout l;
+    double t, td, V0, Vext, mu, epsilonr, lambdaD, epsilon0, q, beta;
+
+public:
+    QcaCommon (QcaSystem& s_)
+        : s(s_), N_p_(0), N_sites_(0), 
           H(s), ensembleAverage(s), P(s), N(s), 
-          t(1), td(0), ti(0), V0(1000), Vext(0), mu(0),
+          t(1), td(0), V0(1000), Vext(0), mu(0),
           epsilonr(QCA_NATURAL_EPSILON_R), lambdaD(0), 
           epsilon0(QCA_EPSILON_0), q(0)
-    {
-        assert(l_.N_dots() == static_cast<int>(N_p*4));
-        assert(l_.N_charges()==4 || l_.N_charges()==0);
-    }
+    {}
 
     void update ()
     {
-        assert(l.N_dots() == static_cast<int>(N_sites));
-        if (l.N_dots() != static_cast<int>(N_sites))
-            return;
+        if (l.N_sites() != N_sites_)
+            s.constructBasis();
         H.construct();
         H.diagonalizeUsingSymmetriesBySectors();
     }
 
-    double measure (double beta, const SMatrix& O)
+    double measure (double beta_, const SMatrix& O) const
     {
-        return ensembleAverage(beta, O);
+        return ensembleAverage(beta_, O);
     }
 
-    double measurePolarization2 (double beta, size_t p)
+    double measure (const SMatrix& O) const
+    {
+        return measure(beta, O);
+    }
+
+    double measurePolarization (double beta_, int p) const
+    {
+        return ensembleAverage(beta_, P(p));
+    }
+
+    double measurePolarization (int p) const
+    {
+        return measurePolarization(beta, p);
+    }
+
+    double measurePolarization2 (double beta_, int p) const
     {
         /*
          *        (n_0+n_2)^2 - (n_0-n_2)^2
@@ -518,22 +549,27 @@ public:
          *
          * P = d_02 * d_13 * 1/2 * (n_1 + n_3 - n_0 - n_2)
          */
-        const size_t o = 4*p;
-        const double n0 = ensembleAverage(beta, s.n(o+0));
-        const double n1 = ensembleAverage(beta, s.n(o+1));
-        const double n2 = ensembleAverage(beta, s.n(o+2));
-        const double n3 = ensembleAverage(beta, s.n(o+3));
+        const int o = 4*p;
+        const double n0 = ensembleAverage(beta_, s.n(o+0));
+        const double n1 = ensembleAverage(beta_, s.n(o+1));
+        const double n2 = ensembleAverage(beta_, s.n(o+2));
+        const double n3 = ensembleAverage(beta_, s.n(o+3));
         return 8 * n0*n1*n2*n3 * (n0+n2-n1-n3) / 
                ( (n0+n2)*(n0+n2) * (n1+n3)*(n1+n3) );
     }
-
-    std::vector<double> measureParticleNumber (double beta, size_t p)
+    
+    double measurePolarization2 (int p) const
     {
-        const size_t o = 4*p;
-        const double n0 = ensembleAverage(beta, s.n(o+0));
-        const double n1 = ensembleAverage(beta, s.n(o+1));
-        const double n2 = ensembleAverage(beta, s.n(o+2));
-        const double n3 = ensembleAverage(beta, s.n(o+3));
+        return measurePolarization2(beta, p);
+    }
+
+    std::vector<double> measureParticleNumber (double beta_, int p) const
+    {
+        const int o = 4*p;
+        const double n0 = ensembleAverage(beta_, s.n(o+0));
+        const double n1 = ensembleAverage(beta_, s.n(o+1));
+        const double n2 = ensembleAverage(beta_, s.n(o+2));
+        const double n3 = ensembleAverage(beta_, s.n(o+3));
         std::vector<double> ns;
         ns.push_back(n0);
         ns.push_back(n1);
@@ -541,6 +577,11 @@ public:
         ns.push_back(n3);
         ns.push_back(n0+n1+n2+n3);
         return ns;
+    }
+    
+    std::vector<double> measureParticleNumber (int p) const
+    {
+        return measureParticleNumber(beta, p);
     }
 
     const DVector& energies ()
@@ -553,13 +594,24 @@ public:
         return H.Emin();
     }
 
-    Layout l;
-    const size_t N_p, N_sites;
-    QcaHamiltonian<S> H;
-    EnsembleAverageBySectors<S> ensembleAverage;
-    Polarization<S> P;
-    ParticleNumber<S> N;
-    double t, td, ti, V0, Vext, mu, epsilonr, lambdaD, epsilon0, q;
+    int N_p () const
+    {
+        return N_p_;
+    }
+
+    int N_sites () const
+    {
+        return N_sites_;
+    }
+
+protected:
+    void updateParametersFromLayout ()
+    {
+            N_sites_ = l.N_sites();
+            N_p_ = l.N_sites()/4;
+            assert(N_sites_ = N_p_ * 4);
+            assert(l.N_charges() == 4 || l.N_charges() == 0);
+    }
 };
 
 class QcaBond : public QcaCommon<QcaBond>
@@ -568,34 +620,41 @@ public:
     typedef QcaBond Self;
     typedef QcaCommon<Self> Base;
 
-    QcaBond (Layout l_)
-        : Base(*this, l_), basis(plaquetSize*Base::N_p), ca(*this, plaquetSize), 
-          PPSO(plaquetSize)
+    enum {plaquetSize=4};
+    Basis basis;
+    CreatorAnnihilator<Self> ca;
+
+private:
+    ParticleNumberPerPlaquetSymmetryOperator PPSO;
+
+public:
+    QcaBond (Layout l_ = Layout())
+        : Base(*this), ca(*this), PPSO(plaquetSize)
     {
+        Base::l = l_;
+    }
+
+    void constructBasis ()
+    {
+        Base::updateParametersFromLayout();
+        basis = Basis();
         basis.addSymmetryOperator(&PPSO);
-        int filterValue = PPSO.valueForNElectronsPerPlaquet(2,Base::N_p);
+        int filterValue = PPSO.valueForNElectronsPerPlaquet(2,Base::N_p());
         basis.setFilter(constructSector(filterValue));
-        basis.construct();
+        basis.construct(plaquetSize*Base::N_p());
         ca.construct();
     }
 
-    SMatrix n (size_t i) const
+    SMatrix n (int i) const
     {
         return ca(i,i);
     }
 
-    SMatrix n_updown (size_t i) const
+    SMatrix n_updown (int i) const
     {
         // return 0
         return SMatrix(basis.size(), basis.size());
     }
-
-    enum {plaquetSize=4};
-    Basis basis;
-    CreatorAnnihilator<QcaBond> ca;
-
-private:
-    ParticleNumberPerPlaquetSymmetryOperator PPSO;
 };
 
 class QcaFixedCharge : public QcaCommon<QcaFixedCharge>
@@ -604,55 +663,62 @@ public:
     typedef QcaFixedCharge Self;
     typedef QcaCommon<Self> Base;
 
-    QcaFixedCharge (Layout l_)
-        : Base(*this, l_), basis(plaquetSize*Base::N_p), 
-          creatorAnnihilator(*this, plaquetSize), PPSO(plaquetSize)
-    {
-        basis.addSymmetryOperator(&PPSO);
-        basis.addSymmetryOperator(&SSO);
-        int filterValue = PPSO.valueForNElectronsPerPlaquet(l_.getElectronsPerCell(), Base::N_p);
-        basis.setFilter(constructSector(filterValue));
-        basis.construct();
-        creatorAnnihilator.construct();
-    }
-
-    size_t I (size_t i, Spin s) const
-    {
-        return 2*i + s;
-    }
-
-    SMatrix ca (size_t i, Spin s_i, size_t j, Spin s_j) const
-    {
-        return creatorAnnihilator(I(i, s_i), I(j, s_j));
-    }
-
-    SMatrix ca (size_t i, size_t j) const
-    {
-        return ca(i,UP,j,UP) + ca(i,DOWN,j,DOWN);
-    }
-
-    SMatrix n (size_t i, Spin s) const
-    {
-        return ca(i,s,i,s);
-    }
-
-    SMatrix n (size_t i) const
-    {
-        return n(i,UP) + n(i,DOWN);
-    }
-
-    SMatrix n_updown (size_t i) const
-    {
-        return n(i,UP) * n(i,DOWN);
-    }
-
     enum {plaquetSize=8};
     Basis basis;
-    CreatorAnnihilator<QcaFixedCharge> creatorAnnihilator;
+    CreatorAnnihilator<Self> creatorAnnihilator;
 
 private:
     ParticleNumberPerPlaquetSymmetryOperator PPSO;
     SpinSymmetryOperator SSO;
+
+public:
+    QcaFixedCharge (Layout l_ = Layout())
+        : Base(*this), creatorAnnihilator(*this), PPSO(plaquetSize)
+    {
+        Base::l = l_;
+    }
+
+    void constructBasis ()
+    {
+        Base::updateParametersFromLayout();
+        basis = Basis();
+        basis.addSymmetryOperator(&PPSO);
+        basis.addSymmetryOperator(&SSO);
+        int filterValue = PPSO.valueForNElectronsPerPlaquet(l.getElectronsPerCell(), Base::N_p());
+        basis.setFilter(constructSector(filterValue));
+        basis.construct(plaquetSize*Base::N_p());
+        creatorAnnihilator.construct();
+    }
+
+    size_t I (int i, Spin s) const
+    {
+        return 2*i + s;
+    }
+
+    SMatrix ca (int i, Spin s_i, int j, Spin s_j) const
+    {
+        return creatorAnnihilator(I(i, s_i), I(j, s_j));
+    }
+
+    SMatrix ca (int i, int j) const
+    {
+        return ca(i,UP,j,UP) + ca(i,DOWN,j,DOWN);
+    }
+
+    SMatrix n (int i, Spin s) const
+    {
+        return ca(i,s,i,s);
+    }
+
+    SMatrix n (int i) const
+    {
+        return n(i,UP) + n(i,DOWN);
+    }
+
+    SMatrix n_updown (int i) const
+    {
+        return n(i,UP) * n(i,DOWN);
+    }
 };
 
 class QcaGrandCanonical : public QcaCommon<QcaGrandCanonical>
@@ -661,56 +727,62 @@ public:
     typedef QcaGrandCanonical Self;
     typedef QcaCommon<Self> Base;
 
-    QcaGrandCanonical (Layout l_)
-        : Base(*this, l_), 
-          basis(plaquetSize*Base::N_p), creator(*this), 
-          annihilator(*this) 
-    {
-        basis.addSymmetryOperator(&PSO);
-        basis.addSymmetryOperator(&SSO);
-        basis.construct();
-        creator.construct();
-        annihilator.construct();
-    }
-
-    size_t I (size_t i, Spin s) const
-    {
-        return 2*i + s;
-    }
-
-    SMatrix ca (size_t i, Spin s_i, size_t j, Spin s_j) const
-    {
-        return creator(I(i, s_i))*annihilator(I(j, s_j));
-    }
-
-    SMatrix ca (size_t i, size_t j) const
-    {
-        return ca(i,UP,j,UP) + ca(i,DOWN,j,DOWN);
-    }
-
-    SMatrix n (size_t i, Spin s) const
-    {
-        return ca(i,s,i,s);
-    }
-
-    SMatrix n (size_t i) const
-    {
-        return n(i,UP) + n(i,DOWN);
-    }
-
-    SMatrix n_updown (size_t i) const
-    {
-        return n(i,UP) * n(i,DOWN);
-    }
-
     enum {plaquetSize=8};
     Basis basis;
-    Creator<QcaGrandCanonical> creator;
-    Annihilator<QcaGrandCanonical> annihilator;
+    Creator<Self> creator;
+    Annihilator<Self> annihilator;
 
 private:
     ParticleNumberSymmetryOperator PSO;
     SpinSymmetryOperator SSO;
+
+public:
+    QcaGrandCanonical (Layout l_ = Layout())
+        : Base(*this), creator(*this), annihilator(*this) 
+    {
+        Base::l = l_;
+    }
+
+    void constructBasis ()
+    {
+        Base::updateParametersFromLayout();
+        basis = Basis();
+        basis.addSymmetryOperator(&PSO);
+        basis.addSymmetryOperator(&SSO);
+        basis.construct(plaquetSize*Base::N_p());
+        creator.construct();
+        annihilator.construct();
+    }
+
+    size_t I (int i, Spin s) const
+    {
+        return 2*i + s;
+    }
+
+    SMatrix ca (int i, Spin s_i, int j, Spin s_j) const
+    {
+        return creator(I(i, s_i))*annihilator(I(j, s_j));
+    }
+
+    SMatrix ca (int i, int j) const
+    {
+        return ca(i,UP,j,UP) + ca(i,DOWN,j,DOWN);
+    }
+
+    SMatrix n (int i, Spin s) const
+    {
+        return ca(i,s,i,s);
+    }
+
+    SMatrix n (int i) const
+    {
+        return n(i,UP) + n(i,DOWN);
+    }
+
+    SMatrix n_updown (int i) const
+    {
+        return n(i,UP) * n(i,DOWN);
+    }
 };
 
 // template<class QcaSystem>

@@ -28,11 +28,13 @@ class Creator
 {
 public:
     Creator (const System& s_)
-    : s(s_), N_orbital(s.basis.numberOfOrbitals()), cs(N_orbital)
+    : s(s_)
     {}
 
     void construct ()
     {
+        const size_t N_orbital = s.basis.numberOfOrbitals();
+        cs = std::vector<SMatrix>(N_orbital);
         for (size_t i=0; i<N_orbital; i++)
             constructMatrix(i);
     }
@@ -46,13 +48,13 @@ public:
      *
      * @return 
      */
-    const SMatrix& operator() (size_t i) const
+    const SMatrix& operator() (int i) const
     {
         return cs[i];
     }
 
 private:
-    void constructMatrix (size_t i)
+    void constructMatrix (int i)
     {
         cs[i] = SMatrix(s.basis.size(), s.basis.size());
         // we expect one entry per column
@@ -73,7 +75,6 @@ private:
     }
 
     const System& s;
-    size_t N_orbital;
     std::vector<SMatrix> cs;
 };
 
@@ -90,11 +91,13 @@ class Annihilator
 {
 public:
     Annihilator (const System& s_)
-    : s(s_), N_orbital(s.basis.numberOfOrbitals()), as(N_orbital)
+    : s(s_)
     {}
 
     void construct ()
     {
+        const size_t N_orbital = s.basis.numberOfOrbitals();
+        as = std::vector<SMatrix>(N_orbital);
         for (size_t i=0; i<N_orbital; i++)
             as[i] = SMatrix(s.creator(i).transpose());
     }
@@ -108,14 +111,13 @@ public:
      *
      * @return 
      */
-    const SMatrix& operator() (size_t i) const
+    const SMatrix& operator() (int i) const
     {
         return as[i];
     }
 
 private:
     const System& s;
-    size_t N_orbital;
     std::vector<SMatrix> as;
 };
 
@@ -420,7 +422,7 @@ public:
      *
      * @return 
      */
-    double operator() (double beta, const SMatrix& O)
+    double operator() (double beta, const SMatrix& O) const
     {
         double sum = 0;
         const DVector& eigenvalues = s.H.eigenvalues();
@@ -442,7 +444,7 @@ public:
      *
      * @return 
      */
-    double partitionFunction (double beta)
+    double partitionFunction (double beta) const
     {
         double Z = 0;
         const DVector& eigenvalues = s.H.eigenvalues();
@@ -489,7 +491,7 @@ public:
      *
      * @return 
      */
-    double operator() (double beta, const SMatrix& O)
+    double operator() (double beta, const SMatrix& O) const
     {
         double sum = 0;
         size_t index = 0;
@@ -518,7 +520,7 @@ public:
      *
      * @return 
      */
-    double partitionFunction (double beta)
+    double partitionFunction (double beta) const
     {
         double Z = 0;
         const std::vector<DVector>& eigenvalues = s.H.eigenvaluesBySectors();
@@ -550,7 +552,7 @@ public:
      * @param N_orbital number of orbitals
      */
     MinimalSystem (size_t N_orbital_)
-    : N_orbital(N_orbital_), basis(N_orbital)
+    : N_orbital(N_orbital_)
     {}
 
     size_t N_orbital;
@@ -559,7 +561,7 @@ public:
 protected:
     void construct ()
     {
-        basis.construct();
+        basis.construct(N_orbital);
     }
 };
 

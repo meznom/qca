@@ -285,10 +285,14 @@ private:
 public:
     typedef State::num_t num_t;
 
-    Basis (size_t N_orbital_) : N_orbital(N_orbital_), filterSet(false) {}
+    Basis () 
+    : N_orbital(0), filterSet(false)
+    {}
 
-    void construct ()
+    void construct (size_t N_orbital_)
     {
+        N_orbital = N_orbital_;
+
         /*
          * N_basis should be of type size_t. If the size of the basis cannot be
          * represented by size_t then we potentially have a problem anyway,
