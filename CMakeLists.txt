@@ -1,3 +1,4 @@
+# TODO: maybe use precompiled headers to speed up compilation
 ### generic ###
 project(ExactDiagonalization)
 cmake_minimum_required(VERSION 2.6)
@@ -17,18 +18,33 @@ include_directories(
 set(BASIS_NUMBER_OF_BITS "16" CACHE STRING "Number of bits used to store basis. Should be 16, 32 or 64. Generally this should be equal to or larger than 8 times the number of QCA cells.")
 
 ### check compiler and set flags appropriately ###
-include(CheckCXXCompilerFlag)
-check_cxx_compiler_flag(-debug IS_INTEL_COMPILER)
-if (IS_INTEL_COMPILER)
-	message(STATUS "Intel compiler detected")
-	set(USE_CXX_FLAGS_DEBUG "-O0 -Wall -g" CACHE STRING "")
-	#set(USE_CXX_FLAGS_RELEASE "-fast -openmp -Wall -DNDEBUG -DEIGEN_YES_I_KNOW_SPARSE_MODULE_IS_NOT_STABLE_YET" CACHE STRING "")
-	set(USE_CXX_FLAGS_RELEASE "-fast -Wall -DNDEBUG" CACHE STRING "")
-else (IS_INTEL_COMPILER)
-	message(STATUS "GNU compiler detected")
-	set(USE_CXX_FLAGS_DEBUG "-m64 -O0 -Wall -ggdb" CACHE STRING "")
-	set(USE_CXX_FLAGS_RELEASE "-m64 -O3 -Wall -fopenmp -march=native -DNDEBUG" CACHE STRING "")
-endif (IS_INTEL_COMPILER)
+# this is untested for Intel, as I don't have access to Intel compilers right now
+execute_process(COMMAND ${CMAKE_CXX_COMPILER} --version OUTPUT_VARIABLE CXX_VERSION)
+
+if ("${CXX_VERSION}" MATCHES "Intel")
+    message(STATUS "Intel compiler detected")
+    set(COMPILER "Intel")
+elseif("${CXX_VERSION}" MATCHES "clang")
+    message(STATUS "Clang compiler detected")
+    set(COMPILER "Clang")
+elseif("${CXX_VERSION}" MATCHES "GCC")
+    message(STATUS "GCC compiler detected")
+    set(COMPILER "GCC")
+else()
+    message(SATUS "Unknown compiler, default is GCC")
+    set(COMPILER "GCC")
+endif()
+
+if (${COMPILER} STREQUAL "Intel")
+    message(STATUS "Setting flags for Intel compiler")
+ 	set(USE_CXX_FLAGS_DEBUG "-O0 -Wall -g" CACHE STRING "")
+ 	set(USE_CXX_FLAGS_RELEASE "-fast -Wall -DNDEBUG" CACHE STRING "")
+elseif (${COMPILER} STREQUAL "Clang" OR ${COMPILER} STREQUAL "GCC")
+    message(STATUS "Setting flags for GCC and Clang compiler")
+    set(USE_CXX_FLAGS_DEBUG "-m64 -O0 -Wall -ggdb" CACHE STRING "")
+    # -fopenmp 
+ 	set(USE_CXX_FLAGS_RELEASE "-m64 -O3 -Wall -march=native -DNDEBUG" CACHE STRING "")
+endif()
 
 set(CMAKE_CXX_FLAGS_DEBUG "${USE_CXX_FLAGS_DEBUG} -DEIGEN_YES_I_KNOW_SPARSE_MODULE_IS_NOT_STABLE_YET -DSTORAGE_TYPE_OF_FERMIONIC_STATE=uint${BASIS_NUMBER_OF_BITS}_t")
 set(CMAKE_CXX_FLAGS_RELEASE "${USE_CXX_FLAGS_RELEASE} -DEIGEN_YES_I_KNOW_SPARSE_MODULE_IS_NOT_STABLE_YET -DSTORAGE_TYPE_OF_FERMIONIC_STATE=uint${BASIS_NUMBER_OF_BITS}_t")
@@ -41,7 +57,6 @@ if (NOT CMAKE_BUILD_TYPE)
         FORCE
     )
 endif (NOT CMAKE_BUILD_TYPE)
-
 
 ### tests ###
 enable_testing()
