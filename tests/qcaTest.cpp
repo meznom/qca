@@ -973,7 +973,122 @@ BOOST_AUTO_TEST_CASE ( reuse_same_system_multiple_times_with_different_layouts )
                 ));
 }
 
-// BOOST_CHECK ( limits_of_nonuniform_wire )
-// {
-//     //TODO
-// }
+BOOST_AUTO_TEST_CASE ( limits_of_nonuniform_wire )
+{
+    // A non-uniform with uniform inter-cell spacing is just a uniform wire
+    std::vector<double> bs1;
+    bs1.push_back(0.02);
+    bs1.push_back(0.02);
+    bs1.push_back(0.02);
+    
+    QcaBond s1;
+    s1.l.nonuniformWire2e(3, 0.01, bs1, 1);
+    s1.beta = 1;
+    s1.update();
+    
+    QcaBond s2;
+    s2.l.wire2e(3, 0.01, 0.02, 1);
+    s2.beta = 1;
+    s2.update();
+
+    //std::cerr 
+    //    << s1.measurePolarization(0) << "  " 
+    //    << s1.measurePolarization(1) << "  " 
+    //    << s1.measurePolarization(2) << std::endl;
+   
+    BOOST_CHECK (epsilonEqual(
+                s1.measurePolarization(0),
+                s2.measurePolarization(0),
+                1E-5
+                ));
+    BOOST_CHECK (epsilonEqual(
+                s1.measurePolarization(1),
+                s2.measurePolarization(1),
+                1E-5
+                ));
+    BOOST_CHECK (epsilonEqual(
+                s1.measurePolarization(2),
+                s2.measurePolarization(2),
+                1E-5
+                ));
+
+    // Same, but for fixed charge and 6 electrons per cell
+    std::vector<double> bs2;
+    bs2.push_back(0.035);
+    bs2.push_back(0.035);
+    
+    QcaFixedCharge s3;
+    s3.l.nonuniformWire6e(2, 0.01, bs2, 1);
+    s3.V0 = 1000;
+    s3.beta = 1;
+    s3.update();
+
+    QcaFixedCharge s4;
+    s4.l.wire6e(2, 0.01, 0.035, 1);
+    s4.V0 = 1000;
+    s4.beta = 1;
+    s4.update();
+
+    //std::cerr 
+    //    << s3.measurePolarization(0) << "  " 
+    //    << s3.measurePolarization(1) << std::endl;
+
+    BOOST_CHECK (epsilonEqual(
+                s3.measurePolarization(0),
+                s4.measurePolarization(0),
+                1E-5
+                ));
+    BOOST_CHECK (epsilonEqual(
+                s3.measurePolarization(1),
+                s4.measurePolarization(1),
+                1E-5
+                ));
+
+    // In the limit of a very large inter-cell spacing, we should see no
+    // polarization response.
+    // First we put the driver cell far away.
+    std::vector<double> bs3;
+    bs3.push_back(10);
+    bs3.push_back(0.02);
+    bs3.push_back(0.02);
+
+    QcaBond s5;
+    s5.l.nonuniformWire2e(3, 0.01, bs3, 1);
+    s5.beta = 1;
+    s5.update();
+
+    BOOST_CHECK (epsilonEqual(
+                s5.measurePolarization(0),
+                0,
+                1E-5
+                ));
+    BOOST_CHECK (epsilonEqual(
+                s5.measurePolarization(1),
+                0,
+                1E-5
+                ));
+    BOOST_CHECK (epsilonEqual(
+                s5.measurePolarization(2),
+                0,
+                1E-5
+                ));
+
+    // Now we move the right-most cell (the output cell) far away.
+    std::vector<double> bs4;
+    bs4.push_back(0.02);
+    bs4.push_back(0.02);
+    bs4.push_back(10);
+
+    QcaBond s6;
+    s6.l.nonuniformWire2e(3, 0.01, bs4, 1);
+    s6.beta = 1;
+    s6.update();
+
+    BOOST_CHECK ( s6.measurePolarization(0) > 0.3);
+    BOOST_CHECK ( s6.measurePolarization(1) > 0.3);
+    BOOST_CHECK (epsilonEqual(
+                s6.measurePolarization(2),
+                0,
+                1E-5
+                ));
+}

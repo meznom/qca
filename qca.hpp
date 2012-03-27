@@ -124,6 +124,23 @@ public:
         wireNoDriver(N_p, a, b, epc6);
     }
 
+    void nonuniformWire (int N_p, double a, std::vector<double> bs, double P, ElectronsPerCell epc_)
+    {
+        clear();
+        setElectronsPerCell(epc_);
+        addNonuniformWire(0,0, N_p, a, bs, P);
+    }
+
+    void nonuniformWire2e (int N_p, double a, std::vector<double> bs, double P)
+    {
+        nonuniformWire(N_p, a, bs, P, epc2);
+    }
+
+    void nonuniformWire6e (int N_p, double a, std::vector<double> bs, double P)
+    {
+        nonuniformWire(N_p, a, bs, P, epc6);
+    }
+
     int N_sites () const
     {
         return static_cast<int>(r_sites.size());
@@ -505,7 +522,7 @@ public:
           H(s), ensembleAverage(s), P(s), N(s), 
           t(1), td(0), V0(1000), Vext(0), mu(0),
           epsilonr(QCA_NATURAL_EPSILON_R), lambdaD(0), 
-          epsilon0(QCA_EPSILON_0), q(0)
+          epsilon0(QCA_EPSILON_0), q(0), beta(1)
     {}
 
     void update ()
