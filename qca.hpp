@@ -802,74 +802,73 @@ public:
     }
 };
 
-// template<class QcaSystem>
-// class DQcaGeneric : public QcaSystem
-// {
-// public:
-//     DQcaGeneric (OptionSection os)
-//     : QcaSystem (os["p"])
-//     {
-//         setParameters(os);
-//     }
-// 
-//     void setParameters (OptionSection os)
-//     {
-//         QcaSystem::t = os["t"].get<double>(1.0);
-//         QcaSystem::td = os["td"].get<double>(0); 
-//         QcaSystem::ti = os["ti"].get<double>(0); 
-//         QcaSystem::a = os["a"].get<double>(1.0); 
-//         QcaSystem::b = os["b"].get<double>(3);
-//         QcaSystem::Vext = os["Vext"].get<double>(0);
-//         QcaSystem::Pext = os["Pext"].get<double>(0);
-//         QcaSystem::V0 = os["V0"].get<double>(1000); 
-//         QcaSystem::mu = os["mu"].get<double>(0);
-//         QcaSystem::epsilonr = os["epsilonr"].get<double>(1);
-//         QcaSystem::lambdaD = os["lambdaD"].get<double>(0);
-//         QcaSystem::q = os["q"].get<double>(0);
-//     }
-// 
-//     OptionSection getParameters ()
-//     {
-//         OptionSection os;
-//         os["p"] = QcaSystem::N_p;
-//         os["t"] = QcaSystem::t;
-//         os["td"] = QcaSystem::td;
-//         os["ti"] = QcaSystem::ti;
-//         os["V0"] = QcaSystem::V0;
-//         os["mu"] = QcaSystem::mu;
-//         os["Vext"] = QcaSystem::Vext;
-//         os["Pext"] = QcaSystem::Pext;
-//         os["a"] = QcaSystem::a;
-//         os["b"] = QcaSystem::b;
-//         os["epsilonr"] = QcaSystem::epsilonr;
-//         os["lambdaD"] = QcaSystem::lambdaD;
-//         os["q"] = QcaSystem::q;
-// 
-//         return os;
-//     }
-// };
+template<class QcaSystem>
+class DQcaGeneric : public QcaSystem
+{
+private:
+    typedef QcaSystem Base;
 
-// /*
-//  * Useful typedefs
-//  */
-// typedef QcaBond<ExternalPlain> QcaBondPlain;
-// typedef QcaBond<ExternalDeadPlaquet> QcaBondDeadPlaquet;
-// typedef QcaFixedCharge<ExternalPlain, 2> QcaFixedCharge2Plain;
-// typedef QcaFixedCharge<ExternalPlain, 6> QcaFixedCharge6Plain;
-// typedef QcaFixedCharge<ExternalDeadPlaquet, 2> QcaFixedCharge2DeadPlaquet;
-// typedef QcaFixedCharge<ExternalDeadPlaquet, 6> QcaFixedCharge6DeadPlaquet;
-// typedef QcaGrandCanonical<ExternalPlain> QcaGrandCanonicalPlain;
-// typedef QcaGrandCanonical<ExternalDeadPlaquet, 2> QcaGrandCanonical2DeadPlaquet;
-// typedef QcaGrandCanonical<ExternalDeadPlaquet, 6> QcaGrandCanonical6DeadPlaquet;
-// 
-// typedef DQcaGeneric<QcaBond<ExternalPlain> > DQcaBondPlain;
-// typedef DQcaGeneric<QcaBond<ExternalDeadPlaquet> > DQcaBondDeadPlaquet;
-// typedef DQcaGeneric<QcaFixedCharge<ExternalPlain, 2> > DQcaFixedCharge2Plain;
-// typedef DQcaGeneric<QcaFixedCharge<ExternalPlain, 6> > DQcaFixedCharge6Plain;
-// typedef DQcaGeneric<QcaFixedCharge<ExternalDeadPlaquet, 2> > DQcaFixedCharge2DeadPlaquet;
-// typedef DQcaGeneric<QcaFixedCharge<ExternalDeadPlaquet, 6> > DQcaFixedCharge6DeadPlaquet;
-// typedef DQcaGeneric<QcaGrandCanonical<ExternalPlain> > DQcaGrandCanonicalPlain;
-// typedef DQcaGeneric<QcaGrandCanonical<ExternalDeadPlaquet, 2> > DQcaGrandCanonical2DeadPlaquet;
-// typedef DQcaGeneric<QcaGrandCanonical<ExternalDeadPlaquet, 6> > DQcaGrandCanonical6DeadPlaquet;
+public:
+    DQcaGeneric (OptionSection os)
+    : QcaSystem()
+    {
+        setParameters(os);
+    }
+
+    void setParameters (OptionSection os)
+    {
+        Base::t = os["t"].get<double>(1.0);
+        Base::td = os["td"].get<double>(0); 
+        Base::Vext = os["Vext"].get<double>(0);
+        Base::V0 = os["V0"].get<double>(1000); 
+        Base::mu = os["mu"].get<double>(0);
+        Base::epsilonr = os["epsilonr"].get<double>(1);
+        Base::lambdaD = os["lambdaD"].get<double>(0);
+        Base::q = os["q"].get<double>(0);
+        
+        ElectronsPerCell epc = epc2;
+        if (os["epc"].get<int>() == 2)
+            epc = epc2;
+        else if (os["epc"].get<int>() == 6)
+            epc = epc6;
+        
+        if (os["layout"] == "wire")
+            Base::l.wire(os["p"].get<int>(1), 
+                         os["a"].get<double>(1.0), 
+                         os["b"].get<double>(3.0), 
+                         os["Pext"].get<double>(0), 
+                         epc);
+        else if (os["layout"] == "nonuniformwire")
+        {
+            std::vector<double> bs = os["bs"];
+            Base::l.nonuniformWire(os["p"].get<int>(1), 
+                                   os["a"].get<double>(1.0), 
+                                   bs,
+                                   os["Pext"].get<double>(0), 
+                                   epc);
+        }
+        // TODO: better error handling
+    }
+
+    OptionSection getParameters ()
+    {
+        OptionSection os;
+        os["p"] = Base::N_p();
+        os["t"] = Base::t;
+        os["td"] = Base::td;
+        os["V0"] = Base::V0;
+        os["mu"] = Base::mu;
+        os["Vext"] = Base::Vext;
+        os["epsilonr"] = Base::epsilonr;
+        os["lambdaD"] = Base::lambdaD;
+        os["q"] = Base::q;
+        //TODO: read back layout parameters or description
+        //os["a"] = Base::a;
+        //os["b"] = Base::b;
+        //os["Pext"] = Base::Pext;
+
+        return os;
+    }
+};
 
 #endif // __QCA_HPP__

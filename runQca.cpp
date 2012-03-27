@@ -25,41 +25,46 @@ CommandLineOptions setupCLOptions ()
     CommandLineOptions o;
     o.add("help", "h", "Print this help message.")
      .add("version", "Print program version.")
-     .add("model", "m", "Which QCA model to use. Options are: bond, bondDP, fixed2, fixed6, fixed2DP, fixed6DP, grand, grand2DP, grand6DP.")
+     .add("model", "m", "Which QCA model to use. Options are: bond, fixed, grand.")
+     .add("natural", "n", "Use natural units. Effectively uses a Coulomb potential 1/r by setting epsilon_r = e^2/(4pi epsilon_0) (in eV).")
      .add("", "p", "Number of plaquets.")
      .add("", "t", "Hopping parameter.")
      .add("", "td", "Diagonal hopping parameter.")
-     .add("", "ti", "Inter-plaquet hopping parameter.")
      .add("", "V0", "On-site coulomb repulsion (Hubbard U).")
      .add("", "mu", "Chemical potential.")
      .add("", "Vext", "External potential.")
-     .add("", "Pext", "External, 'driving' polarization of a 'dead plaquet' to the left of the linear chain system.")
-     .add("", "a", "Intra-plaquet spacing.")
-     .add("", "b", "Inter-plaquet spacing.")
      .add("", "beta", "Inverse temperature.")
+     .add("", "epc", "Number of electrons per cell, either 2 or 6.")
      .add("", "q", "Compensation charge. Defaults to 0.")
      .add("", "epsilonr", "Relative permattiviy.")
      .add("", "lambdaD", "Debye screening length. Set to zero to disable screening.")
+     .add("", "layout", "Which cell layout to use: wire or nonuniformwire")
+     .add("", "a", "Intra-cell spacing.")
+     .add("", "b", "Inter-cell spacing. For the (uniform) wire.")
+     .add("", "bs", "List of inter-cell spacings. Has to equal the number of cells. For the non-uniform wire.")
+     .add("", "Pext", "Polarization of the driver cell (left-most cell in the wire).")
      .add("energy-spectrum", "E", "Calculate the energy spectrum.")
      .add("polarization", "P", "Calculate the polarization for the specified plaquet(s).")
      .add("polarization2", "P2", "Calculate the polarization for the specified plaquet(s). Uses a different definition for the polarization.")
-     .add("particle-number", "N", "Calculate the particle number for the specified plaquet(s).")
-     .add("natural", "n", "Use natural units. Effectively uses a Coulomb potential 1/r by setting epsilon_r = e^2/(4pi epsilon_0) (in eV).");
+     .add("particle-number", "N", "Calculate the particle number for the specified plaquet(s).");
     
     o["p"].setDefault(1);
     o["t"].setDefault(1);
     o["td"].setDefault(0);
-    o["ti"].setDefault(0);
     o["V0"].setDefault(0);
     o["mu"].setDefault(0);
     o["Vext"].setDefault(0);
-    o["Pext"].setDefault(0);
-    o["a"].setDefault(1);
-    o["b"].setDefault(1.75);
     o["beta"].setDefault(1);
     o["q"].setDefault(0);
     o["epsilonr"].setDefault(1);
     o["lambdaD"].setDefault(0);
+    o["layout"].setDefault("wire");
+    o["a"].setDefault(1);
+    o["b"].setDefault(1.75);
+    std::vector<double> bs;
+    bs.push_back(1.75);
+    //o["bs"].setDefault(bs); TODO
+    o["Pext"].setDefault(0);
 
     return o;
 }
@@ -153,10 +158,10 @@ private:
     void measurePolarization ()
     {
         P.resize(0);
-        std::vector<size_t> ps = o["polarization"];
+        std::vector<int> ps = o["polarization"];
         for (size_t i=0; i<ps.size(); i++)
         {
-            if (ps[i] >= s.N_p) 
+            if (ps[i] >= s.N_p()) 
             {
                 std::cerr << std::endl << "Polarization: There is no plaquet " 
                     << ps[i] << " in this system." << std::endl;
@@ -169,10 +174,10 @@ private:
     void measurePolarization2 ()
     {
         P2.resize(0);
-        std::vector<size_t> ps = o["polarization2"];
+        std::vector<int> ps = o["polarization2"];
         for (size_t i=0; i<ps.size(); i++)
         {
-            if (ps[i] >= s.N_p) 
+            if (ps[i] >= s.N_p()) 
             {
                 std::cerr << std::endl << "Polarization2: There is no plaquet " 
                     << ps[i] << " in this system." << std::endl;
@@ -185,10 +190,10 @@ private:
     void measureParticleNumber ()
     {
         N.resize(0);
-        std::vector<size_t> ns = o["particle-number"];
+        std::vector<int> ns = o["particle-number"];
         for (size_t i=0; i<ns.size(); i++)
         {
-            if (ns[i] >= s.N_p) 
+            if (ns[i] >= s.N_p()) 
             {
                 std::cerr << std::endl << "Particle number: There is no plaquet " 
                     << ns[i] << " in this system." << std::endl;
@@ -418,9 +423,10 @@ void run (CommandLineOptions& opts)
     if (opts["natural"].isSet())
         opts["epsilonr"] = QCA_NATURAL_EPSILON_R;
 
-    const char* pnamesv[] = {"t","td","ti","V0","mu","Vext","Pext","a","b",
+    //TODO: include bs here as well
+    const char* pnamesv[] = {"t","td","V0","mu","Vext","Pext","a","b",
                              "beta","q","epsilonr","lambdaD"};
-    size_t pnamesc = 13;
+    size_t pnamesc = 12;
     std::vector<std::pair<std::string, size_t> > params;
     for (size_t i=0; i<pnamesc; i++)
     {
@@ -436,17 +442,19 @@ void run (CommandLineOptions& opts)
     OptionSection cOpts(opts);
     cOpts["t"] = 1;
     cOpts["td"] = 0;
-    cOpts["ti"] = 0;
     cOpts["V0"] = 0;
     cOpts["mu"] = 0;
     cOpts["Vext"] = 0;
-    cOpts["Pext"] = 0;
-    cOpts["a"] = 1;
-    cOpts["b"] = 1.75;
     cOpts["beta"] = 1;
     cOpts["q"] = 0;
     cOpts["epsilonr"] = 1;
     cOpts["lambdaD"] = 0;
+    cOpts["a"] = 1;
+    cOpts["b"] = 1.75;
+    std::vector<double> bs;
+    bs.push_back(1.75);
+    //cOpts["bs"] = bs; TODO
+    cOpts["Pext"] = 0;
     Measurement<System> M(cOpts);
     runMeasurement(M, opts, params, 0);
 }
@@ -478,23 +486,11 @@ int main(int argc, const char** argv)
     try 
     {
         if (opts["model"] == "bond")
-            run<DQcaBondPlain>(opts);
-        else if (opts["model"] == "fixedcharge2" || opts["model"] == "fixed2")
-            run<DQcaFixedCharge2Plain>(opts);
-        else if (opts["model"] == "fixedcharge6" || opts["model"] == "fixed6")
-            run<DQcaFixedCharge6Plain>(opts);
+            run<DQcaGeneric<QcaBond> >(opts);
+        else if (opts["model"] == "fixedcharge" || opts["model"] == "fixed")
+            run<DQcaGeneric<QcaFixedCharge> >(opts);
         else if (opts["model"] == "grandcanonical" || opts["model"] == "grand")
-            run<DQcaGrandCanonicalPlain>(opts);
-        else if (opts["model"] == "bondDP")
-            run<DQcaBondDeadPlaquet>(opts);
-        else if (opts["model"] == "fixedcharge2DP" || opts["model"] == "fixed2DP")
-            run<DQcaFixedCharge2DeadPlaquet>(opts);
-        else if (opts["model"] == "fixedcharge6DP" || opts["model"] == "fixed6DP")
-            run<DQcaFixedCharge6DeadPlaquet>(opts);
-        else if (opts["model"] == "grandcanonical2DP" || opts["model"] == "grand2DP")
-            run<DQcaGrandCanonical2DeadPlaquet>(opts);
-        else if (opts["model"] == "grandcanonical6DP" || opts["model"] == "grand6DP")
-            run<DQcaGrandCanonical6DeadPlaquet>(opts);
+            run<DQcaGeneric<QcaGrandCanonical> >(opts);
         else
         {
             printUsage(opts);
