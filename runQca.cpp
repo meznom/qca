@@ -55,6 +55,7 @@ CommandLineOptions setupCLOptions ()
     o["mu"].setDefault(0);
     o["Vext"].setDefault(0);
     o["beta"].setDefault(1);
+    o["epc"].setDefault(2);
     o["q"].setDefault(0);
     o["epsilonr"].setDefault(1);
     o["lambdaD"].setDefault(0);
@@ -446,6 +447,7 @@ void run (CommandLineOptions& opts)
     cOpts["mu"] = 0;
     cOpts["Vext"] = 0;
     cOpts["beta"] = 1;
+    cOpts["epc"] = 2;
     cOpts["q"] = 0;
     cOpts["epsilonr"] = 1;
     cOpts["lambdaD"] = 0;
