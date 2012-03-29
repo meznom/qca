@@ -10,6 +10,7 @@ Requirements:
  * Boost[3] to build the unit tests. I'm using version 1.42, but older versions
    will probably work as well.
  * Doxygen[4] to generate the documentation.
+ * works with gcc (I am using 4.6) and clang (I am using 3.0)
 
 Build:
  $ mkdir build_dir
@@ -62,8 +63,26 @@ two plaquet fixed charge system (again, the dead plaquet variant) and for two
 different values of b, the inter-plaquet spacing.
 
 
-Burkhard Ritter (burkhard@ualberta.ca), July 2011
+Performance
+-----------
 
+The performance of gcc 4.6 and clang 3.0 is about the same. For example with gcc 4.6:
+$ time nice -19 ./src/runQca -n -m fixed -epc 2 -p 3 -V0 1000 -a 0.01 -b 0.02 \
+                             -beta 1 -t 1 -Pext 1 -N 0,1,2 -P 0,1,2 -P2 0,1,2
+[...]
+real    25m48.757s
+
+And with clang 3.0:
+$ time nice -19 ./src/runQca -n -m fixed -epc 2 -p 3 -V0 1000 -a 0.01 -b 0.02 \
+                             -beta 1 -t 1 -Pext 1 -N 0,1,2 -P 0,1,2 -P2 0,1,2
+[...]
+real    25m39.944s
+
+The compilation time with clang is a little bit more than two times faster than
+with gcc (~10 seconds instead of ~25 seconds).
+
+
+Burkhard Ritter (burkhard@ualberta.ca), March 2012
 
 
 [1] http://www.cmake.org

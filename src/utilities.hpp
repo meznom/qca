@@ -11,7 +11,6 @@
 #define __UTILITIES_HPP__
 
 #include <iostream>
-
 #include <map>
 #include <vector>
 #include <string>
@@ -21,10 +20,9 @@
 #include <algorithm>
 #include <cctype>
 #include <cstring>
-namespace System {
-    #include <sys/types.h>
-    #include <sys/stat.h>
-}
+#include <sys/types.h>
+#include <sys/stat.h>
+
 
 /**
  * The interface follows the python os.path module.
@@ -35,8 +33,8 @@ namespace FileSystem
     {
         inline bool exists(std::string path)
         {
-            struct System::stat s;
-            if (System::stat(path.c_str(), &s) == 0) {
+            struct stat s;
+            if (stat(path.c_str(), &s) == 0) {
                 return true;
             }
             return false;
@@ -44,8 +42,8 @@ namespace FileSystem
 
         inline bool isdir(std::string path)
         {
-            struct System::stat s;
-            if (System::stat(path.c_str(), &s) != 0) {
+            struct stat s;
+            if (stat(path.c_str(), &s) != 0) {
                 return false;
             }
             if (S_ISDIR(s.st_mode)) {
@@ -56,8 +54,8 @@ namespace FileSystem
 
         inline bool isfile(std::string path)
         {
-            struct System::stat s;
-            if (System::stat(path.c_str(), &s) != 0) {
+            struct stat s;
+            if (stat(path.c_str(), &s) != 0) {
                 return false;
             }
             if (S_ISREG(s.st_mode)) {
@@ -75,9 +73,9 @@ namespace FileSystem
             : std::runtime_error(msg) {}
     };
 
-    inline void mkdir(std::string path)
+    inline void makedir(std::string path)
     {
-        if (System::mkdir(path.c_str(), 0755) != 0) {
+        if (mkdir(path.c_str(), 0755) != 0) {
             throw FileSystemException(
                 std::string("Could not create directory '") + path + "'."
             );
