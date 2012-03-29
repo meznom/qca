@@ -1,4 +1,3 @@
-# TODO: maybe use precompiled headers to speed up compilation
 ### generic ###
 project(ExactDiagonalization)
 cmake_minimum_required(VERSION 2.6)
@@ -58,6 +57,9 @@ if (NOT CMAKE_BUILD_TYPE)
     )
 endif (NOT CMAKE_BUILD_TYPE)
 
+### src ###
+add_subdirectory(src)
+
 ### tests ###
 enable_testing()
 add_custom_target(buildtest)
@@ -67,15 +69,3 @@ add_subdirectory(tests EXCLUDE_FROM_ALL)
 
 ### documentation ###
 add_subdirectory(doc EXCLUDE_FROM_ALL)
-
-### our executables ###
-add_executable(runQca
-    runQca.cpp
-    version.hpp
-)
-
-# get program version from git
-add_custom_command(OUTPUT version.hpp
-    WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
-    COMMAND bash updateVersion.hpp.sh
-)

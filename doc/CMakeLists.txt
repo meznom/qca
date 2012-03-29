@@ -1,4 +1,4 @@
-project(ExactDiagonalizationDoc)
+project(ExactDiagonalization_doc)
 
 configure_file(
     ${CMAKE_CURRENT_SOURCE_DIR}/Doxyfile.in

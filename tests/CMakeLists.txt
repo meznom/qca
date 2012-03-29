@@ -1,4 +1,4 @@
-project(diagonalizer_tests)
+project(ExactDiagonalization_tests)
 cmake_minimum_required(VERSION 2.6)
 #set(CMAKE_VERBOSE_MAKEFILE ON)
 
@@ -9,13 +9,16 @@ find_path(
 )
 include_directories(
 	${BOOST_INCLUDE_DIR}
-	..
+	../src
 )
 find_library(
 	BOOST_LIBRARY
 	boost_unit_test_framework
 	PATHS ~/lib ~/src/lib ~/o/lib ~/o/src/lib /opt/local/lib /sw/lib
 )
+
+set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -USTORAGE_TYPE_OF_FERMIONIC_STATE")
+set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -USTORAGE_TYPE_OF_FERMIONIC_STATE")
 
 add_executable(utilitiesTest utilitiesTest.cpp)
 target_link_libraries(utilitiesTest ${BOOST_LIBRARY})

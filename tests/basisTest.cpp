@@ -21,19 +21,19 @@ BOOST_AUTO_TEST_CASE ( construct_state_from_string )
 
 BOOST_AUTO_TEST_CASE ( construct_simple_basis )
 {
-    Basis b(4);
-    b.construct();
+    Basis b;
+    b.construct(4);
     BOOST_CHECK (b.size() == 16);
 }
 
 BOOST_AUTO_TEST_CASE ( costruct_basis_with_symmetry_operators )
 {
-    Basis b1(4);
+    Basis b1;
     ParticleNumberSymmetryOperator* N = new ParticleNumberSymmetryOperator();
     SpinSymmetryOperator* S = new SpinSymmetryOperator();
     b1.addSymmetryOperator(N);
     b1.addSymmetryOperator(S);
-    b1.construct();
+    b1.construct(4);
     
     BOOST_CHECK (b1.size() == 16);
    
@@ -42,10 +42,10 @@ BOOST_AUTO_TEST_CASE ( costruct_basis_with_symmetry_operators )
     for (size_t i=0; i<b1.size(); i++)
         BOOST_CHECK (expected1[i] == b1(i).toString());
 
-    Basis b2(4);
+    Basis b2;
     b2.addSymmetryOperator(S);
     b2.addSymmetryOperator(N);
-    b2.construct();
+    b2.construct(4);
 
     BOOST_CHECK (b2.size() == 16);
    
@@ -60,12 +60,12 @@ BOOST_AUTO_TEST_CASE ( costruct_basis_with_symmetry_operators )
 
 BOOST_AUTO_TEST_CASE ( test_sectors_and_ranges_1 )
 {
-    Basis b(4);
+    Basis b;
     ParticleNumberSymmetryOperator* N = new ParticleNumberSymmetryOperator();
     SpinSymmetryOperator* S = new SpinSymmetryOperator();
     b.addSymmetryOperator(N);
     b.addSymmetryOperator(S);
-    b.construct();
+    b.construct(4);
 
     BOOST_CHECK (b.getRanges().size() == 9);
 
@@ -99,12 +99,12 @@ BOOST_AUTO_TEST_CASE ( test_sectors_and_ranges_1 )
 
 BOOST_AUTO_TEST_CASE ( test_sectors_and_ranges_2 )
 {
-    Basis b(4);
+    Basis b;
     ParticleNumberSymmetryOperator* N = new ParticleNumberSymmetryOperator();
     SpinSymmetryOperator* S = new SpinSymmetryOperator();
     b.addSymmetryOperator(S);
     b.addSymmetryOperator(N);
-    b.construct();
+    b.construct(4);
 
     BOOST_CHECK (b.getRanges().size() == 9);
 
@@ -138,12 +138,12 @@ BOOST_AUTO_TEST_CASE ( test_sectors_and_ranges_2 )
 
 BOOST_AUTO_TEST_CASE ( test_sectors_and_ranges_3 )
 {
-    Basis b(8);
+    Basis b;
     ParticleNumberSymmetryOperator* N = new ParticleNumberSymmetryOperator();
     SpinSymmetryOperator* S = new SpinSymmetryOperator();
     b.addSymmetryOperator(N);
     b.addSymmetryOperator(S);
-    b.construct();
+    b.construct(8);
 
     Range r;
     r = b.getRangeOfSector(4, 4);
@@ -161,95 +161,95 @@ BOOST_AUTO_TEST_CASE ( test_sectors_and_ranges_3 )
 
 BOOST_AUTO_TEST_CASE ( test_construct_basis_with_filter )
 {
-    Basis b(8);
+    Basis b;
     ParticleNumberSymmetryOperator N;
     SpinSymmetryOperator S;
     b.addSymmetryOperator(&N);
     b.addSymmetryOperator(&S);
     BOOST_CHECK_THROW (b.setFilter(constructSector(1,2,3)), BasisException);
     b.setFilter(constructSector(2));
-    b.construct();
+    b.construct(8);
     BOOST_CHECK (b.size() == 28);
     BOOST_CHECK (b.getRanges().size() == 3);
 
-    b = Basis(8);
+    b = Basis();
     b.addSymmetryOperator(&N);
     b.addSymmetryOperator(&S);
     b.setFilter(constructSector(2,0));
-    b.construct();
+    b.construct(8);
     BOOST_CHECK (b.size() == 16);
     BOOST_CHECK (b.getRanges().size() == 1);
 
-    b = Basis(8);
+    b = Basis();
     b.addSymmetryOperator(&N);
     b.addSymmetryOperator(&S);
     b.setFilter(constructSector(3,-1));
-    b.construct();
+    b.construct(8);
     BOOST_CHECK (b.size() == 24);
     BOOST_CHECK (b.getRanges().size() == 1);
 
-    b = Basis(8);
+    b = Basis();
     b.addSymmetryOperator(&N);
     b.addSymmetryOperator(&S);
     b.setFilter(constructSector(3));
-    b.construct();
+    b.construct(8);
     BOOST_CHECK (b.size() == 56);
     BOOST_CHECK (b.getRanges().size() == 4);
     
-    b = Basis(8);
+    b = Basis();
     b.addSymmetryOperator(&S);
     b.addSymmetryOperator(&N);
     b.setFilter(constructSector(3));
-    b.construct();
+    b.construct(8);
     BOOST_CHECK (b.size() == 8);
     BOOST_CHECK (b.getRanges().size() == 2);
 
-    b = Basis(8);
+    b = Basis();
     b.addSymmetryOperator(&S);
     b.addSymmetryOperator(&N);
     b.setFilter(constructSector(0,2));
-    b.construct();
+    b.construct(8);
     BOOST_CHECK (b.size() == 16);
     BOOST_CHECK (b.getRanges().size() == 1);
 
-    b = Basis(8);
+    b = Basis();
     b.addSymmetryOperator(&S);
     b.addSymmetryOperator(&N);
     b.setFilter(constructSector(17,234));
-    b.construct();
+    b.construct(8);
     BOOST_CHECK (b.size() == 0);
     BOOST_CHECK (b.getRanges().size() == 0);
 }
 
 BOOST_AUTO_TEST_CASE ( construct_basis_multiple_times )
 {
-    Basis b(4);
+    Basis b;
     ParticleNumberSymmetryOperator N;
     SpinSymmetryOperator S;
     b.addSymmetryOperator(&N);
     b.addSymmetryOperator(&S);
     
-    b.construct();
+    b.construct(4);
     size_t n_b1 = b.size();
     size_t n_r1 = b.getRanges().size();
 
-    b.construct();
+    b.construct(4);
     size_t n_b2 = b.size();
     size_t n_r2 = b.getRanges().size();
 
     BOOST_CHECK (n_b1 == n_b2);
     BOOST_CHECK (n_r1 == n_r2);
 
-    b = Basis(8);
+    b = Basis();
     b.addSymmetryOperator(&N);
     b.addSymmetryOperator(&S);
     b.setFilter(constructSector(2));
 
-    b.construct();
+    b.construct(8);
     n_b1 = b.size();
     n_r1 = b.getRanges().size();
 
-    b.construct();
+    b.construct(8);
     n_b2 = b.size();
     n_r2 = b.getRanges().size();
 
@@ -268,14 +268,14 @@ BOOST_AUTO_TEST_CASE ( performance_construct_basis )
 #else
     N_orbital = 16;
 #endif
-    Basis b(N_orbital);
+    Basis b;
     ParticleNumberSymmetryOperator N;
     SpinSymmetryOperator S;
     b.addSymmetryOperator(&N);
     b.addSymmetryOperator(&S);
     
     startCPUTime = std::clock();
-    b.construct();
+    b.construct(N_orbital);
     endCPUTime = std::clock();
 
     cpuTime = static_cast<double>(endCPUTime-startCPUTime)/CLOCKS_PER_SEC;
