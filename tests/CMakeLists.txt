@@ -40,4 +40,8 @@ add_executable(qcaTest qcaTest.cpp)
 target_link_libraries(qcaTest ${BOOST_LIBRARY})
 add_test(qca qcaTest)
 
-add_dependencies(buildtest utilitiesTest basisTest systemTest eigenHelpersTest qcaTest)
+add_executable(cqcaTest cqcaTest.cpp)
+target_link_libraries(cqcaTest ${BOOST_LIBRARY})
+add_test(cqca cqcaTest)
+
+add_dependencies(buildtest utilitiesTest basisTest systemTest eigenHelpersTest qcaTest cqcaTest)

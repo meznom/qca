@@ -1,7 +1,6 @@
 #define BOOST_TEST_DYN_LINK
 #define BOOST_TEST_MODULE qca test
 #include <boost/test/unit_test.hpp>
-#include <boost/property_tree/json_parser.hpp>
 #include <ctime>
 
 #define STORAGE_TYPE_OF_FERMIONIC_STATE uint32_t
@@ -1092,36 +1091,4 @@ BOOST_AUTO_TEST_CASE ( limits_of_nonuniform_wire )
                 0,
                 1E-5
                 ));
-}
-
-using boost::property_tree::ptree;
-using namespace boost::property_tree::json_parser;
-
-BOOST_AUTO_TEST_CASE ( test_configurable_qca_systems )
-{
-    std::string json1 = " \
-    { \
-        \"t\": 1, \
-        \"V0\": 10000, \
-        \"layout\": { \
-            \"a\": 10 \
-        } \
-    } \
-    ";
-    ptree c;
-    std::stringstream ss(json1);
-
-    read_json(ss, c);
-    for (ptree::const_iterator i = c.begin(); i!=c.end(); i++)
-    {
-        std::cerr << i->first << "  " << i->second.data() << std::endl;
-    }
-
-    CQca<QcaBond> s1;
-    s1.setConfig(c);
-
-    ptree c2 = s1.getConfig();
-    std::stringstream ss2;
-    write_json(ss2, c2);
-    std::cerr << ss2.str() << std::endl;
 }

@@ -4,7 +4,6 @@
 #include "system.hpp"
 #include "utilities.hpp"
 #include <limits>
-#include <boost/property_tree/ptree.hpp>
 
 const double QCA_ELEMENTARY_CHARGE = 1.602176565E-19;
 const double QCA_EPSILON_0 = 8.8541878176E-12;
@@ -602,6 +601,8 @@ public:
         return measureParticleNumber(beta, p);
     }
 
+    //TODO: better return a std::vector -- only use Eigen internally (inside Qca
+    //classes)
     const DVector& energies ()
     {
         return H.eigenvalues();
@@ -869,132 +870,6 @@ public:
         //os["Pext"] = Base::Pext;
 
         return os;
-    }
-};
-
-using boost::property_tree::ptree;
-
-class ConfigurationException: public std::runtime_error
-{
-public:
-    ConfigurationException(const std::string& msg)
-        : std::runtime_error(msg) {}
-};
-
-class CLayout : public Layout
-{
-private:
-    typedef Layout Base;
-    
-    enum {wire, nonuniformWire} layoutType;
-    int cells;
-    double a, b, Pext;
-    std::vector<double> bs;
-    ElectronsPerCell epc;
-
-public:
-    CLayout ()
-    {}
-
-    void setConfig (ptree c)
-    {
-        std::string typeString = c.get("type", "wire");
-        if (typeString == "wire")
-            layoutType = wire;
-        else if(typeString == "nonuniformwire")
-            layoutType = nonuniformWire;
-        else
-            throw ConfigurationException("Unknown layout type: '" + typeString + "'");
-
-        //TODO: check input
-        //TODO: implement bs
-        cells = c.get("cells", 1);
-        a = c.get("a", 1.0);
-        b = c.get("b", 3.0);
-        Pext = c.get("Pext", 0.0);
-        int epcInt = c.get("epc", 2);
-        if (epcInt == 2)
-            epc = epc2;
-        else if(epcInt == 6)
-            epc = epc6;
-        else
-            throw ConfigurationException("Electrons per Cell (epc) must be either 2 or 6");
-        
-        if (layoutType == wire)
-            Base::wire(cells, a, b, Pext, epc);
-        else if (layoutType == nonuniformWire)
-            Base::nonuniformWire(cells, a, bs, Pext, epc);
-    }
-
-    ptree getConfig () const
-    {
-        ptree c;
-
-        if (layoutType == wire)
-        {
-            c.put("type", "wire");
-            c.put("cells", cells);
-            c.put("a", a);
-            c.put("b", b);
-            c.put("Pext", Pext);
-            c.put("epc", epc);
-        }
-        else if (layoutType == nonuniformWire)
-        {
-            c.put("type", "nonuniformwire");
-            c.put("cells", cells);
-            c.put("a", a);
-            //c.put("bs", b); TODO
-            c.put("Pext", Pext);
-            c.put("epc", epc);
-        }
-        return c;
-    }
-};
-
-template<class QcaSystem>
-class CQca : public QcaSystem
-{
-private:
-    typedef QcaSystem Base;
-    typedef CQca<QcaSystem> Self;
-
-    CLayout l;
-public:
-    CQca ()
-    {}
-
-    void setConfig (ptree c)
-    {
-        Base::t = c.get("t", 1.0);
-        Base::td = c.get("td", 0.0); 
-        Base::Vext = c.get("Vext", 0.0);
-        Base::V0 = c.get("V0", 1000.0); 
-        Base::mu = c.get("mu", 0.0);
-        Base::epsilonr = c.get("epsilonr", 1.0);
-        Base::lambdaD = c.get("lambdaD", 0.0);
-        Base::q = c.get("q", 0);
-        
-        l.setConfig(c.get_child("layout", ptree()));
-        Base::l = l;
-    }
-
-    ptree getConfig () const
-    {
-        ptree c;
-        c.put("t", Base::t);
-        c.put("td", Base::td);
-        c.put("Vext", Base::Vext);
-        c.put("V0", Base::V0);
-        c.put("mu", Base::mu);
-        c.put("epsilonr", Base::epsilonr);
-        c.put("lambdaD", Base::lambdaD);
-        c.put("q", Base::q);
-        //TODO: should CLayout derive from Layout, or should it contain Layout
-        //as a member variable; what makes the most sense
-        //CLayout l = Base::l;
-        c.add_child("layout", l.getConfig());
-        return c;
     }
 };
 
