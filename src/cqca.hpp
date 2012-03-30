@@ -386,8 +386,8 @@ public:
             
         if (i_c < numberOfConfigs())
         {
-            return cs[i_c];
             i_c++;
+            return cs[i_c-1];
         }
         else
             return ptree();
