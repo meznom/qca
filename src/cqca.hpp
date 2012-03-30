@@ -4,6 +4,17 @@
 #include <boost/property_tree/ptree.hpp>
 #include "qca.hpp"
 
+
+//TODO: maybe use modified json -> get rid of '"', and treat all literals as
+//strings => easier to write and read
+
+
+// rtree = result tree
+// TODO: it would be nice to get rtree to work with write_json
+typedef boost::property_tree::basic_ptree<std::string, double> rtree;
+//typedef ptree rtree;
+
+
 class ConfigurationException: public std::runtime_error
 {
 public:
@@ -24,25 +35,30 @@ namespace ptreeHelpers
         return v;
     }
 
-    template <typename T>
-    ptree constructArray (const std::vector<T>& v)
+    template <class Tree, typename T>
+    Tree constructArray (const std::vector<T>& v)
     {
-        ptree c;
+        typedef typename Tree::value_type pair;
+        Tree c;
         for (int i=0; i<v.size(); i++)
         {
-            ptree p;
+            Tree p;
             p.put_value(v[i]);
-            c.push_back(ptree::value_type("", p));
+            c.push_back(pair("", p));
         }
         return c;
     }
+}
 
-    // rtree = result tree
-    // TODO: rtree really should have double as the value type, but there are a
-    // couple of issues that need to be resolved before this will work/compile
-    //typedef boost::property_tree::basic_ptree<std::string, double> rtree;
-    typedef ptree rtree;
-};
+// namespace boost { namespace property_tree
+// {
+//     template <>
+//     struct translator_between<double, std::string>
+//     {   
+//         typedef id_translator<double> type;
+//     };
+// }}
+
 
 using boost::property_tree::ptree;
 using namespace ptreeHelpers;
@@ -70,7 +86,8 @@ public:
         cells = c.get("cells", 1);
         a = c.get("a", 1.0);
         b = c.get("b", 3.0);
-        bs = getBs(c);
+        bs = getArray<double>(c.get_child("bs", ptree()));
+        if (bs.size() == 0) bs.push_back(3.0);
         Pext = c.get("Pext", 0.0);
         epc = getEpc(c);
 
@@ -113,7 +130,7 @@ public:
             c.put("type", "nonuniformwire");
             c.put("cells", cells);
             c.put("a", a);
-            c.put_child("bs", ptreeArray(bs));
+            c.put_child("bs", constructArray<ptree>(bs));
             c.put("Pext", Pext);
             c.put("epc", epc);
         }
@@ -141,28 +158,6 @@ private:
             return epc6;
         else
             throw ConfigurationException("Electrons per Cell (epc) must be either 2 or 6");
-    }
-
-    std::vector<double> getBs (const ptree& c) const
-    {
-        std::vector<double> myBs;
-        ptree bsc = c.get_child("bs", ptree());
-        for (ptree::const_iterator i=bsc.begin(); i!=bsc.end(); i++)
-            myBs.push_back(i->second.get_value<double>());
-        return myBs;
-    }
-
-    template <typename T>
-    ptree ptreeArray (const std::vector<T>& v) const
-    {
-        ptree c;
-        for (int i=0; i<v.size(); i++)
-        {
-            ptree p;
-            p.put_value(v[i]);
-            c.push_back(ptree::value_type("", p));
-        }
-        return c;
     }
 };
 
@@ -328,7 +323,7 @@ private:
             v[0] = i->first;
             v[1] = i->first - Base::Emin();
             v[2] = i->second;
-            r.push_back(ptree::value_type("", constructArray(v)));
+            r.push_back(rtree::value_type("", constructArray<rtree>(v)));
         }
         return r;
     }
@@ -339,6 +334,144 @@ private:
         std::stringstream ss;
         ss << v;
         return ss.str();
+    }
+};
+
+class Configurator 
+{
+private:
+    struct Variant
+    {
+        Variant (const std::string& name_, 
+                 const std::vector<std::string> values_, 
+                 int index_)
+        : name(name_), values(values_), index(index_) 
+        {}
+
+        std::string currentValue () const
+        {
+            return values[index];
+        }
+        
+        std::string name;
+        std::vector<std::string> values;
+        int index;
+    };
+
+    std::vector<ptree> cs;
+    std::vector<Variant> variants;
+    std::vector<std::string> changed;
+    int i_c, i_v;
+
+public:
+    Configurator (const std::string& jsonString)
+    : i_c(0), i_v(0)
+    {
+        ptree c;
+        std::stringstream ss(jsonString);
+        read_json(ss, c);
+        if (isArray(c))
+            for (ptree::const_iterator i=c.begin(); i!=c.end(); i++)
+                cs.push_back(i->second);
+        else
+            cs.push_back(c);
+    }
+
+    ptree nextConfig () 
+    {
+        if (i_v == 0)
+            constructVariants(cs[i_c]);
+        if (numberOfVariants() != 1)
+            return nextVariant();
+            
+        if (i_c < numberOfConfigs())
+        {
+            return cs[i_c];
+            i_c++;
+        }
+        else
+            return ptree();
+    }
+
+    ptree nextVariant ()
+    {
+        if (i_v >= numberOfVariants())
+        {
+            i_v=0;
+            i_c++;
+            return nextConfig();
+        }
+
+        ptree p = cs[i_c];
+        for (int i=0; i<variants.size(); i++)
+        {
+            Variant& v = variants[i];
+            p.put(v.name, v.currentValue());
+        }
+        p.put_child("changed", constructArray<ptree>(changed));
+        increaseVariantsIndex();
+        i_v++;
+
+        return p;
+    }
+
+    void increaseVariantsIndex ()
+    {
+        changed.clear();
+        for (int i=variants.size()-1; i>=0; i--)
+        {
+            Variant& v = variants[i];
+            v.index++;
+            changed.push_back(v.name);
+            if (v.index == v.values.size())
+                v.index = 0;
+            else
+                break;
+        }
+    }
+
+    void constructVariants (const ptree& c)
+    {
+        variants.clear();
+        const ptree& p = c.get_child("changing", ptree());
+        if (!isArray(p))
+            throw ConfigurationException("'changing' must be an array of changing parameters");
+        std::vector<std::string> names = getArray<std::string>(p);
+        for (int i=0; i<names.size(); i++)
+        {
+            const ptree& a = c.get_child(names[i], ptree());
+            if (!isArray(a))
+                throw ConfigurationException("Changing parameter '" + names[i] + 
+                                             "' does not exist or is not an array");
+            Variant v(names[i], getArray<std::string>(a), 0);
+            variants.push_back(v);
+        }
+    }
+
+    int numberOfConfigs () const
+    {
+        return cs.size();
+    }
+
+    int numberOfVariants () const
+    {
+        int n=1;
+        for (int i=0; i<variants.size(); i++)
+            n *= variants[i].values.size();
+        return n;
+    }
+
+private:
+    bool isArray (const ptree& c)
+    {
+        if (c.get_value<std::string>() != "")
+            return false;
+        if (c.size() == 0)
+            return false;
+        bool flag = true;
+        for (ptree::const_iterator i=c.begin(); i!=c.end(); i++)
+            if (i->first != "") flag = false;
+        return flag;
     }
 };
 
