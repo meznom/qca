@@ -5,6 +5,9 @@
 #include "qca.hpp"
 
 
+//TODO: at least minimal documentation on how Configurator and VConfiguration
+//work
+
 //TODO: maybe use modified json -> get rid of '"', and treat all literals as
 //strings => easier to write and read
 
@@ -47,6 +50,18 @@ namespace ptreeHelpers
             c.push_back(pair("", p));
         }
         return c;
+    }
+
+    bool isArray (const ptree& c)
+    {
+        if (c.get_value<std::string>() != "")
+            return false;
+        if (c.size() == 0)
+            return false;
+        bool flag = true;
+        for (ptree::const_iterator i=c.begin(); i!=c.end(); i++)
+            if (i->first != "") flag = false;
+        return flag;
     }
 }
 
@@ -337,14 +352,14 @@ private:
     }
 };
 
-class Configurator 
+class VConfiguration
 {
 private:
-    struct Variant
+    struct VParam
     {
-        Variant (const std::string& name_, 
-                 const std::vector<std::string> values_, 
-                 int index_)
+        VParam (const std::string& name_, 
+                const std::vector<std::string> values_, 
+                int index_)
         : name(name_), values(values_), index(index_) 
         {}
 
@@ -358,69 +373,108 @@ private:
         int index;
     };
 
-    std::vector<ptree> cs;
-    std::vector<Variant> variants;
+    ptree c;
+    bool gotConfig, gotAllVariants, constructedVariants, hasVariants;
+    std::vector<VParam> vparams;
     std::vector<std::string> changed;
-    int i_c, i_v;
 
 public:
-    Configurator (const std::string& jsonString)
-    : i_c(0), i_v(0)
-    {
-        ptree c;
-        std::stringstream ss(jsonString);
-        read_json(ss, c);
-        if (isArray(c))
-            for (ptree::const_iterator i=c.begin(); i!=c.end(); i++)
-                cs.push_back(i->second);
-        else
-            cs.push_back(c);
-    }
+    VConfiguration (const ptree& c_)
+    : c(c_), gotConfig(false), gotAllVariants(false), 
+      constructedVariants(false), hasVariants(false)
+    {}
 
-    ptree nextConfig () 
+    ptree getNext () 
     {
-        if (i_v == 0)
-            constructVariants(cs[i_c]);
-        if (numberOfVariants() != 1)
-            return nextVariant();
-            
-        if (i_c < numberOfConfigs())
-        {
-            i_c++;
-            return cs[i_c-1];
-        }
-        else
-            return ptree();
-    }
+        constructVariants();
 
-    ptree nextVariant ()
-    {
-        if (i_v >= numberOfVariants())
+        if (!hasNext())
+            throw ConfigurationException("This configuration has no more variants.");
+        
+        if (!hasVariants) 
         {
-            i_v=0;
-            i_c++;
-            return nextConfig();
+            gotConfig = true;
+            return c;
         }
 
-        ptree p = cs[i_c];
-        for (int i=0; i<variants.size(); i++)
-        {
-            Variant& v = variants[i];
-            p.put(v.name, v.currentValue());
-        }
-        p.put_child("changed", constructArray<ptree>(changed));
-        increaseVariantsIndex();
-        i_v++;
-
+        ptree p = getConfigForCurrentVariant();
+        increaseVariantIndex();
         return p;
     }
 
-    void increaseVariantsIndex ()
+    bool hasNext () 
+    {
+        constructVariants();
+
+        if (!hasVariants) 
+            return !gotConfig;
+
+        return !gotAllVariants;
+    }
+
+    int numberOfVariants ()
+    {
+        constructVariants();
+        int n=1;
+        for (int i=0; i<vparams.size(); i++)
+            n *= vparams[i].values.size();
+        return n;
+    }
+
+private:
+    void constructVariants ()
+    {
+        if (constructedVariants)
+            return;
+        
+        const ptree p = c.get_child("changing", ptree());
+        if (!isArray(p))
+        {
+            if (p.get_value<std::string>() != "")
+                throw ConfigurationException("'changing' must be an array of changing parameters");
+            hasVariants = false;
+            return;
+        }
+
+        hasVariants = true;
+        changed.clear();
+        std::vector<std::string> names = getArray<std::string>(p);
+        for (int i=0; i<names.size(); i++)
+        {
+            const ptree a = c.get_child(names[i], ptree());
+            if (!isArray(a))
+                throw ConfigurationException("Changing parameter '" + names[i] + 
+                                             "' does not exist or is not an array");
+            VParam v(names[i], getArray<std::string>(a), 0);
+            vparams.push_back(v);
+            
+            // initially all varying parameters are considered changed
+            changed.push_back(names[i]);
+        }
+        constructedVariants = true;
+    }
+
+    ptree getConfigForCurrentVariant () const
+    {
+        ptree nc = c;
+        for (int i=0; i<vparams.size(); i++)
+        {
+            // first delete all children (the array elements) and then set the
+            // single new value
+            ptree& n = nc.get_child(vparams[i].name);
+            for (ptree::iterator i=n.begin(); i!=n.end(); i = n.erase(i));
+            n.put_value(vparams[i].currentValue());
+        }
+        nc.put_child("changed", constructArray<ptree>(changed));
+        return nc;
+    }
+
+    void increaseVariantIndex ()
     {
         changed.clear();
-        for (int i=variants.size()-1; i>=0; i--)
+        for (int i=vparams.size()-1; i>=0; i--)
         {
-            Variant& v = variants[i];
+            VParam& v = vparams[i];
             v.index++;
             changed.push_back(v.name);
             if (v.index == v.values.size())
@@ -428,50 +482,64 @@ public:
             else
                 break;
         }
+        // keep original order of entries in changing
+        std::reverse(changed.begin(), changed.end());
+        
+        gotAllVariants = true;
+        for (int i=0; i<vparams.size(); i++)
+            if (vparams[i].index != 0)
+            {
+                gotAllVariants = false;
+                return;
+            }
     }
+};
 
-    void constructVariants (const ptree& c)
-    {
-        variants.clear();
-        const ptree& p = c.get_child("changing", ptree());
-        if (!isArray(p))
-            throw ConfigurationException("'changing' must be an array of changing parameters");
-        std::vector<std::string> names = getArray<std::string>(p);
-        for (int i=0; i<names.size(); i++)
-        {
-            const ptree& a = c.get_child(names[i], ptree());
-            if (!isArray(a))
-                throw ConfigurationException("Changing parameter '" + names[i] + 
-                                             "' does not exist or is not an array");
-            Variant v(names[i], getArray<std::string>(a), 0);
-            variants.push_back(v);
-        }
-    }
-
-    int numberOfConfigs () const
-    {
-        return cs.size();
-    }
-
-    int numberOfVariants () const
-    {
-        int n=1;
-        for (int i=0; i<variants.size(); i++)
-            n *= variants[i].values.size();
-        return n;
-    }
-
+class Configurator 
+{
 private:
-    bool isArray (const ptree& c)
+    std::vector<VConfiguration> cs;
+    int i_c;
+
+public:
+    Configurator (const std::string& jsonString)
+    : i_c(0)
     {
-        if (c.get_value<std::string>() != "")
-            return false;
-        if (c.size() == 0)
-            return false;
-        bool flag = true;
-        for (ptree::const_iterator i=c.begin(); i!=c.end(); i++)
-            if (i->first != "") flag = false;
-        return flag;
+        ptree c;
+        std::stringstream ss(jsonString);
+        read_json(ss, c);
+        if (isArray(c))
+            for (ptree::const_iterator i=c.begin(); i!=c.end(); i++)
+                cs.push_back(VConfiguration(i->second));
+        else
+            cs.push_back(VConfiguration(c));
+    }
+
+    bool hasNext ()
+    {
+        if (i_c == cs.size()-1)
+            return cs[i_c].hasNext();
+        return i_c < cs.size();
+    }
+
+    ptree getNext ()
+    {
+        if (cs[i_c].hasNext())
+            return cs[i_c].getNext();
+        
+        i_c++;
+        if (i_c < cs.size())
+            return cs[i_c].getNext();
+        else
+            throw ConfigurationException("No more configurations available.");
+    }
+
+    int numberOfConfigs ()
+    {
+        int sum=0;
+        for (int i=0; i<cs.size(); i++)
+            sum += cs[i].numberOfVariants();
+        return sum;
     }
 };
 
