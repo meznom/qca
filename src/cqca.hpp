@@ -65,30 +65,20 @@ namespace ptreeHelpers
     }
 }
 
-// namespace boost { namespace property_tree
-// {
-//     template <>
-//     struct translator_between<double, std::string>
-//     {   
-//         typedef id_translator<double> type;
-//     };
-// }}
-
-
 using boost::property_tree::ptree;
 using namespace ptreeHelpers;
 
-class CLayout : public Layout
+class CLayout
 {
 private:
-    typedef Layout Base;
-    enum LayoutType {wire, nonuniformWire};
+    enum LayoutType {wire, nonuniformwire};
 
     LayoutType type;
     int cells;
     double a, b, Pext;
     std::vector<double> bs;
     ElectronsPerCell epc;
+    Layout l;
 
 public:
     CLayout ()
@@ -102,7 +92,9 @@ public:
         a = c.get("a", 1.0);
         b = c.get("b", 3.0);
         bs = getArray<double>(c.get_child("bs", ptree()));
-        if (bs.size() == 0) bs.push_back(3.0);
+        if (bs.size() == 0) 
+            for (int i=0; i<cells; i++) 
+                bs.push_back(3.0);
         Pext = c.get("Pext", 0.0);
         epc = getEpc(c);
 
@@ -122,9 +114,9 @@ public:
 
         // construct the wire
         if (type == wire)
-            Base::wire(cells, a, b, Pext, epc);
-        else if (type == nonuniformWire)
-            Base::nonuniformWire(cells, a, bs, Pext, epc);
+            l.wire(cells, a, b, Pext, epc);
+        else if (type == nonuniformwire)
+            l.nonuniformWire(cells, a, bs, Pext, epc);
     }
 
     ptree getConfig () const
@@ -140,7 +132,7 @@ public:
             c.put("Pext", Pext);
             c.put("epc", epc);
         }
-        else if (type == nonuniformWire)
+        else if (type == nonuniformwire)
         {
             c.put("type", "nonuniformwire");
             c.put("cells", cells);
@@ -152,6 +144,11 @@ public:
         return c;
     }
 
+    Layout& layout ()
+    {
+        return l;
+    }
+
 private:
     LayoutType getType (const ptree& c) const
     {
@@ -159,7 +156,7 @@ private:
         if (typeString == "wire")
             return wire;
         else if(typeString == "nonuniformwire")
-            return nonuniformWire;
+            return nonuniformwire;
         else
             throw ConfigurationException("Unknown layout type: '" + typeString + "'");
     }
@@ -176,65 +173,72 @@ private:
     }
 };
 
-template<class QcaSystem>
-class CQca : public QcaSystem
+class CQcaGenericBase
+{
+public:
+    virtual ~CQcaGenericBase () {}
+    virtual void setConfig (const ptree& c) = 0;
+    virtual ptree getConfig () const = 0;
+    virtual rtree measure () = 0;
+};
+
+template <class QcaSystem>
+class CQcaGeneric : public CQcaGenericBase
 {
 private:
-    typedef QcaSystem Base;
-    typedef CQca<QcaSystem> Self;
-
     CLayout l;
     ptree os;
-public:
-    CQca ()
-    {}
+    QcaSystem s;
 
-    void setConfig (const ptree& c)
+public:
+    virtual ~CQcaGeneric () {}
+
+    virtual void setConfig (const ptree& c)
     {
-        //TODO: model, natural
-        Base::t = c.get("t", 1.0);
-        Base::td = c.get("td", 0.0); 
-        Base::Vext = c.get("Vext", 0.0);
-        Base::V0 = c.get("V0", 1000.0); 
-        Base::mu = c.get("mu", 0.0);
-        Base::epsilonr = c.get("epsilonr", 1.0);
-        Base::lambdaD = c.get("lambdaD", 0.0);
-        Base::q = c.get("q", 0);
-        Base::beta = c.get("beta", 1);
+        //TODO: natural
+        s.t = c.get("t", 1.0);
+        s.td = c.get("td", 0.0); 
+        s.Vext = c.get("Vext", 0.0);
+        s.V0 = c.get("V0", 1000.0); 
+        s.mu = c.get("mu", 0.0);
+        s.epsilonr = c.get("epsilonr", 1.0);
+        s.lambdaD = c.get("lambdaD", 0.0);
+        s.q = c.get("q", 0);
+        s.beta = c.get("beta", 1);
         os = c.get_child("observables", ptree());
         l.setConfig(c.get_child("layout", ptree()));
-        Base::l = l;
+        s.l = l.layout();
     }
 
-    ptree getConfig () const
+    virtual ptree getConfig () const
     {
         /*
-         * Ideally we would read the layout configuration back from Base::l. However, the
+         * Ideally we would read the layout configuration back from s.l. However, the
          * the implementation of the class Layout currently does not know about its
          * high-level layout (e.g. is it a wire or a nonuniform wire). That's
          * why we store an instance of CLayout in CQca and use CLayout to get
          * the layout configuration.
          */
         ptree c;
-        c.put("t", Base::t);
-        c.put("td", Base::td);
-        c.put("Vext", Base::Vext);
-        c.put("V0", Base::V0);
-        c.put("mu", Base::mu);
-        c.put("epsilonr", Base::epsilonr);
-        c.put("lambdaD", Base::lambdaD);
-        c.put("q", Base::q);
-        c.put("beta", Base::beta);
+        c.put("t", s.t);
+        c.put("td", s.td);
+        c.put("Vext", s.Vext);
+        c.put("V0", s.V0);
+        c.put("mu", s.mu);
+        c.put("epsilonr", s.epsilonr);
+        c.put("lambdaD", s.lambdaD);
+        c.put("q", s.q);
+        c.put("beta", s.beta);
         c.put_child("layout", l.getConfig());
         c.put_child("observables", os);
         return c;
     }
 
-    rtree measure ()
+    virtual rtree measure ()
     {
         //TODO: only call update when necessary -- e.g. not necessary for
         //changed beta
-        Base::update();
+        s.update();
 
         rtree r;
         for (ptree::const_iterator i=os.begin(); i!=os.end(); i++)
@@ -257,21 +261,36 @@ private:
     std::vector<int> getCells (const ptree& c) const
     {
         std::vector<int> allCells;
-        for (int i=0; i<Base::N_p(); i++)
+        for (int i=0; i<s.N_p(); i++)
             allCells.push_back(i);
 
         std::vector<int> cells;
         if (c.get_value<std::string>() == "all")
             cells = allCells;
-        else if (c.get_value<std::string>() != "")
-            cells.push_back(c.get_value<int>());
-        else
+        else if (isArray(c))
             cells = getArray<int>(c);
+        else if (c.get_value<std::string>() != "")
+            try
+            {
+                cells.push_back(c.get_value<int>());
+            }
+            catch (std::runtime_error)
+            {
+                throw ConfigurationException("Invalid cell specification for observable");
+            }
 
         for (int i=0; i<cells.size(); i++)
+        {
             if (cells[i] < 0)
                 throw ConfigurationException("In observable specification: "
                                              "Cell numbers must be positive");
+            if (cells[i] >= s.N_p())
+                throw ConfigurationException(
+                        "In observable specification: Trying to measure cell " + 
+                        toString(cells[i]) + ", but there are only " + 
+                        toString(s.N_p()) + " cells in the system.");
+        }
+
         return cells;
     }
 
@@ -280,7 +299,7 @@ private:
         std::vector<int> cells = getCells(c);
         rtree r;
         for (int i=0; i<cells.size(); i++)
-            r.put(toString(cells[i]), Base::measurePolarization(cells[i]));
+            r.put(toString(cells[i]), s.measurePolarization(cells[i]));
         return r;
     }
 
@@ -289,7 +308,7 @@ private:
         std::vector<int> cells = getCells(c);
         rtree r;
         for (int i=0; i<cells.size(); i++)
-            r.put(toString(cells[i]), Base::measurePolarization2(cells[i]));
+            r.put(toString(cells[i]), s.measurePolarization2(cells[i]));
         return r;
     }
 
@@ -299,7 +318,7 @@ private:
         rtree r;
         for (int i=0; i<cells.size(); i++)
         {
-            std::vector<double> ns = Base::measureParticleNumber(cells[i]);
+            std::vector<double> ns = s.measureParticleNumber(cells[i]);
             r.put(toString(cells[i]) + ".total", ns[4]);
             r.put(toString(cells[i]) + ".0", ns[0]);
             r.put(toString(cells[i]) + ".1", ns[1]);
@@ -330,13 +349,13 @@ private:
         typedef std::map<double, int, EpsilonLess> myMap;
         typedef typename myMap::const_iterator mapIt;
         myMap evs;
-        for (int i=0; i<Base::energies().size(); i++)
-            evs[Base::energies()(i)]++;
+        for (int i=0; i<s.energies().size(); i++)
+            evs[s.energies()(i)]++;
         for (mapIt i=evs.begin(); i!=evs.end(); i++)
         {
             std::vector<double> v(3);
             v[0] = i->first;
-            v[1] = i->first - Base::Emin();
+            v[1] = i->first - s.Emin();
             v[2] = i->second;
             r.push_back(rtree::value_type("", constructArray<rtree>(v)));
         }
@@ -350,6 +369,85 @@ private:
         ss << v;
         return ss.str();
     }
+};
+
+class CQca
+{
+private:
+    enum ModelType {none, bond, fixed, grand};
+    
+    CQcaGenericBase* s;
+    ModelType model;
+
+public:
+    CQca ()
+    : model(none)
+    {}
+
+    ~CQca ()
+    {
+        if (model != none)
+            delete s;
+    }
+    
+    void setConfig (const ptree& c)
+    {
+        ModelType nm = getModel(c.get("model", "grand"));
+        if (model != nm)
+        {
+            if (model != none)
+                delete s;
+            model = nm;
+            if (model == bond)
+                s = new CQcaGeneric<QcaBond>();
+            else if (model == fixed)
+                s = new CQcaGeneric<QcaFixedCharge>();
+            else if (model == grand)
+                s = new CQcaGeneric<QcaGrandCanonical>();
+        }
+        s->setConfig(c);
+    }
+
+    ptree getConfig () const
+    {
+        if (model == none)
+            return ptree();
+        // it's nice to have "model" as the first entry in the configuration,
+        // that's why we're using c.push_front instead of the simpler c.put()
+        ptree c = s->getConfig();
+        c.push_front(ptree::value_type("model", ptree(modelToString(model))));
+        return c;
+    }
+
+   rtree measure ()
+   {
+       if (model == none)
+           return rtree();
+       return s->measure();
+   }
+
+private:
+   ModelType getModel (const std::string& s) const
+   {
+       if (s == "bond")
+           return bond;
+       if (s == "grand" || s == "grandcanonical")
+           return grand;
+       if (s == "fixed" || s == "fixedcharge")
+           return fixed;
+       throw ConfigurationException("Invalid model: '" + s + "'");
+   }
+
+   std::string modelToString (const ModelType m) const
+   {
+       if (m == bond)
+           return "bond";
+       if (m == fixed)
+           return "fixedcharge";
+       if (m == grand)
+           return "grandcanonical";
+       return "none";
+   }
 };
 
 class VConfiguration

@@ -185,6 +185,15 @@ public:
         r_charges.clear();
         charges.clear();
     }
+
+    bool operator== (const Layout& l) const
+    {
+        return 
+            r_sites == l.r_sites &&
+            r_charges == l.r_charges &&
+            charges == l.charges &&
+            epc == l.epc;
+    }
 };
 
 class Wire2e : public Layout
