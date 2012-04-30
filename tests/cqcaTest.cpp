@@ -34,6 +34,19 @@ std::string ptreeToJson (const ptree& p)
     return ss.str();
 }
 
+template<typename T>
+std::string toString (T v)
+{
+    std::stringstream ss;
+    ss << std::setprecision(16) << v;
+    return ss.str();
+}
+
+bool epsilonEqual (double v, double w, double epsilon = 10E-10)
+{
+    return fabs(v-w) < epsilon;
+}
+
 BOOST_AUTO_TEST_CASE ( test_configurable_layout )
 {
     CLayout l1;
@@ -103,16 +116,17 @@ BOOST_AUTO_TEST_CASE ( test_configurable_qca_systems )
     CQca s1;
     BOOST_CHECK (s1.getConfig() == ptree());
     s1.measure();
+    // operator== does not work for rtree
     //BOOST_CHECK (s1.measure() == rtree());
 
     CQca s2;
     s2.setConfig(ptreeFromJson("{}")); // default configuration
     BOOST_CHECK (s2.getConfig() == ptreeFromJson(
         "{'model': 'grandcanonical', 't': 1, 'td': 0, 'Vext': 0, 'V0': 1000, "
-        "'mu': 0, 'epsilonr': 1, 'lambdaD': 0, 'q': 0, 'beta': 1, "
+        "'mu': 0, 'epsilonr': " + toString(QCA_NATURAL_EPSILON_R) + 
+        ", 'lambdaD': 0, 'q': 0, 'beta': 1, "
         "'layout': {'type': 'wire', 'cells': 1, 'a': 1, "
         "'b': 3, 'Pext': 0, 'epc': 2}, 'observables': {}}"));
-    //std::cerr << ptreeToJson(s1.getConfig()) << std::endl;
 
     CQca s3;
     s3.setConfig(ptreeFromJson(
@@ -149,8 +163,46 @@ BOOST_AUTO_TEST_CASE ( test_configurable_qca_systems )
         "'mu': -2, 'epsilonr': 1.3, 'lambdaD': 6.5, 'q': 1, 'beta': 10, "
         "'layout': {'type': 'nonuniformwire', 'cells': 3, 'a': 1.2, "
         "'bs': [1.2,1,2], 'Pext': 0.7, 'epc': 6}, 'observables': {'P': 'all'}}"));
-    //std::cerr << ptreeToJson(s3.getConfig()) << std::endl;
+    
+    double a = 1.0/250.0;
+    double b = 1.75 * a;
+    double V0 = 10 / a;
+    s4.setConfig(ptreeFromJson(
+        "{'model': 'bond', 't': 1, 'td': 0.2, 'V0': " + toString(V0) + ", 'beta': 1000000, "
+        "'layout': {'type': 'wire', 'cells': 1, 'a': " + toString(a) + ", "
+        "'b': " + toString(b) + ", 'Pext': 0.01}, 'observables': {'P': 'all'}}"));
+    BOOST_CHECK (s4.getConfig() == ptreeFromJson(
+        "{'model': 'bond', 't': 1, 'td': 0.2, 'Vext': 0, 'V0': " + toString(V0) + ", "
+        "'mu': 0, 'epsilonr': " + toString(QCA_NATURAL_EPSILON_R) + ", 'lambdaD': 0, "
+        "'q': 0, 'beta': 1000000, "
+        "'layout': {'type': 'wire', 'cells': 1, 'a': " + toString(a) + ", "
+        "'b': " + toString(b) + ", 'Pext': 0.01, 'epc': 2}, 'observables': {'P': 'all'}}"));
+    rtree r = s4.measure();
+    BOOST_CHECK (epsilonEqual(r.get<double>("P.0"), 0.29, 0.01));
 
+    s4.setConfig(ptreeFromJson(
+        "{'model': 'bond', 't': 1, 'td': 0, 'V0': 1000, 'beta': 1, "
+        "'layout': {'type': 'wire', 'cells': 3, 'a': 0.01, "
+        "'b': 0.023, 'Pext': 1}, 'observables': {'P': 'all'}}"));
+    r = s4.measure();
+    BOOST_CHECK (epsilonEqual(r.get<double>("P.0"), 0.670243, 1E-5));
+    BOOST_CHECK (epsilonEqual(r.get<double>("P.1"), 0.462795, 1E-5));
+    BOOST_CHECK (epsilonEqual(r.get<double>("P.2"), 0.295182, 1E-5));
+    
+    a = 1.0/250.0;
+    b = 5 * a;
+    V0 = 10.0 / a;
+    s4.setConfig(ptreeFromJson(
+        "{'model': 'fixed', 't': 1, 'td': 0.2, 'V0': " + toString(V0) + ", " 
+        "'beta': 1000, 'layout': {'type': 'wire', 'cells': 2, "
+        "'a': " + toString(a) + ", 'b': " + toString(b) + ", 'Pext': 0.1, "
+        "'epc': 6}, 'observables': {'P': 'all', 'N': 0}}"));
+    r = s4.measure();
+    BOOST_CHECK (epsilonEqual(r.get<double>("N.0.total"), 6));
+    BOOST_CHECK (epsilonEqual(r.get<double>("P.0"), 0.268, 0.001));
+    BOOST_CHECK (epsilonEqual(r.get<double>("P.1"), 0.212, 0.001));
+    
+    //std::cerr << ptreeToJson(s3.getConfig()) << std::endl;
 }
 
 BOOST_AUTO_TEST_CASE ( test_vconfiguration )

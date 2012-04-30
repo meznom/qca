@@ -195,13 +195,12 @@ public:
 
     virtual void setConfig (const ptree& c)
     {
-        //TODO: natural
         s.t = c.get("t", 1.0);
         s.td = c.get("td", 0.0); 
         s.Vext = c.get("Vext", 0.0);
         s.V0 = c.get("V0", 1000.0); 
         s.mu = c.get("mu", 0.0);
-        s.epsilonr = c.get("epsilonr", 1.0);
+        s.epsilonr = c.get("epsilonr", QCA_NATURAL_EPSILON_R);
         s.lambdaD = c.get("lambdaD", 0.0);
         s.q = c.get("q", 0);
         s.beta = c.get("beta", 1);
