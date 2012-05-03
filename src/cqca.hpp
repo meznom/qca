@@ -2,21 +2,22 @@
 #define __CQCA_HPP__
 
 #include <boost/property_tree/ptree.hpp>
+#include <boost/property_tree/json_parser.hpp>
+#include <ctime>
 #include "qca.hpp"
+#include "version.hpp"
 
-
-//TODO: at least minimal documentation on how Configurator and VConfiguration
-//work
-
-//TODO: maybe use modified json -> get rid of '"', and treat all literals as
-//strings => easier to write and read
+// TODO: in store output: get rid of 'changed'; output original configuration in
+//       header (with ranges; e.g. "b": [1,2,3,4])
+// TODO: implement start:end:interval syntax
+// TODO: at least minimal documentation on how Configurator and VConfiguration
+//       work
+// TODO: maybe use modified json -> get rid of '"', and treat all literals as
+//       strings => easier to write and read
 
 
 // rtree = result tree
-// TODO: it would be nice to get rtree to work with write_json
 typedef boost::property_tree::basic_ptree<std::string, double> rtree;
-//typedef ptree rtree;
-
 
 class ConfigurationException: public std::runtime_error
 {
@@ -67,6 +68,7 @@ namespace ptreeHelpers
 
 using boost::property_tree::ptree;
 using namespace ptreeHelpers;
+using namespace boost::property_tree::json_parser;
 
 class CLayout
 {
@@ -638,6 +640,175 @@ public:
             sum += cs[i].numberOfVariants();
         return sum;
     }
+};
+
+class Store
+{
+private:
+    ptree c_old;
+    int lineCount;
+    // column width for output; how often (every x lines) to print table header
+    enum {columnWidth=14, tableHeaderEveryXLines=20};
+
+    typedef std::pair<std::string, double> RPair;
+    typedef std::vector<RPair> RVector;
+
+public:
+    Store ()
+    : lineCount(0)
+    {}
+
+    void store (const ptree& c, const rtree& r)
+    {
+        // configure output
+        std::cout << std::setprecision(6);
+        std::cout << std::left;
+
+        ptree c_new = removeVParams(c);
+        if (c_new != c_old)
+        {
+            printHeader(c);
+            c_old = c_new;
+        }
+        printTableRow(c,r);
+    }
+
+private:
+    ptree removeVParams (ptree c) const
+    {
+        std::vector<std::string> names = getVParams(c);
+        for (int i=0; i<names.size(); i++)
+        {
+            ptree::assoc_iterator j = c.find(names[i]);
+            if (j != c.not_found())
+                c.erase(c.to_iterator(j));
+        }
+        return c;
+    }
+
+    void printHeader (const ptree& c)
+    {
+        // only false if this is the first header / measurement
+        if (lineCount != 0)
+            std::cout << std::endl;
+
+        std::cout << "# program version: " << GIT_PROGRAM_VERSION << std::endl 
+                  << "# date: " << getDate() << std::endl
+                  << "# " << std::endl;
+        
+        std::stringstream ss;
+        write_json(ss, c);
+        std::string s = ss.str();
+        prependLines(s, "# ");
+        std::cout << s;
+        std::cout << "# " << std::endl;
+        
+        lineCount = 0;
+    }
+
+    void printTableHeader (const ptree& c, const rtree& r) const
+    {
+        std::vector<std::string> ps = getVParams(c);
+        RVector os = getFlattenedTree(r);
+        std::cout << "# ";
+        for (int i=0; i<ps.size(); i++)
+            std::cout << std::setw(columnWidth) << ps[i];
+        for (int i=0; i<os.size(); i++)
+            std::cout << std::setw(columnWidth) << os[i].first;
+        std::cout << std::endl;
+    }
+
+    void printTableRow (const ptree& c, const rtree& r)
+    {
+        if (lineCount % tableHeaderEveryXLines == 0)
+            printTableHeader(c,r);
+
+        std::vector<std::string> ps = getVParams(c);
+        RVector os = getFlattenedTree(r);
+        std::cout << "  ";
+        for (int i=0; i<ps.size(); i++)
+            std::cout << std::setw(columnWidth) << c.get<double>(ps[i], 0);
+        for (int i=0; i<os.size(); i++)
+            std::cout << std::setw(columnWidth) << os[i].second;
+        std::cout << std::endl;
+        lineCount++;
+    }
+
+    std::vector<std::string> getVParams (const ptree& c) const
+    {
+        ptree p = c.get_child("changing", ptree());
+        if (!isArray(p))
+            return std::vector<std::string>();
+        return getArray<std::string>(p);
+    }
+
+    RVector getFlattenedTree (const rtree& r) const
+    {
+        RVector v;
+        getFlattenedTreeRecursive(r, v, "");
+        return v;
+    }
+    
+    void getFlattenedTreeRecursive (const rtree& r, RVector& v, const std::string& path) const
+    {
+        if (r.size() == 0)
+        {
+            v.push_back(RPair(path, r.data()));
+            return;
+        }
+
+        for (rtree::const_iterator i=r.begin(); i!=r.end(); i++)
+            if (path.length() == 0)
+                getFlattenedTreeRecursive(i->second, v, i->first);
+            else
+                getFlattenedTreeRecursive(i->second, v, path + "." + i->first);
+    }
+
+    std::string getDate () const
+    {
+        time_t t;
+        tm localTime;
+        char cstr[100];
+        time(&t);
+        tzset();
+        localtime_r(&t, &localTime);
+        strftime(cstr, 100, "%a %b %d %T %Y %z", &localTime);
+        return cstr;
+    }
+    
+    void prependLines (std::string& s, const std::string& pr) const
+    {
+        size_t pos = 0;
+        while(pos<s.length() && pos!=s.npos)
+        {
+            s.insert(pos, pr);
+            pos = s.find('\n', pos);
+            pos++;
+        }
+    }
+
+    // std::stringstream prependLines (const std::stringstream& is, const std::string& pr) const
+    // {
+    //     std::stringstream os;
+    //     std::string s;
+    //     while (!is.eof())
+    //     {
+    //         os << pr;
+    //         std::getline(is, s);
+    //         os << s;
+    //     }
+    //     return os;
+    //     // std::string s;
+    //     // ss.seekg(0);
+    //     // ss.seekp(0);
+    //     // while (!ss.eof())
+    //     // {
+    //     //     ss << pr;
+    //     //     std::getline(ss, s);
+    //     //     ss.seekp(ss.tellg());
+    //     // }
+    //     // ss.seekg(0);
+    // }
 };
 
 #endif // __CQCA_HPP__

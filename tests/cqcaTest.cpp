@@ -316,3 +316,38 @@ BOOST_AUTO_TEST_CASE ( test_configurator )
     BOOST_CHECK (c3.hasNext() == false);
     BOOST_CHECK_THROW (c3.getNext(), ConfigurationException);
 }
+
+BOOST_AUTO_TEST_CASE ( test_store )
+{
+    Configurator c1(jsonify(
+        "[{'a': 1, 'b': [2,3,4,5], 'c': 'blah', 'd': {'d1': 2.1, 'd2': 3.4}, 'changing': ['b']}, "
+        " {'a': 2, 'b': [2,3,4,5], 'c': 'blah', 'd': {'d1': 2.1, 'd2': 3.4}, 'changing': ['b']}, "
+        " {'a': 3, 'b': [2,3,4,5], 'c': 'blah', 'd': {'d1': 2.1, 'd2': 3.4}, 'changing': ['b']}]"));
+    rtree r1;
+    r1.put("P.0", 0.8);
+    r1.put("P.1", 0.7);
+    r1.put("P.2", 0.6);
+    r1.put("N.0.total", 2.0);
+    r1.put("N.0.0", 0.5);
+    r1.put("N.0.1", 0.5);
+    r1.put("N.0.2", 0.5);
+    r1.put("N.0.3", 0.5);
+    r1.put("N.1.total", 2.0);
+    r1.put("N.1.0", 0.4);
+    r1.put("N.1.1", 0.6);
+    r1.put("N.1.2", 0.4);
+    r1.put("N.1.3", 0.6);
+    r1.put("N.2.total", 2.0);
+    r1.put("N.2.0", 0.3);
+    r1.put("N.2.1", 0.7);
+    r1.put("N.2.2", 0.3);
+    r1.put("N.2.3", 0.7);
+    Store o1;
+    for (int i=0; i<8; i++)
+        o1.store(c1.getNext(), r1);
+    ptree p1 = c1.getNext();
+    for (int i=0; i<25; i++)
+        o1.store(p1, r1);
+
+    // TODO: real world example
+}
