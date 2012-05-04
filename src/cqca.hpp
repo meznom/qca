@@ -7,9 +7,6 @@
 #include "qca.hpp"
 #include "version.hpp"
 
-// TODO: in store output: get rid of 'changed'; output original configuration in
-//       header (with ranges; e.g. "b": [1,2,3,4])
-// TODO: implement start:end:interval syntax
 // TODO: at least minimal documentation on how Configurator and VConfiguration
 //       work
 // TODO: maybe use modified json -> get rid of '"', and treat all literals as
@@ -53,14 +50,15 @@ namespace ptreeHelpers
         return c;
     }
 
-    bool isArray (const ptree& c)
+    template<class Tree>
+    bool isArray (const Tree& c)
     {
-        if (c.get_value<std::string>() != "")
+        if (c.data() != typename Tree::data_type())
             return false;
         if (c.size() == 0)
             return false;
         bool flag = true;
-        for (ptree::const_iterator i=c.begin(); i!=c.end(); i++)
+        for (typename Tree::const_iterator i=c.begin(); i!=c.end(); i++)
             if (i->first != "") flag = false;
         return flag;
     }
@@ -451,27 +449,106 @@ private:
    }
 };
 
+class VParam
+{
+public:
+    std::string name;
+    std::vector<double> values;
+    int index;
+
+    VParam (const std::string& name_, const ptree&  c)
+    : name(name_), index(0)
+    {
+        if (isArray(c))
+        {
+            values = getArray<double>(c);
+        }
+        else if (isGenerator(c))
+        {
+            values = getArrayFromGenerator(c);
+        }
+        else
+            throw ConfigurationException("Changing parameter '" + name + 
+                                         "' does not exist or has invalid specification.");
+    }
+
+    std::string currentValue () const
+    {
+        return toString(values[index]);
+    }
+
+    size_t size () const
+    {
+        return values.size();
+    }
+
+private:
+    bool isGenerator (const ptree& c) const
+    {
+        return (c.size() == 0) && (c.data().find(';') != c.data().npos);
+    }
+
+    std::vector<double> getArrayFromGenerator (const ptree& c) const
+    {
+        std::vector<double> tuple = getList<double>(c.data(), ';');
+        if (tuple.size() != 3) 
+            throw ConfigurationException("Invalid generator specification: '" + c.data() + "'.");
+        double begin = tuple[0];
+        double end = tuple[1];
+        double inc = tuple[2];
+        double epsilon = inc * 0.0001;
+        if (inc==0 || (begin<=end && inc<0) || (end<=begin && inc>0)) 
+            throw ConfigurationException("Invalid generator specification: '" + c.data() + "'.");
+        std::vector<double> generated;
+        for (double i=begin; (begin<=end && i<=end+epsilon) || 
+                             (end<=begin && i>=end+epsilon); i+=inc)
+            generated.push_back(i);
+        return generated;
+    }
+
+    template<typename T>
+    std::vector<T> getList (const std::string& v, const char sep) const
+    {
+        if (v.size() == 0) return std::vector<T>();
+        std::vector<T> list;
+        size_t pos1=0;
+        size_t pos2=0;
+        while (pos1 <= v.size())
+        {
+            pos2 = v.find(sep, pos1);
+            if (pos2 == v.npos) pos2 = v.size();
+            if (pos2 == pos1) 
+                throw ConfigurationException("Error parsing list: '" + v + "'.");
+            T item = fromString<T>(v.substr(pos1, pos2-pos1));
+            list.push_back(item);
+            pos1 = pos2+1;
+        }
+        return list;
+    }
+
+    template<typename T>
+    T fromString (const std::string& v) const
+    {
+        T returnValue;
+        std::stringstream s(v);
+        s >> returnValue;
+        if (!s.eof() || v.empty())
+            throw ConfigurationException("Can't convert '" + v + "'.");
+        return returnValue;
+    }
+
+    template<typename T>
+    std::string toString (const T& v) const
+    {
+        std::stringstream s;
+        s << v;
+        return s.str();
+    }
+};
+
 class VConfiguration
 {
 private:
-    struct VParam
-    {
-        VParam (const std::string& name_, 
-                const std::vector<std::string> values_, 
-                int index_)
-        : name(name_), values(values_), index(index_) 
-        {}
-
-        std::string currentValue () const
-        {
-            return values[index];
-        }
-        
-        std::string name;
-        std::vector<std::string> values;
-        int index;
-    };
-
     ptree c;
     bool gotConfig, gotAllVariants, constructedVariants, hasVariants;
     std::vector<VParam> vparams;
@@ -516,7 +593,7 @@ public:
         constructVariants();
         int n=1;
         for (int i=0; i<vparams.size(); i++)
-            n *= vparams[i].values.size();
+            n *= vparams[i].size();
         return n;
     }
 
@@ -541,10 +618,7 @@ private:
         for (int i=0; i<names.size(); i++)
         {
             const ptree a = c.get_child(names[i], ptree());
-            if (!isArray(a))
-                throw ConfigurationException("Changing parameter '" + names[i] + 
-                                             "' does not exist or is not an array");
-            VParam v(names[i], getArray<std::string>(a), 0);
+            VParam v(names[i], a);
             vparams.push_back(v);
             
             // initially all varying parameters are considered changed
@@ -558,11 +632,14 @@ private:
         ptree nc = c;
         for (int i=0; i<vparams.size(); i++)
         {
-            // first delete all children (the array elements) and then set the
-            // single new value
-            ptree& n = nc.get_child(vparams[i].name);
-            for (ptree::iterator i=n.begin(); i!=n.end(); i = n.erase(i));
+            // replace the changing parameter by it's current value
+            // and attach the original config of the changing parameter as
+            // "original.parameter_name"
+            ptree o = nc.get_child(vparams[i].name);
+            ptree n;
             n.put_value(vparams[i].currentValue());
+            nc.put_child(vparams[i].name, n);
+            nc.put_child("original." + vparams[i].name, o);
         }
         nc.put_child("changed", constructArray<ptree>(changed));
         return nc;
@@ -576,7 +653,7 @@ private:
             VParam& v = vparams[i];
             v.index++;
             changed.push_back(v.name);
-            if (v.index == v.values.size())
+            if (v.index == v.size())
                 v.index = 0;
             else
                 break;
@@ -650,8 +727,13 @@ private:
     // column width for output; how often (every x lines) to print table header
     enum {columnWidth=14, tableHeaderEveryXLines=20};
 
-    typedef std::pair<std::string, double> RPair;
-    typedef std::vector<RPair> RVector;
+    template<class Tree>
+    class TreeTypes
+    {
+    public:
+        typedef std::pair<typename Tree::key_type, typename Tree::data_type> pair;
+        typedef std::vector<pair> vector;
+    };
 
 public:
     Store ()
@@ -676,13 +758,11 @@ public:
 private:
     ptree removeVParams (ptree c) const
     {
+        // replace vparams with an empty node
         std::vector<std::string> names = getVParams(c);
         for (int i=0; i<names.size(); i++)
-        {
-            ptree::assoc_iterator j = c.find(names[i]);
-            if (j != c.not_found())
-                c.erase(c.to_iterator(j));
-        }
+            c.put_child(names[i], ptree());
+        c.put_child("changed", ptree());
         return c;
     }
 
@@ -697,7 +777,7 @@ private:
                   << "# " << std::endl;
         
         std::stringstream ss;
-        write_json(ss, c);
+        write_json(ss, prepareForPrinting(c));
         std::string s = ss.str();
         prependLines(s, "# ");
         std::cout << s;
@@ -709,7 +789,7 @@ private:
     void printTableHeader (const ptree& c, const rtree& r) const
     {
         std::vector<std::string> ps = getVParams(c);
-        RVector os = getFlattenedTree(r);
+        TreeTypes<rtree>::vector os = getFlattenedTree(r);
         std::cout << "# ";
         for (int i=0; i<ps.size(); i++)
             std::cout << std::setw(columnWidth) << ps[i];
@@ -724,7 +804,7 @@ private:
             printTableHeader(c,r);
 
         std::vector<std::string> ps = getVParams(c);
-        RVector os = getFlattenedTree(r);
+        TreeTypes<rtree>::vector os = getFlattenedTree(r);
         std::cout << "  ";
         for (int i=0; i<ps.size(); i++)
             std::cout << std::setw(columnWidth) << c.get<double>(ps[i], 0);
@@ -742,22 +822,28 @@ private:
         return getArray<std::string>(p);
     }
 
-    RVector getFlattenedTree (const rtree& r) const
+    template<class Tree>
+    typename TreeTypes<Tree>::vector getFlattenedTree (const Tree& t) const
     {
-        RVector v;
-        getFlattenedTreeRecursive(r, v, "");
+        typename TreeTypes<Tree>::vector v;
+        getFlattenedTreeRecursive(t, v, "");
         return v;
     }
     
-    void getFlattenedTreeRecursive (const rtree& r, RVector& v, const std::string& path) const
+    template<class Tree>
+    void getFlattenedTreeRecursive (const Tree& t, 
+                                    typename TreeTypes<Tree>::vector& v, 
+                                    const std::string& path) const
     {
-        if (r.size() == 0)
+        if (t.size() == 0 || isArray(t))
         {
-            v.push_back(RPair(path, r.data()));
+            // note: for an array, we just get an empty value; not the whole
+            // array
+            v.push_back(typename TreeTypes<Tree>::pair(path, t.data()));
             return;
         }
 
-        for (rtree::const_iterator i=r.begin(); i!=r.end(); i++)
+        for (typename Tree::const_iterator i=t.begin(); i!=t.end(); i++)
             if (path.length() == 0)
                 getFlattenedTreeRecursive(i->second, v, i->first);
             else
@@ -786,29 +872,25 @@ private:
             pos++;
         }
     }
-
-    // std::stringstream prependLines (const std::stringstream& is, const std::string& pr) const
-    // {
-    //     std::stringstream os;
-    //     std::string s;
-    //     while (!is.eof())
-    //     {
-    //         os << pr;
-    //         std::getline(is, s);
-    //         os << s;
-    //     }
-    //     return os;
-    //     // std::string s;
-    //     // ss.seekg(0);
-    //     // ss.seekp(0);
-    //     // while (!ss.eof())
-    //     // {
-    //     //     ss << pr;
-    //     //     std::getline(ss, s);
-    //     //     ss.seekp(ss.tellg());
-    //     // }
-    //     // ss.seekg(0);
-    // }
+    
+    ptree prepareForPrinting (ptree c)
+    {
+        // replaces the current value of a varying parameter by its
+        // original configuration / specification
+        const ptree o = c.get_child("original", ptree());
+        TreeTypes<ptree>::vector os = getFlattenedTree(o);
+        for (int i=0; i<os.size(); i++)
+            c.put_child(os[i].first, c.get_child("original." + os[i].first));
+        
+        ptree::assoc_iterator i;
+        i = c.find("original");
+        if (i != c.not_found())
+            c.erase(c.to_iterator(i));
+        i = c.find("changed");
+        if (i != c.not_found())
+            c.erase(c.to_iterator(i));
+        return c;
+    }
 };
 
 #endif // __CQCA_HPP__
