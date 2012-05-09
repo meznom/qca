@@ -9,9 +9,6 @@
 
 // TODO: at least minimal documentation on how Configurator and VConfiguration
 //       work
-// TODO: maybe use modified json -> get rid of '"', and treat all literals as
-//       strings => easier to write and read
-
 
 // rtree = result tree
 typedef boost::property_tree::basic_ptree<std::string, double> rtree;
@@ -41,7 +38,7 @@ namespace ptreeHelpers
     {
         typedef typename Tree::value_type pair;
         Tree c;
-        for (int i=0; i<v.size(); i++)
+        for (size_t i=0; i<v.size(); i++)
         {
             Tree p;
             p.put_value(v[i]);
@@ -79,6 +76,7 @@ private:
     std::vector<double> bs;
     ElectronsPerCell epc;
     Layout l;
+    ptree oc;
 
 public:
     CLayout ()
@@ -104,11 +102,11 @@ public:
         if (Pext<-1 || Pext>1)
             throw ConfigurationException("Pext must be in the range [-1:1]");
         bool bsPos=true;
-        for (int i=0; i<bs.size(); i++)
+        for (size_t i=0; i<bs.size(); i++)
             if (bs[i]<0) bsPos=false;
         if (a<0 || b<0 || !bsPos)
             throw ConfigurationException("Wire dimensions (a, b, bs) must be positive");
-        if (cells != bs.size())
+        if (cells != static_cast<int>(bs.size()))
             throw ConfigurationException("The number of b-values in 'bs' must be"
                         " equal to the number of cells for the non-uniform wire.");
 
@@ -117,11 +115,13 @@ public:
             l.wire(cells, a, b, Pext, epc);
         else if (type == nonuniformwire)
             l.nonuniformWire(cells, a, bs, Pext, epc);
+
+        oc = c;
     }
 
     ptree getConfig () const
     {
-        ptree c;
+        ptree c = oc;
 
         if (type == wire)
         {
@@ -189,6 +189,7 @@ private:
     CLayout l;
     ptree os;
     QcaSystem s;
+    ptree oc;
 
 public:
     virtual ~CQcaGeneric () {}
@@ -207,6 +208,8 @@ public:
         os = c.get_child("observables", ptree());
         l.setConfig(c.get_child("layout", ptree()));
         s.l = l.layout();
+
+        oc = c;
     }
 
     virtual ptree getConfig () const
@@ -218,7 +221,7 @@ public:
          * why we store an instance of CLayout in CQca and use CLayout to get
          * the layout configuration.
          */
-        ptree c;
+        ptree c = oc;
         c.put("t", s.t);
         c.put("td", s.td);
         c.put("Vext", s.Vext);
@@ -278,7 +281,7 @@ private:
                 throw ConfigurationException("Invalid cell specification for observable");
             }
 
-        for (int i=0; i<cells.size(); i++)
+        for (size_t i=0; i<cells.size(); i++)
         {
             if (cells[i] < 0)
                 throw ConfigurationException("In observable specification: "
@@ -297,7 +300,7 @@ private:
     {
         std::vector<int> cells = getCells(c);
         rtree r;
-        for (int i=0; i<cells.size(); i++)
+        for (size_t i=0; i<cells.size(); i++)
             r.put(toString(cells[i]), s.measurePolarization(cells[i]));
         return r;
     }
@@ -306,7 +309,7 @@ private:
     {
         std::vector<int> cells = getCells(c);
         rtree r;
-        for (int i=0; i<cells.size(); i++)
+        for (size_t i=0; i<cells.size(); i++)
             r.put(toString(cells[i]), s.measurePolarization2(cells[i]));
         return r;
     }
@@ -315,7 +318,7 @@ private:
     {
         std::vector<int> cells = getCells(c);
         rtree r;
-        for (int i=0; i<cells.size(); i++)
+        for (size_t i=0; i<cells.size(); i++)
         {
             std::vector<double> ns = s.measureParticleNumber(cells[i]);
             r.put(toString(cells[i]) + ".total", ns[4]);
@@ -414,7 +417,8 @@ public:
         // it's nice to have "model" as the first entry in the configuration,
         // that's why we're using c.push_front instead of the simpler c.put()
         ptree c = s->getConfig();
-        c.push_front(ptree::value_type("model", ptree(modelToString(model))));
+        if (c.find("model") == c.not_found())
+            c.push_front(ptree::value_type("model", ptree(modelToString(model))));
         return c;
     }
 
@@ -592,7 +596,7 @@ public:
     {
         constructVariants();
         int n=1;
-        for (int i=0; i<vparams.size(); i++)
+        for (size_t i=0; i<vparams.size(); i++)
             n *= vparams[i].size();
         return n;
     }
@@ -615,7 +619,7 @@ private:
         hasVariants = true;
         changed.clear();
         std::vector<std::string> names = getArray<std::string>(p);
-        for (int i=0; i<names.size(); i++)
+        for (size_t i=0; i<names.size(); i++)
         {
             const ptree a = c.get_child(names[i], ptree());
             VParam v(names[i], a);
@@ -630,7 +634,7 @@ private:
     ptree getConfigForCurrentVariant () const
     {
         ptree nc = c;
-        for (int i=0; i<vparams.size(); i++)
+        for (size_t i=0; i<vparams.size(); i++)
         {
             // replace the changing parameter by it's current value
             // and attach the original config of the changing parameter as
@@ -653,7 +657,7 @@ private:
             VParam& v = vparams[i];
             v.index++;
             changed.push_back(v.name);
-            if (v.index == v.size())
+            if (v.index == static_cast<int>(v.size()))
                 v.index = 0;
             else
                 break;
@@ -662,7 +666,7 @@ private:
         std::reverse(changed.begin(), changed.end());
         
         gotAllVariants = true;
-        for (int i=0; i<vparams.size(); i++)
+        for (size_t i=0; i<vparams.size(); i++)
             if (vparams[i].index != 0)
             {
                 gotAllVariants = false;
@@ -675,15 +679,22 @@ class Configurator
 {
 private:
     std::vector<VConfiguration> cs;
-    int i_c;
+    size_t i_c;
 
 public:
-    Configurator (const std::string& jsonString)
+    Configurator (const std::string& json)
     : i_c(0)
     {
         ptree c;
-        std::stringstream ss(jsonString);
+        std::string js;
+        if (isfile(json))
+            // could be implemented in a better, more efficient way
+            js = getFileAsString(json);
+        else
+            js = json;
+        std::stringstream ss(jsonify(js));
         read_json(ss, c);
+        
         if (isArray(c))
             for (ptree::const_iterator i=c.begin(); i!=c.end(); i++)
                 cs.push_back(VConfiguration(i->second));
@@ -713,9 +724,92 @@ public:
     int numberOfConfigs ()
     {
         int sum=0;
-        for (int i=0; i<cs.size(); i++)
+        for (size_t i=0; i<cs.size(); i++)
             sum += cs[i].numberOfVariants();
         return sum;
+    }
+
+    static std::string jsonify (const std::string& s)
+    {
+        std::stringstream is(s);
+        std::stringstream os;
+
+        bool needClosingBracket = false;
+        if (is.peek() != '{' && is.peek() != '[')
+        {
+            os << "{";
+            needClosingBracket = true;
+        }
+
+        bool quoting = false;
+        char c;
+        while (is >> c)
+        {
+            if (std::isspace(c))
+                continue;
+            else if (c == '{' || c == '}' || c == '[' || c == ']' || c == ',' || c == ':')
+            {
+                if (quoting)
+                {
+                    os << "\"";
+                    quoting = false;
+                }
+                os << c;
+            }
+            else if (c == '\'')
+            {
+                if (quoting) quoting = false;
+                else quoting = true;
+                os << "\"";
+            }
+            else if (c == '"')
+            {
+                if (quoting) quoting = false;
+                else quoting = true;
+                os << "\"";
+            }
+            else if (!quoting)
+            {
+                os << "\"" << c;
+                quoting = true;
+            }
+            else
+                os << c;
+        }
+
+        if (quoting)
+            os << "\"";
+        if (needClosingBracket)
+            os << "}";
+
+        return os.str();
+    }
+
+    static std::string getFileAsString (const std::string& file)
+    {
+        std::ifstream is(file.c_str());
+        std::stringstream os;
+        while (is.good())
+        {
+            const int size = 200;
+            char cs[size];
+            is.read(cs, size);
+            os.write(cs, is.gcount());
+        }
+        return os.str();
+    }
+
+private:
+    bool isfile(std::string path)
+    {
+        struct stat s;
+        if (stat(path.c_str(), &s) != 0) {
+            return false;
+        }
+        if (S_ISREG(s.st_mode)) {
+            return true;
+        }
+        return false;
     }
 };
 
@@ -760,7 +854,7 @@ private:
     {
         // replace vparams with an empty node
         std::vector<std::string> names = getVParams(c);
-        for (int i=0; i<names.size(); i++)
+        for (size_t i=0; i<names.size(); i++)
             c.put_child(names[i], ptree());
         c.put_child("changed", ptree());
         return c;
@@ -791,24 +885,27 @@ private:
         std::vector<std::string> ps = getVParams(c);
         TreeTypes<rtree>::vector os = getFlattenedTree(r);
         std::cout << "# ";
-        for (int i=0; i<ps.size(); i++)
+        for (size_t i=0; i<ps.size(); i++)
             std::cout << std::setw(columnWidth) << ps[i];
-        for (int i=0; i<os.size(); i++)
+        for (size_t i=0; i<os.size(); i++)
             std::cout << std::setw(columnWidth) << os[i].first;
         std::cout << std::endl;
     }
 
     void printTableRow (const ptree& c, const rtree& r)
     {
+        if (r.size() == 0)
+            return;
+
         if (lineCount % tableHeaderEveryXLines == 0)
             printTableHeader(c,r);
 
         std::vector<std::string> ps = getVParams(c);
         TreeTypes<rtree>::vector os = getFlattenedTree(r);
         std::cout << "  ";
-        for (int i=0; i<ps.size(); i++)
+        for (size_t i=0; i<ps.size(); i++)
             std::cout << std::setw(columnWidth) << c.get<double>(ps[i], 0);
-        for (int i=0; i<os.size(); i++)
+        for (size_t i=0; i<os.size(); i++)
             std::cout << std::setw(columnWidth) << os[i].second;
         std::cout << std::endl;
         lineCount++;
@@ -826,7 +923,8 @@ private:
     typename TreeTypes<Tree>::vector getFlattenedTree (const Tree& t) const
     {
         typename TreeTypes<Tree>::vector v;
-        getFlattenedTreeRecursive(t, v, "");
+        if (t.size() != 0)
+            getFlattenedTreeRecursive(t, v, "");
         return v;
     }
     
@@ -875,21 +973,40 @@ private:
     
     ptree prepareForPrinting (ptree c)
     {
-        // replaces the current value of a varying parameter by its
-        // original configuration / specification
-        const ptree o = c.get_child("original", ptree());
-        TreeTypes<ptree>::vector os = getFlattenedTree(o);
-        for (int i=0; i<os.size(); i++)
-            c.put_child(os[i].first, c.get_child("original." + os[i].first));
-        
         ptree::assoc_iterator i;
-        i = c.find("original");
-        if (i != c.not_found())
-            c.erase(c.to_iterator(i));
         i = c.find("changed");
         if (i != c.not_found())
             c.erase(c.to_iterator(i));
+        i = c.find("original");
+        if (i != c.not_found())
+        {
+            // replaces the current value of a varying parameter by its
+            // original configuration / specification
+            const ptree o = c.get_child("original");
+            TreeTypes<ptree>::vector os = getFlattenedTree(o);
+            for (size_t j=0; j<os.size(); j++)
+                c.put_child(os[j].first, c.get_child("original." + os[j].first));
+            c.erase(c.to_iterator(i));
+        }
+        
         return c;
+    }
+};
+
+class Runner
+{
+public:
+    static void run (const std::string& jsonConfig)
+    {
+        Configurator c(jsonConfig);
+        CQca s;
+        Store o;
+
+        while (c.hasNext())
+        {
+            s.setConfig(c.getNext());
+            o.store(s.getConfig(), s.measure());
+        }
     }
 };
 

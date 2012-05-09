@@ -109,6 +109,13 @@ BOOST_AUTO_TEST_CASE ( test_configurable_layout )
     bs.push_back(1.2);
     l9_.addNonuniformWire(0,0, 3, 0.1, bs, 0);
     BOOST_CHECK (l9.layout() == l9_);
+
+    CLayout l10;
+    l10.setConfig(ptreeFromJson(
+                "{'cells': 4, 'a': 1.2, 'blub': 'blah'}"));
+    BOOST_CHECK (l10.getConfig() == ptreeFromJson(
+                "{'cells': 4, 'a': 1.2, 'blub': 'blah', 'type': 'wire', "
+                "'b': 3, 'Pext': 0, 'epc': 2}"));
 }
 
 BOOST_AUTO_TEST_CASE ( test_configurable_qca_systems )
@@ -163,7 +170,7 @@ BOOST_AUTO_TEST_CASE ( test_configurable_qca_systems )
         "'mu': -2, 'epsilonr': 1.3, 'lambdaD': 6.5, 'q': 1, 'beta': 10, "
         "'layout': {'type': 'nonuniformwire', 'cells': 3, 'a': 1.2, "
         "'bs': [1.2,1,2], 'Pext': 0.7, 'epc': 6}, 'observables': {'P': 'all'}}"));
-    
+
     double a = 1.0/250.0;
     double b = 1.75 * a;
     double V0 = 10 / a;
@@ -172,11 +179,11 @@ BOOST_AUTO_TEST_CASE ( test_configurable_qca_systems )
         "'layout': {'type': 'wire', 'cells': 1, 'a': " + toString(a) + ", "
         "'b': " + toString(b) + ", 'Pext': 0.01}, 'observables': {'P': 'all'}}"));
     BOOST_CHECK (s4.getConfig() == ptreeFromJson(
-        "{'model': 'bond', 't': 1, 'td': 0.2, 'Vext': 0, 'V0': " + toString(V0) + ", "
-        "'mu': 0, 'epsilonr': " + toString(QCA_NATURAL_EPSILON_R) + ", 'lambdaD': 0, "
-        "'q': 0, 'beta': 1000000, "
-        "'layout': {'type': 'wire', 'cells': 1, 'a': " + toString(a) + ", "
-        "'b': " + toString(b) + ", 'Pext': 0.01, 'epc': 2}, 'observables': {'P': 'all'}}"));
+        "{'model': 'bond', 't': 1, 'td': 0.2, 'V0': " + toString(V0) + ", "
+        "'beta': 1000000, 'layout': {'type': 'wire', 'cells': 1, 'a': " + toString(a) + ", "
+        "'b': " + toString(b) + ", 'Pext': 0.01, 'epc': 2}, 'observables': {'P': 'all'}, "
+        "'Vext': 0, 'mu': 0, 'epsilonr': " + toString(QCA_NATURAL_EPSILON_R) + ", 'lambdaD': 0, "
+        "'q': 0}"));
     rtree r = s4.measure();
     BOOST_CHECK (epsilonEqual(r.get<double>("P.0"), 0.29, 0.01));
 
@@ -201,6 +208,19 @@ BOOST_AUTO_TEST_CASE ( test_configurable_qca_systems )
     BOOST_CHECK (epsilonEqual(r.get<double>("N.0.total"), 6));
     BOOST_CHECK (epsilonEqual(r.get<double>("P.0"), 0.268, 0.001));
     BOOST_CHECK (epsilonEqual(r.get<double>("P.1"), 0.212, 0.001));
+
+    /*
+     * test that unknown configuration directives are preserved
+     */
+    CQca s5;
+    s5.setConfig(ptreeFromJson(
+        "{'t': 3, 'blah': 'blub'}"));
+    BOOST_CHECK (s5.getConfig() == ptreeFromJson(
+        "{'model': 'grandcanonical', 't': 3, 'blah': 'blub', 'td': 0, 'Vext': 0, 'V0': 1000, "
+        "'mu': 0, 'epsilonr': " + toString(QCA_NATURAL_EPSILON_R) + 
+        ", 'lambdaD': 0, 'q': 0, 'beta': 1, "
+        "'layout': {'type': 'wire', 'cells': 1, 'a': 1, "
+        "'b': 3, 'Pext': 0, 'epc': 2}, 'observables': {}}"));
     
     //std::cerr << ptreeToJson(s3.getConfig()) << std::endl;
 }
@@ -373,6 +393,26 @@ BOOST_AUTO_TEST_CASE ( test_vconfiguration )
                 "'original': {'b': {'c': [1,2]}, 'a': [1,2,3]}, 'changed': ['a']}"));
 }
 
+BOOST_AUTO_TEST_CASE ( test_configurator_jsonify )
+{
+    BOOST_CHECK (
+            Configurator::jsonify("a:1,b:2,c:{c1:blah,c2:765}") 
+            == 
+            jsonify("{'a':'1','b':'2','c':{'c1':'blah','c2':'765'}}"));
+    BOOST_CHECK (
+            Configurator::jsonify("{a:1, 'b':2, \n c : {c1: \"blah\",c2: 765}}") 
+            == 
+            jsonify("{'a':'1','b':'2','c':{'c1':'blah','c2':'765'}}"));
+    BOOST_CHECK (
+            Configurator::jsonify("[{a:1,b:2},{c:miau,d: '52, e: \"la\"}, {'blub': blah}]") 
+            == 
+            jsonify("[{'a':'1','b':'2'},{'c':'miau','d':'52','e':'la'},{'blub':'blah'}]"));
+    BOOST_CHECK (
+            Configurator::jsonify("a:1,b:2") 
+            == 
+            jsonify("{'a':'1','b':'2'}"));
+}
+
 BOOST_AUTO_TEST_CASE ( test_configurator )
 {
     Configurator c1(jsonify("{'a': 1, 'b': 2}"));
@@ -434,6 +474,9 @@ BOOST_AUTO_TEST_CASE ( test_configurator )
 
 BOOST_AUTO_TEST_CASE ( test_store )
 {
+    /*
+     * Not a real unit test. Generates output that has to be examined by hand.
+     */
     Configurator c1(jsonify(
         "[{'a': 1, 'b': [2,3,4,5], 'c': 'blah', 'd': {'d1': 2.1, 'd2': 3.4}, 'changing': ['b']}, "
         " {'a': 2, 'b': [2,3,4,5,6,7], 'c': 'blah', 'd': {'d1': [2.1,3,4.1,6.4], 'd2': 3.4}, 'changing': ['b','d.d1']}, "
@@ -466,17 +509,22 @@ BOOST_AUTO_TEST_CASE ( test_store )
     Configurator c2(jsonify(
         "{'model': 'bond', 't': 1, 'td': 0.2, 'V0': 100, " 
         "'beta': 1000, 'layout': {'type': 'wire', 'cells': 2, "
-        "'a': '0.01;0.1;0.01', 'b': [0.02,0.03,0.04], 'Pext': 0.1, "
-        "'epc': 2}, 'observables': {'P': 'all', 'N': 0}, "
+        "'a': '0.01;0.1;0.01', 'b': [0.02,0.03,0.04], 'Pext': 0.1}, "
+        "'observables': {'P': 'all', 'N': 0}, "
         "'changing': ['layout.b', 'layout.a']}"));
     while (c2.hasNext())
     {
         const ptree& cc = c2.getNext();
         s1.setConfig(cc);
         rtree r = s1.measure();
-        // TODO: we should be able to read the whole configuration back
-        //ptree p = s1.getConfig();
-        //o1.store(p,r);
-        o1.store(cc,r);
+        ptree p = s1.getConfig();
+        o1.store(p,r);
     }
+
+    rtree r2;
+    Configurator c3(jsonify("{'a': 1}"));
+    o1.store(c3.getNext(), r2);
+
+    Configurator c4(jsonify("{'a': [1], 'changing': ['a']}"));
+    o1.store(c4.getNext(), r2);
 }

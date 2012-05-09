@@ -10,8 +10,14 @@ find_path(
 	PATHS ~/include ~/src/include ~/o/include ~/o/src/include /opt/local/include /sw/include
 	PATH_SUFFIXES eigen3 eigen
 )
+find_path(
+	BOOST_INCLUDE_DIR
+	boost/test/unit_test.hpp
+	PATHS ~/include ~/src/include ~/o/include ~/o/src/include /opt/local/include /sw/include
+)
 include_directories(
 	${EIGEN_INCLUDE_DIR}
+	${BOOST_INCLUDE_DIR}
 )
 
 set(BASIS_NUMBER_OF_BITS "16" CACHE STRING "Number of bits used to store basis. Should be 16, 32 or 64. Generally this should be equal to or larger than 8 times the number of QCA cells.")

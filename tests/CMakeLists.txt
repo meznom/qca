@@ -2,13 +2,7 @@ project(ExactDiagonalization_tests)
 cmake_minimum_required(VERSION 2.6)
 #set(CMAKE_VERBOSE_MAKEFILE ON)
 
-find_path(
-	BOOST_INCLUDE_DIR
-	boost/test/unit_test.hpp
-	PATHS ~/include ~/src/include ~/o/include ~/o/src/include /opt/local/include /sw/include
-)
 include_directories(
-	${BOOST_INCLUDE_DIR}
 	../src
 )
 find_library(

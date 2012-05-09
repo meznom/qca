@@ -10,8 +10,6 @@ const double QCA_EPSILON_0 = 8.8541878176E-12;
 const double QCA_NATURAL_EPSILON_R = QCA_ELEMENTARY_CHARGE / (4*M_PI*QCA_EPSILON_0*1e-9);
 enum ElectronsPerCell {epc2 = 2, epc6 = 6};
 
-// TODO: for the header-part of the printout -- how to best report the layout
-// used; this includes: a, b, Pext
 class Layout
 {
 private:
@@ -810,75 +808,6 @@ public:
     SMatrix n_updown (int i) const
     {
         return n(i,UP) * n(i,DOWN);
-    }
-};
-
-template<class QcaSystem>
-class DQcaGeneric : public QcaSystem
-{
-private:
-    typedef QcaSystem Base;
-
-public:
-    DQcaGeneric (OptionSection os)
-    : QcaSystem()
-    {
-        setParameters(os);
-    }
-
-    void setParameters (OptionSection os)
-    {
-        Base::t = os["t"].get<double>(1.0);
-        Base::td = os["td"].get<double>(0); 
-        Base::Vext = os["Vext"].get<double>(0);
-        Base::V0 = os["V0"].get<double>(1000); 
-        Base::mu = os["mu"].get<double>(0);
-        Base::epsilonr = os["epsilonr"].get<double>(1);
-        Base::lambdaD = os["lambdaD"].get<double>(0);
-        Base::q = os["q"].get<double>(0);
-        
-        ElectronsPerCell epc = epc2;
-        if (os["epc"].get<int>() == 2)
-            epc = epc2;
-        else if (os["epc"].get<int>() == 6)
-            epc = epc6;
-        
-        if (os["layout"] == "wire")
-            Base::l.wire(os["p"].get<int>(1), 
-                         os["a"].get<double>(1.0), 
-                         os["b"].get<double>(3.0), 
-                         os["Pext"].get<double>(0), 
-                         epc);
-        else if (os["layout"] == "nonuniformwire")
-        {
-            std::vector<double> bs = os["bs"];
-            Base::l.nonuniformWire(os["p"].get<int>(1), 
-                                   os["a"].get<double>(1.0), 
-                                   bs,
-                                   os["Pext"].get<double>(0), 
-                                   epc);
-        }
-        // TODO: better error handling
-    }
-
-    OptionSection getParameters ()
-    {
-        OptionSection os;
-        os["p"] = Base::N_p();
-        os["t"] = Base::t;
-        os["td"] = Base::td;
-        os["V0"] = Base::V0;
-        os["mu"] = Base::mu;
-        os["Vext"] = Base::Vext;
-        os["epsilonr"] = Base::epsilonr;
-        os["lambdaD"] = Base::lambdaD;
-        os["q"] = Base::q;
-        //TODO: read back layout parameters or description
-        //os["a"] = Base::a;
-        //os["b"] = Base::b;
-        //os["Pext"] = Base::Pext;
-
-        return os;
     }
 };
 
