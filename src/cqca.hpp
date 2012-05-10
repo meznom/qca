@@ -59,6 +59,13 @@ namespace ptreeHelpers
             if (i->first != "") flag = false;
         return flag;
     }
+
+    template<class Tree>
+    bool hasKey (const Tree& t, const typename Tree::key_type& k)
+    {
+        typename Tree::const_assoc_iterator i = t.find(k);
+        return i != t.not_found();
+    }
 }
 
 using boost::property_tree::ptree;
@@ -87,9 +94,9 @@ public:
         // read in parameters
         type = getType(c);
         cells = c.get("cells", 1);
-        a = c.get("a", 1.0);
-        b = c.get("b", 3.0);
-        bs = getArray<double>(c.get_child("bs", ptree()));
+        a = getA(c);
+        b = getB(c);
+        bs = getBs(c);
         if (bs.size() == 0) 
             for (int i=0; i<cells; i++) 
                 bs.push_back(3.0);
@@ -127,8 +134,8 @@ public:
         {
             c.put("type", "wire");
             c.put("cells", cells);
-            c.put("a", a);
-            c.put("b", b);
+            setAOrV1(c);
+            setBOrBoa(c);
             c.put("Pext", Pext);
             c.put("epc", epc);
         }
@@ -136,8 +143,8 @@ public:
         {
             c.put("type", "nonuniformwire");
             c.put("cells", cells);
-            c.put("a", a);
-            c.put_child("bs", constructArray<ptree>(bs));
+            setAOrV1(c);
+            setBsOrBoas(c);
             c.put("Pext", Pext);
             c.put("epc", epc);
         }
@@ -170,6 +177,74 @@ private:
             return epc6;
         else
             throw ConfigurationException("Electrons per Cell (epc) must be either 2 or 6");
+    }
+
+    double getA (const ptree& c) const
+    {
+        if (hasKey(c, "a") && hasKey(c, "V1"))
+            throw ConfigurationException("Either specify 'a' or 'V1', but "
+                                         "not both at the same time");
+        if (hasKey(c, "V1"))
+            return 1.0 / c.get<double>("V1");
+        return c.get<double>("a", 1.0);
+    }
+    
+    double getB (const ptree& c) const
+    {
+        if (hasKey(c, "b") && hasKey(c, "boa"))
+            throw ConfigurationException("Either specify 'b' or 'boa', but "
+                                         "not both at the same time");
+        if (hasKey(c, "boa"))
+        {
+            double a_ = getA(c);
+            return c.get<double>("boa") * a_;
+        }
+        return c.get<double>("b", 3.0);
+    }
+    
+    std::vector<double> getBs (const ptree& c) const
+    {
+        if (hasKey(c, "bs") && hasKey(c, "boas"))
+            throw ConfigurationException("Either specify 'bs' or 'boas', but "
+                                         "not both at the same time");
+        if (hasKey(c, "boas"))
+        {
+            double a_ = getA(c);
+            std::vector<double> bs_ = getArray<double>(c.get_child("boas"));
+            for (size_t i=0; i<bs_.size(); i++)
+                bs_[i] *= a_;
+            return bs_;
+        }
+        return getArray<double>(c.get_child("bs", ptree()));
+    }
+
+    void setAOrV1 (ptree& c) const
+    {
+        if (hasKey(c, "V1"))
+            c.put("V1", 1.0 / a);
+        else
+            c.put("a", a);
+    }
+    
+    void setBOrBoa (ptree& c) const
+    {
+        if (hasKey(c, "boa"))
+            c.put("boa", b / a);
+        else
+            c.put("b", b);
+    }
+
+    void setBsOrBoas (ptree& c) const
+    {
+        if (hasKey(c, "boas"))
+        {
+            std::vector<double> boas = bs;
+            for (size_t i=0; i<boas.size(); i++)
+                boas[i] /= a;
+            c.put_child("boas", constructArray<ptree>(boas));
+        }
+        else
+            c.put_child("bs", constructArray<ptree>(bs));
     }
 };
 
@@ -204,7 +279,7 @@ public:
         s.epsilonr = c.get("epsilonr", QCA_NATURAL_EPSILON_R);
         s.lambdaD = c.get("lambdaD", 0.0);
         s.q = c.get("q", 0);
-        s.beta = c.get("beta", 1);
+        s.beta = getBeta(c);
         os = c.get_child("observables", ptree());
         l.setConfig(c.get_child("layout", ptree()));
         s.l = l.layout();
@@ -230,7 +305,7 @@ public:
         c.put("epsilonr", s.epsilonr);
         c.put("lambdaD", s.lambdaD);
         c.put("q", s.q);
-        c.put("beta", s.beta);
+        setBetaOrT(c, s.beta);
         c.put_child("layout", l.getConfig());
         c.put_child("observables", os);
         return c;
@@ -257,6 +332,11 @@ public:
                 throw ConfigurationException("Unknown observable: '" + i->first + "'");
         }
         return r;
+    }
+
+    QcaSystem& system ()
+    {
+        return s;
     }
 
 private:
@@ -370,6 +450,24 @@ private:
         std::stringstream ss;
         ss << v;
         return ss.str();
+    }
+
+    double getBeta (const ptree& c) const
+    {
+        if (hasKey(c, "beta") && hasKey(c, "T"))
+            throw ConfigurationException("Either specify 'beta' or 'T', but "
+                                         "not both at the same time");
+        if (hasKey(c, "T"))
+            return 1.0 / c.get<double>("T");
+        return c.get<double>("beta", 1);
+    }
+
+    void setBetaOrT (ptree& c, double beta) const
+    {
+        if (hasKey(c, "T"))
+            c.put("T", 1.0 / beta);
+        else
+            c.put("beta", beta);
     }
 };
 
