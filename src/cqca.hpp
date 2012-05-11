@@ -326,8 +326,14 @@ public:
                 r.put_child("P2", measureP2(i->second));
             else if (i->first == "N")
                 r.put_child("N", measureN(i->second));
-            else if (i->first == "E" && i->second.get_value<std::string>() == "yes")
-                r.put_child("E", measureE(i->second));
+            else if (i->first == "E")
+            {
+                if (i->second.get_value<std::string>() == "yes")
+                    r.put_child("E", measureE(i->second));
+                else if (i->second.get_value<std::string>() != "no")
+                    throw ConfigurationException("For observable 'E': "
+                                    "value must be either 'yes' or 'no'");
+            }
             else
                 throw ConfigurationException("Unknown observable: '" + i->first + "'");
         }
@@ -433,13 +439,15 @@ private:
         myMap evs;
         for (int i=0; i<s.energies().size(); i++)
             evs[s.energies()(i)]++;
+        int j=0;
         for (mapIt i=evs.begin(); i!=evs.end(); i++)
         {
-            std::vector<double> v(3);
-            v[0] = i->first;
-            v[1] = i->first - s.Emin();
-            v[2] = i->second;
-            r.push_back(rtree::value_type("", constructArray<rtree>(v)));
+            rtree v;
+            v.put("abs", i->first);
+            v.put("rel", i->first - s.Emin());
+            v.put("deg", static_cast<double>(i->second));
+            r.push_back(rtree::value_type(toString(j), v));
+            j++;
         }
         return r;
     }
@@ -839,43 +847,40 @@ public:
             needClosingBracket = true;
         }
 
-        bool quoting = false;
+        bool meQuoting = false;
+        bool userQuoting = false;
         char c;
-        while (is >> c)
+        while (is >> std::noskipws >> c)
         {
-            if (std::isspace(c))
+            if (c == '\'' || c == '"')
+            {
+                if (userQuoting) userQuoting = false;
+                else userQuoting = true;
+                os << "\"";
+            }
+            else if (userQuoting)
+                os << c;
+            else if (std::isspace(c))
                 continue;
             else if (c == '{' || c == '}' || c == '[' || c == ']' || c == ',' || c == ':')
             {
-                if (quoting)
+                if (meQuoting)
                 {
                     os << "\"";
-                    quoting = false;
+                    meQuoting = false;
                 }
                 os << c;
             }
-            else if (c == '\'')
-            {
-                if (quoting) quoting = false;
-                else quoting = true;
-                os << "\"";
-            }
-            else if (c == '"')
-            {
-                if (quoting) quoting = false;
-                else quoting = true;
-                os << "\"";
-            }
-            else if (!quoting)
+            else if (!meQuoting)
             {
                 os << "\"" << c;
-                quoting = true;
+                meQuoting = true;
             }
             else
                 os << c;
         }
 
-        if (quoting)
+        if (meQuoting)
             os << "\"";
         if (needClosingBracket)
             os << "}";

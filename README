@@ -7,8 +7,7 @@ Installation
 Requirements:
  * cmake[1], version 2.6 or greater.
  * Eigen[2], version 2.92.0 (Eigen 3.0-beta2) or greater.
- * Boost[3] to build the unit tests. I'm using version 1.42, but older versions
-   will probably work as well.
+ * Boost[3], version 1.49 or greater (1.48 does not seem to work)
  * Doxygen[4] to generate the documentation.
  * works with gcc (I am using 4.6) and clang (I am using 3.0)
 
@@ -28,12 +27,16 @@ Example:
 In the source_dir:
  $ mkdir Release
  $ cd Release
- $ rm -f CMakeCache.txt && CC=/usr/bin/icc CXX=/usr/bin/icpc cmake -DCMAKE_BUILD_TYPE=Release ..
+ $ rm -f CMakeCache.txt && CXX=/opt/local/bin/clang++-mp-3.0 cmake \
+   -DCMAKE_BUILD_TYPE=Release -DBASIS_NUMBER_OF_BITS=32 ..
  $ make
-This clears the cmake cache and builds the program with the Intel compiler in
-Release mode.
+This clears the cmake cache and builds the program with the Clang compiler in
+Release mode and with a 32 bits basis.
 
 Useful cmake variables:
+ * BASIS_NUMBER_OF_BITS. Number of bits for the storage of the basis. Default
+   is 16, but for larger systems (e.g. 3 cells with the grand canonical model)
+   32 bits is required.
  * CMAKE_BUILD_TYPE. Can be either Release or Debug. Defaults to Release.
  * EIGEN_INCLUDE_DIR. Where to find Eigen 3. Should be detected automatically.
  * BOOST_INCLUDE_DIR. Where to find Boost. Should be detected automatically.
@@ -41,7 +44,7 @@ Useful cmake variables:
    automatically.
  * USE_CXX_FLAGS_RELEASE. Compiler flags for Release build type. Reasonable
    defaults should be set automatically, depending on which compiler is used
-   (GNU or Intel).
+   (GCC or Clang).
  * USE_CXX_FLAGS_DEBUG. Compiler flags for Debug build type.
 
 
@@ -49,22 +52,31 @@ Usage
 -----
 
 After compilation a file runQca should be in the build_dir. Run
- $ ./runQca --help
-to get startet.
+ $ ./src/runQca --help
+to get started.
 
-For example,
- $ ./runQca -E -m grand2DP -p 1 -t 1 -td 0 -V0 1000 -a 0.01 -b 1000
-calculates the energy spectrum for the one plaquet grand-canonical system (with
-a dead plaquet) and the given parameters, whereas
- $ ./runQca -P 0,1 -m fixed2DP -p 2 -t 1 -td 0 -V0 1000 \
-          -beta 0.01,0.1,1,10 -a 0.01 -b 0.0175,0.025 -Pext 1
-computes the polarisation of the first and second plaquet over beta, for the
-two plaquet fixed charge system (again, the dead plaquet variant) and for two
-different values of b, the inter-plaquet spacing.
+For example:
+
+ $ ./src/runQca 'model: grandcanonical, t: 1, td: 0, V0: 1000, \
+   layout: {type: wire, epc: 2, a: 0.01, b: 1000}, observables: {E: yes}'
+
+Calculates the energy spectrum for the one-cell-wire grand-canonical system,
+with 2 electrons per cell (epc) and the driving cell placed very, very far away
+(b=1000).
+
+ $ ./src/runQca 'model: fixed, t: 1, td: 0, V0: 1000, beta: [0.01,0.1,1,10], \
+   layout: {type: wire, epc: 2, V1: 100, boa: [1.75,2.5], Pext: 1}, \
+   changing: [layout.boa, beta], observables: {P: all}'
+
+Computes the polarization of all cells over beta, for the two cell fixed charge
+system and for two different values of boa (b over a, that is, b in units of
+a). b is the inter-cell spacing.
 
 
 Performance
 -----------
+
+TODO: This section is out of date.
 
 The performance of gcc 4.6 and clang 3.0 is about the same. For example with gcc 4.6:
 $ time nice -19 ./src/runQca -n -m fixed -epc 2 -p 3 -V0 1000 -a 0.01 -b 0.02 \
@@ -82,7 +94,7 @@ The compilation time with clang is a little bit more than two times faster than
 with gcc (~10 seconds instead of ~25 seconds).
 
 
-Burkhard Ritter (burkhard@ualberta.ca), March 2012
+Burkhard Ritter (burkhard@ualberta.ca), May 2012
 
 
 [1] http://www.cmake.org

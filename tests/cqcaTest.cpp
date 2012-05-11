@@ -484,13 +484,17 @@ BOOST_AUTO_TEST_CASE ( test_configurator_jsonify )
             == 
             jsonify("{'a':'1','b':'2','c':{'c1':'blah','c2':'765'}}"));
     BOOST_CHECK (
-            Configurator::jsonify("[{a:1,b:2},{c:miau,d: '52, e: \"la\"}, {'blub': blah}]") 
+            Configurator::jsonify("[{a:1,b:2},{c:miau,d: '52', e: \"la\"}, {'blub': blah}]") 
             == 
             jsonify("[{'a':'1','b':'2'},{'c':'miau','d':'52','e':'la'},{'blub':'blah'}]"));
     BOOST_CHECK (
             Configurator::jsonify("a:1,b:2") 
             == 
             jsonify("{'a':'1','b':'2'}"));
+    BOOST_CHECK (
+            Configurator::jsonify("a:1, comment: \"Properly; quoted, text is preseved.\", b:2") 
+            == 
+            jsonify("{'a':'1','comment':'Properly; quoted, text is preseved.','b':'2'}"));
 }
 
 BOOST_AUTO_TEST_CASE ( test_configurator )
