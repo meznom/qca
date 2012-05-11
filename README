@@ -76,22 +76,37 @@ a). b is the inter-cell spacing.
 Performance
 -----------
 
-TODO: This section is out of date.
+I am testing the performance of clang 3.0, gcc 4.6.3, and gcc 4.7.0. 
 
-The performance of gcc 4.6 and clang 3.0 is about the same. For example with gcc 4.6:
-$ time nice -19 ./src/runQca -n -m fixed -epc 2 -p 3 -V0 1000 -a 0.01 -b 0.02 \
-                             -beta 1 -t 1 -Pext 1 -N 0,1,2 -P 0,1,2 -P2 0,1,2
-[...]
-real    25m48.757s
+$ /opt/local/bin/clang++-mp-3.0 --version
+clang version 3.0 (tags/RELEASE_30/final)
+$ /opt/local/bin/g++-mp-4.6 --version
+g++-mp-4.6 (MacPorts gcc46 4.6.3_2) 4.6.3
+$ /opt/local/bin/g++-mp-4.7 --version
+g++-mp-4.7 (MacPorts gcc47 4.7.0_3) 4.7.0
+$ ( time nice -19 ./Release-clang/src/runQca \
+        'model: fixed, V0: 1000, beta: 1, t: 1, layout: {cells: 3, a: 0.01, \
+         b: 0.02, Pext: 1, epc: 2}, observables: {P: all, P2: all, N: all}' \
+    && \
+    time nice -19 ./Release-gcc/src/runQca \
+        'model: fixed, V0: 1000, beta: 1, t: 1, layout: {cells: 3, a: 0.01, \
+         b: 0.02, Pext: 1, epc: 2}, observables: {P: all, P2: all, N: all}' \
+    && \
+    time nice -19 ./Release-gcc47/src/runQca \
+        'model: fixed, V0: 1000, beta: 1, t: 1, layout: {cells: 3, a: 0.01, \
+         b: 0.02, Pext: 1, epc: 2}, observables: {P: all, P2: all, N: all}' \
+  ) > output 2>&1
 
-And with clang 3.0:
-$ time nice -19 ./src/runQca -n -m fixed -epc 2 -p 3 -V0 1000 -a 0.01 -b 0.02 \
-                             -beta 1 -t 1 -Pext 1 -N 0,1,2 -P 0,1,2 -P2 0,1,2
-[...]
-real    25m39.944s
+From this I get:
+clang 3.0: 25m37.286s
+gcc 4.6.3: 25m33.630s
+gcc 4.7.0: 30m6.368s
+
+So clang 3.0 and gcc 4.6.3 are essentially on par while gcc 4.7.0 is
+considerably slower.
 
 The compilation time with clang is a little bit more than two times faster than
-with gcc (~10 seconds instead of ~25 seconds).
+with gcc 4.6.3 (~10 seconds instead of ~25 seconds).
 
 
 Burkhard Ritter (burkhard@ualberta.ca), May 2012
