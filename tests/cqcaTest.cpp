@@ -34,8 +34,15 @@ std::string ptreeToJson (const ptree& p)
     return ss.str();
 }
 
+ptree ptreeFromValue (const std::string& s)
+{
+    ptree p;
+    p.put_value(s);
+    return p;
+}
+
 template<typename T>
-std::string toString (T v)
+std::string toString_ (T v)
 {
     std::stringstream ss;
     ss << std::setprecision(16) << v;
@@ -177,7 +184,7 @@ BOOST_AUTO_TEST_CASE ( test_configurable_qca_systems )
     s2.setConfig(ptreeFromJson("{}")); // default configuration
     BOOST_CHECK (s2.getConfig() == ptreeFromJson(
         "{'model': 'grandcanonical', 't': 1, 'td': 0, 'Vext': 0, 'V0': 1000, "
-        "'mu': 0, 'epsilonr': " + toString(QCA_NATURAL_EPSILON_R) + 
+        "'mu': 0, 'epsilonr': " + toString_(QCA_NATURAL_EPSILON_R) + 
         ", 'lambdaD': 0, 'q': 0, 'beta': 1, "
         "'layout': {'type': 'wire', 'cells': 1, 'a': 1, "
         "'b': 3, 'Pext': 0, 'epc': 2}, 'observables': {}}"));
@@ -222,14 +229,14 @@ BOOST_AUTO_TEST_CASE ( test_configurable_qca_systems )
     double b = 1.75 * a;
     double V0 = 10 / a;
     s4.setConfig(ptreeFromJson(
-        "{'model': 'bond', 't': 1, 'td': 0.2, 'V0': " + toString(V0) + ", 'beta': 1000000, "
-        "'layout': {'type': 'wire', 'cells': 1, 'a': " + toString(a) + ", "
-        "'b': " + toString(b) + ", 'Pext': 0.01}, 'observables': {'P': 'all'}}"));
+        "{'model': 'bond', 't': 1, 'td': 0.2, 'V0': " + toString_(V0) + ", 'beta': 1000000, "
+        "'layout': {'type': 'wire', 'cells': 1, 'a': " + toString_(a) + ", "
+        "'b': " + toString_(b) + ", 'Pext': 0.01}, 'observables': {'P': 'all'}}"));
     BOOST_CHECK (s4.getConfig() == ptreeFromJson(
-        "{'model': 'bond', 't': 1, 'td': 0.2, 'V0': " + toString(V0) + ", "
-        "'beta': 1000000, 'layout': {'type': 'wire', 'cells': 1, 'a': " + toString(a) + ", "
-        "'b': " + toString(b) + ", 'Pext': 0.01, 'epc': 2}, 'observables': {'P': 'all'}, "
-        "'Vext': 0, 'mu': 0, 'epsilonr': " + toString(QCA_NATURAL_EPSILON_R) + ", 'lambdaD': 0, "
+        "{'model': 'bond', 't': 1, 'td': 0.2, 'V0': " + toString_(V0) + ", "
+        "'beta': 1000000, 'layout': {'type': 'wire', 'cells': 1, 'a': " + toString_(a) + ", "
+        "'b': " + toString_(b) + ", 'Pext': 0.01, 'epc': 2}, 'observables': {'P': 'all'}, "
+        "'Vext': 0, 'mu': 0, 'epsilonr': " + toString_(QCA_NATURAL_EPSILON_R) + ", 'lambdaD': 0, "
         "'q': 0}"));
     rtree r = s4.measure();
     BOOST_CHECK (epsilonEqual(r.get<double>("P.0"), 0.29, 0.01));
@@ -247,9 +254,9 @@ BOOST_AUTO_TEST_CASE ( test_configurable_qca_systems )
     b = 5 * a;
     V0 = 10.0 / a;
     s4.setConfig(ptreeFromJson(
-        "{'model': 'fixed', 't': 1, 'td': 0.2, 'V0': " + toString(V0) + ", " 
+        "{'model': 'fixed', 't': 1, 'td': 0.2, 'V0': " + toString_(V0) + ", " 
         "'beta': 1000, 'layout': {'type': 'wire', 'cells': 2, "
-        "'a': " + toString(a) + ", 'b': " + toString(b) + ", 'Pext': 0.1, "
+        "'a': " + toString_(a) + ", 'b': " + toString_(b) + ", 'Pext': 0.1, "
         "'epc': 6}, 'observables': {'P': 'all', 'N': 0}}"));
     r = s4.measure();
     BOOST_CHECK (epsilonEqual(r.get<double>("N.0.total"), 6));
@@ -264,7 +271,7 @@ BOOST_AUTO_TEST_CASE ( test_configurable_qca_systems )
         "{'t': 3, 'blah': 'blub'}"));
     BOOST_CHECK (s5.getConfig() == ptreeFromJson(
         "{'model': 'grandcanonical', 't': 3, 'blah': 'blub', 'td': 0, 'Vext': 0, 'V0': 1000, "
-        "'mu': 0, 'epsilonr': " + toString(QCA_NATURAL_EPSILON_R) + 
+        "'mu': 0, 'epsilonr': " + toString_(QCA_NATURAL_EPSILON_R) + 
         ", 'lambdaD': 0, 'q': 0, 'beta': 1, "
         "'layout': {'type': 'wire', 'cells': 1, 'a': 1, "
         "'b': 3, 'Pext': 0, 'epc': 2}, 'observables': {}}"));
@@ -281,7 +288,7 @@ BOOST_AUTO_TEST_CASE (test_configurable_qca_systems_with_alternate_parameters )
     s1.setConfig(ptreeFromJson("{'t': 0.1, 'beta': 10}"));
     BOOST_CHECK (s1.getConfig() == ptreeFromJson(
         "{'t': 0.1, 'beta': 10, 'td': 0, 'Vext': 0, 'V0': 1000, "
-        "'mu': 0, 'epsilonr': " + toString(QCA_NATURAL_EPSILON_R) + 
+        "'mu': 0, 'epsilonr': " + toString_(QCA_NATURAL_EPSILON_R) + 
         ", 'lambdaD': 0, 'q': 0, "
         "'layout': {'type': 'wire', 'cells': 1, 'a': 1, "
         "'b': 3, 'Pext': 0, 'epc': 2}, 'observables': {}}"));
@@ -290,7 +297,7 @@ BOOST_AUTO_TEST_CASE (test_configurable_qca_systems_with_alternate_parameters )
     s1.setConfig(ptreeFromJson("{'t': 0.1, 'T': 2}"));
     BOOST_CHECK (s1.getConfig() == ptreeFromJson(
         "{'t': 0.1, 'T': 2, 'td': 0, 'Vext': 0, 'V0': 1000, "
-        "'mu': 0, 'epsilonr': " + toString(QCA_NATURAL_EPSILON_R) + 
+        "'mu': 0, 'epsilonr': " + toString_(QCA_NATURAL_EPSILON_R) + 
         ", 'lambdaD': 0, 'q': 0, "
         "'layout': {'type': 'wire', 'cells': 1, 'a': 1, "
         "'b': 3, 'Pext': 0, 'epc': 2}, 'observables': {}}"));
@@ -300,7 +307,7 @@ BOOST_AUTO_TEST_CASE (test_configurable_qca_systems_with_alternate_parameters )
     BOOST_CHECK (s1.getConfig() == ptreeFromJson(
         "{'t': 0.1, 'T': 10, 'layout': {'V1': 8, 'type': 'wire', 'cells': 1, "
         "'b': 3, 'Pext': 0, 'epc': 2}, 'td': 0, 'Vext': 0, 'V0': 1000, "
-        "'mu': 0, 'epsilonr': " + toString(QCA_NATURAL_EPSILON_R) + 
+        "'mu': 0, 'epsilonr': " + toString_(QCA_NATURAL_EPSILON_R) + 
         ", 'lambdaD': 0, 'q': 0, 'observables': {}}"));
     BOOST_CHECK (s1.system().beta == 0.1);
 }
@@ -310,78 +317,96 @@ BOOST_AUTO_TEST_CASE ( test_vparam )
     ptree p;
     p = ptreeFromJson("{'a': 'blah'}");
     BOOST_CHECK_THROW (
-        VParam v1("v1", p.get_child("a")),
+        VParam v1(p, "a"),
         ConfigurationException);
     
     p = ptreeFromJson("{'a': '3,4,5'}");
     BOOST_CHECK_THROW (
-        VParam v2("v2", p.get_child("a")),
+        VParam v2(p, "a"),
         ConfigurationException);
 
     p = ptreeFromJson("{'a': '3;4'}");
     BOOST_CHECK_THROW (
-        VParam v3("v3", p.get_child("a")),
+        VParam v3(p, "a"),
         ConfigurationException);
 
     p = ptreeFromJson("{'a': '3;;'}");
     BOOST_CHECK_THROW (
-        VParam v4("v4", p.get_child("a")),
+        VParam v4(p, "a"),
         ConfigurationException);
 
     p = ptreeFromJson("{'a': '1;2;-0.2'}");
     BOOST_CHECK_THROW (
-        VParam v5("v5", p.get_child("a")),
+        VParam v5(p, "a"),
         ConfigurationException);
 
     p = ptreeFromJson("{'a': '2.1;1.5;0.1'}");
     BOOST_CHECK_THROW (
-        VParam v6("v6", p.get_child("a")),
+        VParam v6(p, "a"),
         ConfigurationException);
 
     p = ptreeFromJson("{'a': '1;2;0.b5'}");
     BOOST_CHECK_THROW (
-        VParam v7("v7", p.get_child("a")),
+        VParam v7(p, "a"),
         ConfigurationException);
     
     p = ptreeFromJson("{'a': '1;2a;0.1'}");
     BOOST_CHECK_THROW (
-        VParam v8("v8", p.get_child("a")),
+        VParam v8(p, "a"),
         ConfigurationException);
 
     p = ptreeFromJson("{'a': [1,2,3,4,5]}");
-    VParam v9("v9", p.get_child("a"));
+    VParam v9(p, "a");
     BOOST_CHECK (v9.size() == 5);
-    BOOST_CHECK (v9.index == 0);
-    BOOST_CHECK (v9.currentValue() == "1");
-    v9.index++;
-    BOOST_CHECK (v9.currentValue() == "2");
+    BOOST_CHECK (v9.atFirstElement() == true);
+    BOOST_CHECK (v9.value() == ptreeFromValue("1"));
+    v9.increment();
+    BOOST_CHECK (v9.value() == ptreeFromValue("2"));
     
     p = ptreeFromJson("{'a': '1;10;1'}");
-    VParam v10("v10", p.get_child("a"));
+    VParam v10(p, "a");
     BOOST_CHECK (v10.size() == 10);
-    BOOST_CHECK (v10.currentValue() == "1");
-    v10.index++;
-    BOOST_CHECK (v10.currentValue() == "2");
-    v10.index++;
-    BOOST_CHECK (v10.currentValue() == "3");
+    BOOST_CHECK (v10.value() == ptreeFromValue("1"));
+    v10.increment();
+    BOOST_CHECK (v10.value() == ptreeFromValue("2"));
+    v10.increment();
+    BOOST_CHECK (v10.value() == ptreeFromValue("3"));
 
     p = ptreeFromJson("{'a': '1;2;0.2'}");
-    VParam v11("v11", p.get_child("a"));
+    VParam v11(p, "a");
     BOOST_CHECK (v11.size() == 6);
-    BOOST_CHECK (v11.currentValue() == "1");
-    v11.index++;
-    BOOST_CHECK (v11.currentValue() == "1.2");
-    v11.index++;
-    BOOST_CHECK (v11.currentValue() == "1.4");
+    BOOST_CHECK (v11.value() == ptreeFromValue("1"));
+    v11.increment();
+    BOOST_CHECK (v11.value() == ptreeFromValue("1.2"));
+    v11.increment();
+    BOOST_CHECK (v11.value() == ptreeFromValue("1.4"));
 
     p = ptreeFromJson("{'a': '7;-2;-1.5'}");
-    VParam v12("v12", p.get_child("a"));
+    VParam v12(p, "a");
     BOOST_CHECK (v12.size() == 7);
-    BOOST_CHECK (v12.currentValue() == "7");
-    v12.index++;
-    BOOST_CHECK (v12.currentValue() == "5.5");
-    v12.index++;
-    BOOST_CHECK (v12.currentValue() == "4");
+    BOOST_CHECK (v12.value() == ptreeFromValue("7"));
+    v12.increment();
+    BOOST_CHECK (v12.value() == ptreeFromValue("5.5"));
+    v12.increment();
+    BOOST_CHECK (v12.value() == ptreeFromValue("4"));
+
+    p = ptreeFromJson("{'a': [[1,2,3],[4,5,6],[7,8,9],[10,11]]}");
+    VParam v13(p, "a");
+    BOOST_CHECK (v13.size() == 4);
+    BOOST_CHECK (v13.value() == ptreeFromJson("[1,2,3]"));
+    v13.increment();
+    BOOST_CHECK (v13.value() == ptreeFromJson("[4,5,6]"));
+    v13.increment();
+    BOOST_CHECK (v13.value() == ptreeFromJson("[7,8,9]"));
+    v13.increment();
+    BOOST_CHECK (v13.value() == ptreeFromJson("[10,11]"));
+
+    p = ptreeFromJson("{'a': [{'b':1,'c':2},{'d':3,'e':4}]}");
+    VParam v14(p, "a");
+    BOOST_CHECK (v14.size() == 2);
+    BOOST_CHECK (v14.value() == ptreeFromJson("{'b':1,'c':2}"));
+    v14.increment();
+    BOOST_CHECK (v14.value() == ptreeFromJson("{'d':3,'e':4}"));
 }
 
 BOOST_AUTO_TEST_CASE ( test_vconfiguration )
@@ -471,6 +496,29 @@ BOOST_AUTO_TEST_CASE ( test_vconfiguration )
     BOOST_CHECK (vc8.getNext() == ptreeFromJson(
                 "{'a': 3, 'b': {'c': 2, 'd': 10}, 'changing': ['b.c','a'], "
                 "'original': {'b': {'c': [1,2]}, 'a': [1,2,3]}, 'changed': ['a']}"));
+
+    ptree p9 = ptreeFromJson("{'a': '1;2;0.5', 'b': {'c': [1,2], 'd': 10}, 'changing': ['b.c','a']}");
+    VConfiguration vc9(p9);
+    BOOST_CHECK (vc9.hasNext() == true);
+    BOOST_CHECK (vc9.numberOfVariants() == 6);
+    BOOST_CHECK (vc9.getNext() == ptreeFromJson(
+                "{'a': 1, 'b': {'c': 1, 'd': 10}, 'changing': ['b.c','a'], "
+                "'original': {'b': {'c': [1,2]}, 'a': '1;2;0.5'}, 'changed': ['b.c','a']}"));
+    BOOST_CHECK (vc9.getNext() == ptreeFromJson(
+                "{'a': 1.5, 'b': {'c': 1, 'd': 10}, 'changing': ['b.c','a'], "
+                "'original': {'b': {'c': [1,2]}, 'a': '1;2;0.5'}, 'changed': ['a']}"));
+    BOOST_CHECK (vc9.getNext() == ptreeFromJson(
+                "{'a': 2, 'b': {'c': 1, 'd': 10}, 'changing': ['b.c','a'], "
+                "'original': {'b': {'c': [1,2]}, 'a': '1;2;0.5'}, 'changed': ['a']}"));
+    BOOST_CHECK (vc9.getNext() == ptreeFromJson(
+                "{'a': 1, 'b': {'c': 2, 'd': 10}, 'changing': ['b.c','a'], "
+                "'original': {'b': {'c': [1,2]}, 'a': '1;2;0.5'}, 'changed': ['b.c','a']}"));
+    BOOST_CHECK (vc9.getNext() == ptreeFromJson(
+                "{'a': 1.5, 'b': {'c': 2, 'd': 10}, 'changing': ['b.c','a'], "
+                "'original': {'b': {'c': [1,2]}, 'a': '1;2;0.5'}, 'changed': ['a']}"));
+    BOOST_CHECK (vc9.getNext() == ptreeFromJson(
+                "{'a': 2, 'b': {'c': 2, 'd': 10}, 'changing': ['b.c','a'], "
+                "'original': {'b': {'c': [1,2]}, 'a': '1;2;0.5'}, 'changed': ['a']}"));
 }
 
 BOOST_AUTO_TEST_CASE ( test_configurator_jsonify )
@@ -564,7 +612,8 @@ BOOST_AUTO_TEST_CASE ( test_store )
     Configurator c1(jsonify(
         "[{'a': 1, 'b': [2,3,4,5], 'c': 'blah', 'd': {'d1': 2.1, 'd2': 3.4}, 'changing': ['b']}, "
         " {'a': 2, 'b': [2,3,4,5,6,7], 'c': 'blah', 'd': {'d1': [2.1,3,4.1,6.4], 'd2': 3.4}, 'changing': ['b','d.d1']}, "
-        " {'a': 3, 'b': '1;22;1', 'c': 'blah', 'd': {'d1': 2.1, 'd2': 3.4}, 'changing': ['b']}]"));
+        " {'a': 3, 'b': '1;22;1', 'c': 'blah', 'd': {'d1': 2.1, 'd2': 3.4}, 'changing': ['b']}, " 
+        " {'a': 3, 'b': 1, 'c': 'blah', 'd': {'d1': [[1,2],[3,4]], 'd2': 3.4}, 'changing': ['d.d1']}]"));
     rtree r1;
     r1.put("P.0", 0.8);
     r1.put("P.1", 0.7);
@@ -585,7 +634,7 @@ BOOST_AUTO_TEST_CASE ( test_store )
     r1.put("N.2.2", 0.3);
     r1.put("N.2.3", 0.7);
     Store o1;
-    for (int i=0; i<50; i++)
+    for (int i=0; i<52; i++)
         o1.store(c1.getNext(), r1);
 
     // real world example

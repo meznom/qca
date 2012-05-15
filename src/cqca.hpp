@@ -66,11 +66,30 @@ namespace ptreeHelpers
         typename Tree::const_assoc_iterator i = t.find(k);
         return i != t.not_found();
     }
+
+    template<typename T>
+    T fromString (const std::string& v)
+    {
+        T returnValue;
+        std::stringstream s(v);
+        s >> returnValue;
+        if (!s.eof() || v.empty())
+            throw ConfigurationException("Can't convert '" + v + "'.");
+        return returnValue;
+    }
+
+    template<typename T>
+    std::string toString (const T& v)
+    {
+        std::stringstream s;
+        s << v;
+        return s.str();
+    }
 }
 
 using boost::property_tree::ptree;
+using boost::property_tree::ptree_bad_path;
 using namespace ptreeHelpers;
-using namespace boost::property_tree::json_parser;
 
 class CLayout
 {
@@ -452,14 +471,6 @@ private:
         return r;
     }
 
-    template<typename T>
-    std::string toString (T v) const
-    {
-        std::stringstream ss;
-        ss << v;
-        return ss.str();
-    }
-
     double getBeta (const ptree& c) const
     {
         if (hasKey(c, "beta") && hasKey(c, "T"))
@@ -561,35 +572,103 @@ private:
 
 class VParam
 {
-public:
-    std::string name;
+/*
+ * This implementation is not very good. 
+ * 1. It really is two classes with the same interface in one (generator and
+ *    normal vparam).
+ * 2. We rely on a pointer to the "global" configuration ptree c. So
+ *    VParam only works as long as this configuration variable remains valid.
+ */
+private:
+    std::string name_;
+    bool IAmAnArray;
+    
+    // Has to be a pointer. Otherwise it will be invalid when this instance of
+    // VParam is copied (happens, for example, if we use VParam in a vector)
+    ptree* t;
+    ptree::const_iterator it;
+
     std::vector<double> values;
     int index;
 
-    VParam (const std::string& name_, const ptree&  c)
-    : name(name_), index(0)
+public:
+    VParam (ptree&  c, const std::string& name__)
+    : name_(name__)
     {
-        if (isArray(c))
-        {
-            values = getArray<double>(c);
+        try {
+            c.get_child(name_);
         }
-        else if (isGenerator(c))
+        catch (ptree_bad_path e)
         {
-            values = getArrayFromGenerator(c);
+            throw ConfigurationException("Changing parameter '" + name_ + 
+                                         "' does not exist.");
+        }
+
+        ptree& p = c.get_child(name_);
+        if (isArray(p))
+        {
+            IAmAnArray = true;
+            t = &p;
+            it = t->begin();
+        }
+        else if (isGenerator(p))
+        {
+            IAmAnArray = false;
+            values = getArrayFromGenerator(p);
+            index = 0;
         }
         else
-            throw ConfigurationException("Changing parameter '" + name + 
-                                         "' does not exist or has invalid specification.");
+            throw ConfigurationException("Changing parameter '" + name_ + 
+                                         "' has invalid specification.");
     }
 
-    std::string currentValue () const
+    ptree value () const
     {
-        return toString(values[index]);
+        if (IAmAnArray)
+            return it->second;
+        else
+        {
+            ptree n;
+            n.put_value(toString(values[index]));
+            return n;
+        }
     }
 
     size_t size () const
     {
-        return values.size();
+        if (IAmAnArray)
+            return t->size();
+        else
+            return values.size();
+    }
+
+    void increment () 
+    {
+        if (IAmAnArray)
+        {
+            it++;
+            if (it == t->end())
+                it = t->begin();
+        }
+        else
+        {
+            index++;
+            if (index == values.size())
+                index = 0;
+        }
+    }
+
+    bool atFirstElement () const
+    {
+        if (IAmAnArray)
+            return it == t->begin();
+        else
+            return index == 0;
+    }
+
+    std::string name () const
+    {
+        return name_;
     }
 
 private:
@@ -634,25 +713,6 @@ private:
             pos1 = pos2+1;
         }
         return list;
-    }
-
-    template<typename T>
-    T fromString (const std::string& v) const
-    {
-        T returnValue;
-        std::stringstream s(v);
-        s >> returnValue;
-        if (!s.eof() || v.empty())
-            throw ConfigurationException("Can't convert '" + v + "'.");
-        return returnValue;
-    }
-
-    template<typename T>
-    std::string toString (const T& v) const
-    {
-        std::stringstream s;
-        s << v;
-        return s.str();
     }
 };
 
@@ -727,10 +787,7 @@ private:
         std::vector<std::string> names = getArray<std::string>(p);
         for (size_t i=0; i<names.size(); i++)
         {
-            const ptree a = c.get_child(names[i], ptree());
-            VParam v(names[i], a);
-            vparams.push_back(v);
-            
+            vparams.push_back(VParam(c, names[i]));
             // initially all varying parameters are considered changed
             changed.push_back(names[i]);
         }
@@ -745,11 +802,9 @@ private:
             // replace the changing parameter by it's current value
             // and attach the original config of the changing parameter as
             // "original.parameter_name"
-            ptree o = nc.get_child(vparams[i].name);
-            ptree n;
-            n.put_value(vparams[i].currentValue());
-            nc.put_child(vparams[i].name, n);
-            nc.put_child("original." + vparams[i].name, o);
+            ptree o = nc.get_child(vparams[i].name());
+            nc.put_child("original." + vparams[i].name(), o);
+            nc.put_child(vparams[i].name(), vparams[i].value());
         }
         nc.put_child("changed", constructArray<ptree>(changed));
         return nc;
@@ -761,11 +816,11 @@ private:
         for (int i=vparams.size()-1; i>=0; i--)
         {
             VParam& v = vparams[i];
-            v.index++;
-            changed.push_back(v.name);
-            if (v.index == static_cast<int>(v.size()))
-                v.index = 0;
-            else
+            changed.push_back(v.name());
+            // note: increment() wraps around
+            // so atFirstElement() checks if we just wrapped around
+            v.increment(); 
+            if (!v.atFirstElement())
                 break;
         }
         // keep original order of entries in changing
@@ -773,7 +828,7 @@ private:
         
         gotAllVariants = true;
         for (size_t i=0; i<vparams.size(); i++)
-            if (vparams[i].index != 0)
+            if (!vparams[i].atFirstElement())
             {
                 gotAllVariants = false;
                 return;
@@ -989,7 +1044,14 @@ private:
         TreeTypes<rtree>::vector os = getFlattenedTree(r);
         std::cout << "# ";
         for (size_t i=0; i<ps.size(); i++)
-            std::cout << std::setw(columnWidth) << ps[i];
+        {
+            const ptree& n = c.get_child(ps[i]);
+            if (isArray(n))
+                for (size_t j=0; j<n.size(); j++)
+                    std::cout << std::setw(columnWidth) << (ps[i] + "." + toString(j));
+            else 
+                std::cout << std::setw(columnWidth) << ps[i];
+        }
         for (size_t i=0; i<os.size(); i++)
             std::cout << std::setw(columnWidth) << os[i].first;
         std::cout << std::endl;
@@ -1007,7 +1069,14 @@ private:
         TreeTypes<rtree>::vector os = getFlattenedTree(r);
         std::cout << "  ";
         for (size_t i=0; i<ps.size(); i++)
-            std::cout << std::setw(columnWidth) << c.get<double>(ps[i], 0);
+        {
+            const ptree& n = c.get_child(ps[i]);
+            if (isArray(n))
+                for (ptree::const_iterator j=n.begin(); j!=n.end(); j++)
+                    std::cout << std::setw(columnWidth) << j->second.get_value<std::string>();
+            else
+                std::cout << std::setw(columnWidth) << c.get<double>(ps[i], 0);
+        }
         for (size_t i=0; i<os.size(); i++)
             std::cout << std::setw(columnWidth) << os[i].second;
         std::cout << std::endl;
@@ -1036,19 +1105,26 @@ private:
                                     typename TreeTypes<Tree>::vector& v, 
                                     const std::string& path) const
     {
-        if (t.size() == 0 || isArray(t))
+        if (t.size() == 0)
         {
-            // note: for an array, we just get an empty value; not the whole
-            // array
             v.push_back(typename TreeTypes<Tree>::pair(path, t.data()));
             return;
         }
 
+        bool isarray = isArray(t);
+        int l=0;
         for (typename Tree::const_iterator i=t.begin(); i!=t.end(); i++)
-            if (path.length() == 0)
-                getFlattenedTreeRecursive(i->second, v, i->first);
+        {
+            std::string npath = path;
+            if (npath.length() != 0)
+                npath += ".";
+            if (isarray)
+                npath += toString(l);
             else
-                getFlattenedTreeRecursive(i->second, v, path + "." + i->first);
+                npath += i->first;
+            getFlattenedTreeRecursive(i->second, v, npath);
+            l++;
+        }
     }
 
     std::string getDate () const
@@ -1085,10 +1161,9 @@ private:
         {
             // replaces the current value of a varying parameter by its
             // original configuration / specification
-            const ptree o = c.get_child("original");
-            TreeTypes<ptree>::vector os = getFlattenedTree(o);
-            for (size_t j=0; j<os.size(); j++)
-                c.put_child(os[j].first, c.get_child("original." + os[j].first));
+            std::vector<std::string> ps = getVParams(c);
+            for (size_t j=0; j<ps.size(); j++)
+                c.put_child(ps[j], c.get_child("original." + ps[j]));
             c.erase(c.to_iterator(i));
         }
         
