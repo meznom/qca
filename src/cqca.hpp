@@ -847,14 +847,18 @@ public:
     : i_c(0)
     {
         ptree c;
-        std::string js;
         if (isfile(json))
-            // could be implemented in a better, more efficient way
-            js = getFileAsString(json);
+        {
+            std::ifstream is(json.c_str());
+            std::stringstream ss(jsonify(is));
+            is.close();
+            read_json(ss, c);
+        }
         else
-            js = json;
-        std::stringstream ss(jsonify(js));
-        read_json(ss, c);
+        {
+            std::stringstream ss(jsonify(json));
+            read_json(ss, c);
+        }
         
         if (isArray(c))
             for (ptree::const_iterator i=c.begin(); i!=c.end(); i++)
@@ -890,9 +894,8 @@ public:
         return sum;
     }
 
-    static std::string jsonify (const std::string& s)
+    static std::string jsonify (std::istream& is)
     {
-        std::stringstream is(s);
         std::stringstream os;
 
         bool needClosingBracket = false;
@@ -943,18 +946,10 @@ public:
         return os.str();
     }
 
-    static std::string getFileAsString (const std::string& file)
+    static std::string jsonify (const std::string& s)
     {
-        std::ifstream is(file.c_str());
-        std::stringstream os;
-        while (is.good())
-        {
-            const int size = 200;
-            char cs[size];
-            is.read(cs, size);
-            os.write(cs, is.gcount());
-        }
-        return os.str();
+        std::stringstream is(s);
+        return jsonify(is);
     }
 
 private:
@@ -1029,10 +1024,12 @@ private:
                   << "# " << std::endl;
         
         std::stringstream ss;
+        std::string line;
         write_json(ss, prepareForPrinting(c));
-        std::string s = ss.str();
-        prependLines(s, "# ");
-        std::cout << s;
+        while (getline(ss, line))
+        {
+            std::cout << "# " << line << std::endl;
+        }
         std::cout << "# " << std::endl;
         
         lineCount = 0;
@@ -1073,7 +1070,7 @@ private:
             const ptree& n = c.get_child(ps[i]);
             if (isArray(n))
                 for (ptree::const_iterator j=n.begin(); j!=n.end(); j++)
-                    std::cout << std::setw(columnWidth) << j->second.get_value<std::string>();
+                    std::cout << std::setw(columnWidth) << j->second.get_value<double>();
             else
                 std::cout << std::setw(columnWidth) << c.get<double>(ps[i], 0);
         }
@@ -1137,17 +1134,6 @@ private:
         localtime_r(&t, &localTime);
         strftime(cstr, 100, "%a %b %d %T %Y %z", &localTime);
         return cstr;
-    }
-    
-    void prependLines (std::string& s, const std::string& pr) const
-    {
-        size_t pos = 0;
-        while(pos<s.length() && pos!=s.npos)
-        {
-            s.insert(pos, pr);
-            pos = s.find('\n', pos);
-            pos++;
-        }
     }
     
     ptree prepareForPrinting (ptree c)
