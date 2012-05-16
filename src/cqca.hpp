@@ -589,7 +589,7 @@ private:
     ptree::const_iterator it;
 
     std::vector<double> values;
-    int index;
+    size_t index;
 
 public:
     VParam (ptree&  c, const std::string& name__)
