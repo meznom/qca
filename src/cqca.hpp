@@ -1017,7 +1017,7 @@ private:
     {
         // only false if this is the first header / measurement
         if (lineCount != 0)
-            std::cout << std::endl;
+            std::cout << std::endl << std::endl;
 
         std::cout << "# program version: " << GIT_PROGRAM_VERSION << std::endl 
                   << "# date: " << getDate() << std::endl
