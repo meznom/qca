@@ -353,6 +353,8 @@ public:
                     throw ConfigurationException("For observable 'E': "
                                     "value must be either 'yes' or 'no'");
             }
+            else if (i->first == "DOS")
+                r.put_child("DOS", measureDOS(i->second));
             else
                 throw ConfigurationException("Unknown observable: '" + i->first + "'");
         }
@@ -435,38 +437,48 @@ private:
         return r;
     }
 
-    class EpsilonLess
-    {
-    public:
-        EpsilonLess (double e_ = 1E-20)
-        : e(e_)
-        {}
-
-        bool operator() (double a, double b)
-        {
-            return b-a > e;
-        }
-    private:
-        double e;
-    };
-
     rtree measureE (const ptree& c) 
     {
         rtree r;
-        typedef std::map<double, int, EpsilonLess> myMap;
-        typedef typename myMap::const_iterator mapIt;
-        myMap evs;
         for (int i=0; i<s.energies().size(); i++)
-            evs[s.energies()(i)]++;
-        int j=0;
-        for (mapIt i=evs.begin(); i!=evs.end(); i++)
         {
             rtree v;
-            v.put("abs", i->first);
-            v.put("rel", i->first - s.Emin());
-            v.put("deg", static_cast<double>(i->second));
-            r.push_back(rtree::value_type(toString(j), v));
-            j++;
+            v.put("abs", s.energies()(i));
+            v.put("rel", s.energies()(i) - s.Emin());
+            r.push_back(rtree::value_type(toString(i), v));
+        }
+        return r;
+    }
+
+    rtree measureDOS (const ptree& c)
+    {
+        rtree r;
+        double deltaE = c.get<double>("deltaE", 0.1);
+        double Emin = c.get<double>("Emin", s.energies().minCoeff());
+        double Emax = c.get<double>("Emax", s.energies().maxCoeff());
+        int Nmin = Emin / deltaE;
+        int Nmax = Emax / deltaE;
+        if (Nmin * deltaE > Emin) Nmin--;
+        if (Nmax * deltaE < Emax) Nmax++;
+        Emin = Nmin * deltaE;
+        Emax = Nmax * deltaE;
+
+        std::vector<int> h(Nmax-Nmin+1, 0);
+        for (int i=0; i<s.energies().size(); i++)
+        {
+            if (s.energies()(i) >= Emin && s.energies()(i) <= Emax)
+                h[(s.energies()(i) - Emin)/deltaE]++;
+            else
+                std::cerr 
+                    << "Warning: Energy value outside of DOS energy range." 
+                    << std::endl;
+        }
+        for (size_t i=0; i<h.size(); i++)
+        {
+            rtree n;
+            n.put("E", i*deltaE + Emin);
+            n.put("DOS", static_cast<double>(h[i])/s.energies().size());
+            r.push_back(rtree::value_type(toString(i), n));
         }
         return r;
     }
