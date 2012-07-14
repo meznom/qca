@@ -24,6 +24,7 @@ ptree ptreeFromJson (const std::string& s)
     ptree p;
     std::stringstream ss(jsonify(s));
     read_json(ss, p);
+    preprocessPtree(p);
     return p;
 }
 
@@ -660,4 +661,28 @@ BOOST_AUTO_TEST_CASE ( test_store )
 
     Configurator c4(jsonify("{'a': [1], 'changing': ['a']}"));
     o1.store(c4.getNext(), r2);
+}
+
+BOOST_AUTO_TEST_CASE ( test_preprocess_and_postprocess_ptree )
+{
+    std::string s1 = "{'a':2,'b':'wire','c':[1,2,3,4],'d':{'d1':1,"
+                     "'d2':[9,8,[7,6,5,4,3,2]],'d3':{'a':1,'b':2}}}";
+    std::stringstream ss1(jsonify(s1));
+    ptree p1;
+    read_json(ss1, p1);
+    
+    ptree p2 = p1;
+    preprocessPtree(p2);
+
+    std::string s3 = "{'a':2,'b':'wire','c':{'0':1,'1':2,'2':3,'3':4},'d':{'d1':1,"
+                    "'d2':{'0':9,'1':8,'2':{'0':7,'1':6,'2':5,'3':4,'4':3,'5':2}},'d3':"
+                    "{'a':1,'b':2}}}";
+    std::stringstream ss3(jsonify(s3));
+    ptree p3;
+    read_json(ss3, p3);
+    
+    BOOST_CHECK (p2 == p3);
+    
+    postprocessPtree(p2);
+    BOOST_CHECK (p2 == p1);
 }

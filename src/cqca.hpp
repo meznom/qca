@@ -9,6 +9,8 @@
 
 // TODO: at least minimal documentation on how Configurator and VConfiguration
 //       work
+// TODO: properly wrap ptree reading and writing (preprocess, postprocess,
+//       jsonify)
 
 // rtree = result tree
 typedef boost::property_tree::basic_ptree<std::string, double> rtree;
@@ -23,49 +25,6 @@ public:
 namespace ptreeHelpers
 {
     using boost::property_tree::ptree;
-
-    template<typename T>
-    std::vector<T> getArray (const ptree& c)
-    {
-        std::vector<T> v;
-        for (ptree::const_iterator i=c.begin(); i!=c.end(); i++)
-            v.push_back(i->second.get_value<T>());
-        return v;
-    }
-
-    template <class Tree, typename T>
-    Tree constructArray (const std::vector<T>& v)
-    {
-        typedef typename Tree::value_type pair;
-        Tree c;
-        for (size_t i=0; i<v.size(); i++)
-        {
-            Tree p;
-            p.put_value(v[i]);
-            c.push_back(pair("", p));
-        }
-        return c;
-    }
-
-    template<class Tree>
-    bool isArray (const Tree& c)
-    {
-        if (c.data() != typename Tree::data_type())
-            return false;
-        if (c.size() == 0)
-            return false;
-        bool flag = true;
-        for (typename Tree::const_iterator i=c.begin(); i!=c.end(); i++)
-            if (i->first != "") flag = false;
-        return flag;
-    }
-
-    template<class Tree>
-    bool hasKey (const Tree& t, const typename Tree::key_type& k)
-    {
-        typename Tree::const_assoc_iterator i = t.find(k);
-        return i != t.not_found();
-    }
 
     template<typename T>
     T fromString (const std::string& v)
@@ -85,6 +44,131 @@ namespace ptreeHelpers
         s << v;
         return s.str();
     }
+
+
+    template<typename T>
+    std::vector<T> getArray (const ptree& c)
+    {
+        std::vector<T> v;
+        for (ptree::const_iterator i=c.begin(); i!=c.end(); i++)
+            v.push_back(i->second.get_value<T>());
+        return v;
+    }
+
+    template <class Tree, typename T>
+    Tree constructArray (const std::vector<T>& v)
+    {
+        typedef typename Tree::value_type pair;
+        Tree c;
+        for (size_t i=0; i<v.size(); i++)
+        {
+            Tree p;
+            p.put_value(v[i]);
+            c.push_back(pair(toString(i), p));
+        }
+        return c;
+    }
+
+    template<class Tree>
+    bool isArray (const Tree& c)
+    {
+        if (c.data() != typename Tree::data_type())
+            return false;
+        if (c.size() == 0)
+            return false;
+        bool flag = true;
+        int j=0;
+        for (typename Tree::const_iterator i=c.begin(); i!=c.end(); i++)
+        {
+            if (i->first != toString(j)) flag = false;
+            j++;
+        }
+        return flag;
+    }
+
+    template<class Tree>
+    bool hasKey (const Tree& t, const typename Tree::key_type& k)
+    {
+        typename Tree::const_assoc_iterator i = t.find(k);
+        return i != t.not_found();
+    }
+
+    template<class Function>
+    void walkTree (ptree& c, Function f)
+    {
+        for (ptree::iterator i=c.begin(); i!=c.end(); i++)
+        {
+            walkTree(i->second, f);
+        }
+        f(c);
+    }
+
+    struct ConvertArray
+    {
+        void operator() (ptree& c)
+        {
+            // is it an array
+            if (c.data() != "")
+                return;
+            if (c.size() == 0)
+                return;
+            bool flag = true;
+            for (ptree::const_iterator i=c.begin(); i!=c.end(); i++)
+                if (i->first != "") flag = false;
+
+            // change indices from "" to a proper index
+            if (flag)
+            {
+                std::vector<ptree> cs;
+                for (ptree::const_iterator i=c.begin(); i!=c.end(); i++)
+                    cs.push_back(i->second);
+                c.erase(c.begin(), c.end());
+                for (size_t i=0; i<cs.size(); i++)
+                    c.put_child(toString(i), cs[i]);
+            }
+        }
+    };
+
+    struct ConvertArrayBack
+    {
+        void operator() (ptree& c)
+        {
+            // is it an array
+            if (c.data() != "")
+                return;
+            if (c.size() == 0)
+                return;
+            bool flag = true;
+            int j = 0;
+            for (ptree::const_iterator i=c.begin(); i!=c.end(); i++)
+            {
+                if (i->first != toString(j)) flag = false;
+                j++;
+            }
+
+            // change indices from numbers to ""
+            if (flag)
+            {
+                std::vector<ptree> cs;
+                for (ptree::const_iterator i=c.begin(); i!=c.end(); i++)
+                    cs.push_back(i->second);
+                c.erase(c.begin(), c.end());
+                for (size_t i=0; i<cs.size(); i++)
+                    c.push_back(ptree::value_type("", cs[i]));
+            }
+        }
+    };
+
+    void preprocessPtree (ptree& c)
+    {
+        walkTree(c, ConvertArray());
+    }
+
+    void postprocessPtree (ptree& c)
+    {
+        walkTree(c, ConvertArrayBack());
+    }
+
 }
 
 using boost::property_tree::ptree;
@@ -859,6 +943,7 @@ public:
             std::stringstream ss(jsonify(json));
             read_json(ss, c);
         }
+        preprocessPtree(c);
         
         if (isArray(c))
             for (ptree::const_iterator i=c.begin(); i!=c.end(); i++)
@@ -1025,7 +1110,9 @@ private:
         
         std::stringstream ss;
         std::string line;
-        write_json(ss, prepareForPrinting(c));
+        ptree cc = prepareForPrinting(c);
+        postprocessPtree(cc);
+        write_json(ss, cc);
         while (getline(ss, line))
         {
             std::cout << "# " << line << std::endl;
@@ -1082,10 +1169,20 @@ private:
 
     std::vector<std::string> getVParams (const ptree& c) const
     {
-        ptree p = c.get_child("changing", ptree());
-        if (!isArray(p))
-            return std::vector<std::string>();
-        return getArray<std::string>(p);
+        std::vector<std::string> vparams;
+        ptree p1 = c.get_child("changing", ptree());
+        if (isArray(p1))
+        {
+            const std::vector<std::string> a1 = getArray<std::string>(p1);
+            vparams.insert(vparams.end(), a1.begin(), a1.end());
+        }
+        ptree p2 = c.get_child("findmax.vary", ptree());
+        if (isArray(p2))
+        {
+            const std::vector<std::string> a2 = getArray<std::string>(p2);
+            vparams.insert(vparams.end(), a2.begin(), a2.end());
+        }
+        return vparams;
     }
 
     template<class Tree>
@@ -1159,6 +1256,46 @@ private:
 
 class Runner
 {
+private:
+    static void findmax (ptree c, CQca& s, Store& o)
+    {
+        std::string of = c.get<std::string>("findmax.of");
+        std::vector<std::string> pns; 
+        std::vector<double> pvs;
+        const ptree& p = c.get_child("findmax.vary");
+        for (ptree::const_iterator i=p.begin(); i!=p.end(); i++)
+        {
+            const std::string pname = i->second.get_value<std::string>();
+            if (isArray(c.get_child(pname)))
+            {
+                std::vector<double> vs = getArray<double>(c.get_child(pname));
+                for (size_t j=0; j<vs.size(); j++)
+                {
+                    pns.push_back(pname + "." + toString(j));
+                    pvs.push_back(vs[j]);
+                }
+            }
+            else
+            {
+                pns.push_back(pname);
+                pvs.push_back(c.get<double>(pname));
+            }
+            ptree o = c.get_child(pname);
+            c.put_child("original." + pname, o);
+        }
+
+        // TODO: here goes the actual algorithm
+        for (double delta=0; delta<1; delta+=0.1)
+        {
+            pvs[0] += delta;
+
+            for (size_t i=0; i<pns.size(); i++)
+                c.put(pns[i], pvs[i]);
+            s.setConfig(c);
+            o.store(s.getConfig(), s.measure());
+        }
+    }
+
 public:
     static void run (const std::string& jsonConfig)
     {
@@ -1168,8 +1305,15 @@ public:
 
         while (c.hasNext())
         {
-            s.setConfig(c.getNext());
-            o.store(s.getConfig(), s.measure());
+            const ptree cc = c.getNext();
+            
+            if (hasKey(cc, "findmax"))
+                findmax(cc, s, o);
+            else
+            {
+                s.setConfig(cc);
+                o.store(s.getConfig(), s.measure());
+            }
         }
     }
 };
