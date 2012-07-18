@@ -24,7 +24,7 @@ ptree ptreeFromJson (const std::string& s)
     ptree p;
     std::stringstream ss(jsonify(s));
     read_json(ss, p);
-    preprocessPtree(p);
+    PropertyTree::detail::walkTree(p, PropertyTree::detail::ConvertArray());
     return p;
 }
 
@@ -525,23 +525,23 @@ BOOST_AUTO_TEST_CASE ( test_vconfiguration )
 BOOST_AUTO_TEST_CASE ( test_configurator_jsonify )
 {
     BOOST_CHECK (
-            Configurator::jsonify("a:1,b:2,c:{c1:blah,c2:765}") 
+            PropertyTree::detail::jsonify("a:1,b:2,c:{c1:blah,c2:765}") 
             == 
             jsonify("{'a':'1','b':'2','c':{'c1':'blah','c2':'765'}}"));
     BOOST_CHECK (
-            Configurator::jsonify("{a:1, 'b':2, \n c : {c1: \"blah\",c2: 765}}") 
+            PropertyTree::detail::jsonify("{a:1, 'b':2, \n c : {c1: \"blah\",c2: 765}}") 
             == 
             jsonify("{'a':'1','b':'2','c':{'c1':'blah','c2':'765'}}"));
     BOOST_CHECK (
-            Configurator::jsonify("[{a:1,b:2},{c:miau,d: '52', e: \"la\"}, {'blub': blah}]") 
+            PropertyTree::detail::jsonify("[{a:1,b:2},{c:miau,d: '52', e: \"la\"}, {'blub': blah}]") 
             == 
             jsonify("[{'a':'1','b':'2'},{'c':'miau','d':'52','e':'la'},{'blub':'blah'}]"));
     BOOST_CHECK (
-            Configurator::jsonify("a:1,b:2") 
+            PropertyTree::detail::jsonify("a:1,b:2") 
             == 
             jsonify("{'a':'1','b':'2'}"));
     BOOST_CHECK (
-            Configurator::jsonify("a:1, comment: \"Properly; quoted, text is preseved.\", b:2") 
+            PropertyTree::detail::jsonify("a:1, comment: \"Properly; quoted, text is preseved.\", b:2") 
             == 
             jsonify("{'a':'1','comment':'Properly; quoted, text is preseved.','b':'2'}"));
 }
@@ -663,7 +663,7 @@ BOOST_AUTO_TEST_CASE ( test_store )
     o1.store(c4.getNext(), r2);
 }
 
-BOOST_AUTO_TEST_CASE ( test_preprocess_and_postprocess_ptree )
+BOOST_AUTO_TEST_CASE ( test_ptree_convert_arrays )
 {
     std::string s1 = "{'a':2,'b':'wire','c':[1,2,3,4],'d':{'d1':1,"
                      "'d2':[9,8,[7,6,5,4,3,2]],'d3':{'a':1,'b':2}}}";
@@ -672,7 +672,7 @@ BOOST_AUTO_TEST_CASE ( test_preprocess_and_postprocess_ptree )
     read_json(ss1, p1);
     
     ptree p2 = p1;
-    preprocessPtree(p2);
+    PropertyTree::detail::walkTree(p2, PropertyTree::detail::ConvertArray());
 
     std::string s3 = "{'a':2,'b':'wire','c':{'0':1,'1':2,'2':3,'3':4},'d':{'d1':1,"
                     "'d2':{'0':9,'1':8,'2':{'0':7,'1':6,'2':5,'3':4,'4':3,'5':2}},'d3':"
@@ -683,6 +683,6 @@ BOOST_AUTO_TEST_CASE ( test_preprocess_and_postprocess_ptree )
     
     BOOST_CHECK (p2 == p3);
     
-    postprocessPtree(p2);
+    PropertyTree::detail::walkTree(p2, PropertyTree::detail::ConvertArrayBack());
     BOOST_CHECK (p2 == p1);
 }

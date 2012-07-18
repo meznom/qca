@@ -1,3 +1,22 @@
+/**
+ * @file 
+ * Configurable QCA classes and assorted functionality.
+ *
+ * Boost's property tree (boost::property_tree::ptree) is used to store
+ * configuration data. In the code, "ptree" and "configuration" are often used
+ * interchangeably. A result tree (rtree), a variant of ptree, is used to store
+ * computed results.
+ *
+ * The file contains: 
+ * * PropertyTree (useful helper funtions for ptree)
+ * * the configurable QCA classes (CQca, CLayout, etc)
+ * * a system to generate multiple QCA system configurations out of one
+ *   single configuration file (Configurator, VConfiguration, VParam)
+ * * a Store, for nicely formatted output
+ * * Runner, to run the simulation
+ *
+ * @author Burkhard Ritter <burkhard@ualberta.ca>
+ */
 #ifndef __CQCA_HPP__
 #define __CQCA_HPP__
 
@@ -7,14 +26,6 @@
 #include "qca.hpp"
 #include "version.hpp"
 
-// TODO: at least minimal documentation on how Configurator and VConfiguration
-//       work
-// TODO: properly wrap ptree reading and writing (preprocess, postprocess,
-//       jsonify)
-
-// rtree = result tree
-typedef boost::property_tree::basic_ptree<std::string, double> rtree;
-
 class ConfigurationException: public std::runtime_error
 {
 public:
@@ -22,159 +33,340 @@ public:
         : std::runtime_error(msg) {}
 };
 
-namespace ptreeHelpers
+/**
+ * Functionality related to boost::property_tree.
+ *
+ * Array convention
+ * ----------------
+ *
+ * I use a different convention for representing arrays in a ptree than
+ * boost::property_tree. In boost::property_tree an array is a ptree node where
+ * all children have an empty key "". I use the convention where an array is a
+ * ptree node where the keys of all children are enumerated, "0", "1", "2", and
+ * so on; and the enumeration must match the order of the children. This
+ * convention makes array element access much easier. Hence on reading and
+ * writing ptrees, I convert between the two conventions.
+ * @see treeFromJson
+ * @see treeToJson
+ */
+namespace PropertyTree
 {
-    using boost::property_tree::ptree;
 
-    template<typename T>
-    T fromString (const std::string& v)
+using boost::property_tree::ptree;
+
+template<typename T>
+T fromString (const std::string& v)
+{
+    T returnValue;
+    std::stringstream s(v);
+    s >> returnValue;
+    if (!s.eof() || v.empty())
+        throw ConfigurationException("Can't convert '" + v + "'.");
+    return returnValue;
+}
+
+template<typename T>
+std::string toString (const T& v)
+{
+    std::stringstream s;
+    s << v;
+    return s.str();
+}
+
+/**
+ * Get the children of the given ptree as an array.
+ *
+ * Not recursive, only direct children.
+ */
+template<typename T>
+std::vector<T> getArray (const ptree& c)
+{
+    std::vector<T> v;
+    for (ptree::const_iterator i=c.begin(); i!=c.end(); i++)
+        v.push_back(i->second.get_value<T>());
+    return v;
+}
+
+/**
+ * Construct a ptree (or rtree) representing the given array.
+ *
+ * Uses my ptree array convention.
+ * @see PropertyTree
+ */
+template <class Tree, typename T>
+Tree constructArray (const std::vector<T>& v)
+{
+    typedef typename Tree::value_type pair;
+    Tree c;
+    for (size_t i=0; i<v.size(); i++)
     {
-        T returnValue;
-        std::stringstream s(v);
-        s >> returnValue;
-        if (!s.eof() || v.empty())
-            throw ConfigurationException("Can't convert '" + v + "'.");
-        return returnValue;
+        Tree p;
+        p.put_value(v[i]);
+        c.push_back(pair(toString(i), p));
     }
+    return c;
+}
 
-    template<typename T>
-    std::string toString (const T& v)
+/**
+ * Check whether the given ptree (or rtree) represents an array.
+ *
+ * Uses my ptree array convention.
+ * @see PropertyTree
+ */
+template<class Tree>
+bool isArray (const Tree& c)
+{
+    if (c.data() != typename Tree::data_type())
+        return false;
+    if (c.size() == 0)
+        return false;
+    bool flag = true;
+    int j=0;
+    for (typename Tree::const_iterator i=c.begin(); i!=c.end(); i++)
     {
-        std::stringstream s;
-        s << v;
-        return s.str();
+        if (i->first != toString(j)) flag = false;
+        j++;
     }
+    return flag;
+}
 
+/**
+ * Does the given tree node has a direct child with the given key.
+ */
+template<class Tree>
+bool hasKey (const Tree& t, const typename Tree::key_type& k)
+{
+    typename Tree::const_assoc_iterator i = t.find(k);
+    return i != t.not_found();
+}
 
-    template<typename T>
-    std::vector<T> getArray (const ptree& c)
+namespace detail
+{
+
+/**
+ * Function object that converts a ptree node from the
+ * boost::property_tree array convention to my array convention.
+ * @see PropertyTree
+ */
+struct ConvertArray
+{
+    void operator() (ptree& c)
     {
-        std::vector<T> v;
-        for (ptree::const_iterator i=c.begin(); i!=c.end(); i++)
-            v.push_back(i->second.get_value<T>());
-        return v;
-    }
-
-    template <class Tree, typename T>
-    Tree constructArray (const std::vector<T>& v)
-    {
-        typedef typename Tree::value_type pair;
-        Tree c;
-        for (size_t i=0; i<v.size(); i++)
-        {
-            Tree p;
-            p.put_value(v[i]);
-            c.push_back(pair(toString(i), p));
-        }
-        return c;
-    }
-
-    template<class Tree>
-    bool isArray (const Tree& c)
-    {
-        if (c.data() != typename Tree::data_type())
-            return false;
+        // is it an array
+        if (c.data() != "")
+            return;
         if (c.size() == 0)
-            return false;
+            return;
         bool flag = true;
-        int j=0;
-        for (typename Tree::const_iterator i=c.begin(); i!=c.end(); i++)
+        for (ptree::const_iterator i=c.begin(); i!=c.end(); i++)
+            if (i->first != "") flag = false;
+
+        // change indices from "" to a proper index
+        if (flag)
+        {
+            std::vector<ptree> cs;
+            for (ptree::const_iterator i=c.begin(); i!=c.end(); i++)
+                cs.push_back(i->second);
+            c.erase(c.begin(), c.end());
+            for (size_t i=0; i<cs.size(); i++)
+                c.put_child(toString(i), cs[i]);
+        }
+    }
+};
+
+/**
+ * Function object that converts a ptree node from my array convention
+ * to the boost::property_tree array convention.
+ * @see PropertyTree
+ */
+struct ConvertArrayBack
+{
+    void operator() (ptree& c)
+    {
+        // is it an array
+        if (c.data() != "")
+            return;
+        if (c.size() == 0)
+            return;
+        bool flag = true;
+        int j = 0;
+        for (ptree::const_iterator i=c.begin(); i!=c.end(); i++)
         {
             if (i->first != toString(j)) flag = false;
             j++;
         }
-        return flag;
-    }
 
-    template<class Tree>
-    bool hasKey (const Tree& t, const typename Tree::key_type& k)
-    {
-        typename Tree::const_assoc_iterator i = t.find(k);
-        return i != t.not_found();
-    }
-
-    template<class Function>
-    void walkTree (ptree& c, Function f)
-    {
-        for (ptree::iterator i=c.begin(); i!=c.end(); i++)
+        // change indices from numbers to ""
+        if (flag)
         {
-            walkTree(i->second, f);
-        }
-        f(c);
-    }
-
-    struct ConvertArray
-    {
-        void operator() (ptree& c)
-        {
-            // is it an array
-            if (c.data() != "")
-                return;
-            if (c.size() == 0)
-                return;
-            bool flag = true;
+            std::vector<ptree> cs;
             for (ptree::const_iterator i=c.begin(); i!=c.end(); i++)
-                if (i->first != "") flag = false;
-
-            // change indices from "" to a proper index
-            if (flag)
-            {
-                std::vector<ptree> cs;
-                for (ptree::const_iterator i=c.begin(); i!=c.end(); i++)
-                    cs.push_back(i->second);
-                c.erase(c.begin(), c.end());
-                for (size_t i=0; i<cs.size(); i++)
-                    c.put_child(toString(i), cs[i]);
-            }
+                cs.push_back(i->second);
+            c.erase(c.begin(), c.end());
+            for (size_t i=0; i<cs.size(); i++)
+                c.push_back(ptree::value_type("", cs[i]));
         }
-    };
-
-    struct ConvertArrayBack
-    {
-        void operator() (ptree& c)
-        {
-            // is it an array
-            if (c.data() != "")
-                return;
-            if (c.size() == 0)
-                return;
-            bool flag = true;
-            int j = 0;
-            for (ptree::const_iterator i=c.begin(); i!=c.end(); i++)
-            {
-                if (i->first != toString(j)) flag = false;
-                j++;
-            }
-
-            // change indices from numbers to ""
-            if (flag)
-            {
-                std::vector<ptree> cs;
-                for (ptree::const_iterator i=c.begin(); i!=c.end(); i++)
-                    cs.push_back(i->second);
-                c.erase(c.begin(), c.end());
-                for (size_t i=0; i<cs.size(); i++)
-                    c.push_back(ptree::value_type("", cs[i]));
-            }
-        }
-    };
-
-    void preprocessPtree (ptree& c)
-    {
-        walkTree(c, ConvertArray());
     }
+};
 
-    void postprocessPtree (ptree& c)
+/**
+ * Walk the ptree recursively and call the function object for each
+ * node.
+ */
+template<class Function>
+void walkTree (ptree& c, Function f)
+{
+    for (ptree::iterator i=c.begin(); i!=c.end(); i++)
     {
-        walkTree(c, ConvertArrayBack());
+        walkTree(i->second, f);
     }
-
+    f(c);
 }
 
-using boost::property_tree::ptree;
-using boost::property_tree::ptree_bad_path;
-using namespace ptreeHelpers;
+/**
+ * Converts "simplified json" to proper json.
+ *
+ * Simplified json makes quoting ("") keys and values optional by
+ * treating all keys and values as json strings.
+ */
+std::string jsonify (std::istream& is)
+{
+    std::stringstream os;
 
+    bool needClosingBracket = false;
+    if (is.peek() != '{' && is.peek() != '[')
+    {
+        os << "{";
+        needClosingBracket = true;
+    }
+
+    bool meQuoting = false;
+    bool userQuoting = false;
+    char c;
+    while (is >> std::noskipws >> c)
+    {
+        if (c == '\'' || c == '"')
+        {
+            if (userQuoting) userQuoting = false;
+            else userQuoting = true;
+            os << "\"";
+        }
+        else if (userQuoting)
+            os << c;
+        else if (std::isspace(c))
+            continue;
+        else if (c == '{' || c == '}' || c == '[' || c == ']' || c == ',' || c == ':')
+        {
+            if (meQuoting)
+            {
+                os << "\"";
+                meQuoting = false;
+            }
+            os << c;
+        }
+        else if (!meQuoting)
+        {
+            os << "\"" << c;
+            meQuoting = true;
+        }
+        else
+            os << c;
+    }
+
+    if (meQuoting)
+        os << "\"";
+    if (needClosingBracket)
+        os << "}";
+
+    return os.str();
+}
+
+std::string jsonify (const std::string& s)
+{
+    std::stringstream is(s);
+    return jsonify(is);
+}
+
+bool isfile (std::string path)
+{
+    struct stat s;
+    if (stat(path.c_str(), &s) != 0) {
+        return false;
+    }
+    if (S_ISREG(s.st_mode)) {
+        return true;
+    }
+    return false;
+}
+
+} // namespace detail
+
+/**
+ * Read a property tree from "simplified json".
+ *
+ * Simplified json makes quoting ("") keys and values optional by
+ * treating all keys and values as json strings.
+ * @see jsonify
+ *
+ * Converts the ptree from the boost::property_tree array convention to my
+ * convention.
+ * @see PropertyTree
+ *
+ * @param json Either a simplified json string or a filename of a file
+ * containing simplified json.
+ * @return The property tree.
+ */
+ptree treeFromJson (const std::string& json)
+{
+    ptree c;
+    if (detail::isfile(json))
+    {
+        std::ifstream is(json.c_str());
+        std::stringstream ss(detail::jsonify(is));
+        is.close();
+        read_json(ss, c);
+    }
+    else
+    {
+        std::stringstream ss(detail::jsonify(json));
+        read_json(ss, c);
+    }
+    detail::walkTree(c, detail::ConvertArray());
+    return c;
+}
+
+/**
+ * Convert the property tree to a json string.
+ *
+ * Converts the ptree from my array convention to the boost::property_tree
+ * convention.
+ * @see PropertyTree
+ */
+std::string treeToJson (ptree c)
+{
+    std::stringstream ss;
+    detail::walkTree(c, detail::ConvertArrayBack());
+    write_json(ss, c);
+    return ss.str();
+}
+
+} // namespace PropertyTree
+
+/**
+ * Result tree.
+ *
+ * Used to store results of computations. Similar to
+ * boost::property_tree::ptree, but all values are of type double instead of
+ * type string.
+ */
+typedef boost::property_tree::basic_ptree<std::string, double> rtree;
+
+namespace PT = PropertyTree;
+using boost::property_tree::ptree;
+
+/**
+ * Configurable layout.
+ */
 class CLayout
 {
 private:
@@ -284,20 +476,20 @@ private:
 
     double getA (const ptree& c) const
     {
-        if (hasKey(c, "a") && hasKey(c, "V1"))
+        if (PT::hasKey(c, "a") && PT::hasKey(c, "V1"))
             throw ConfigurationException("Either specify 'a' or 'V1', but "
                                          "not both at the same time");
-        if (hasKey(c, "V1"))
+        if (PT::hasKey(c, "V1"))
             return 1.0 / c.get<double>("V1");
         return c.get<double>("a", 1.0);
     }
     
     double getB (const ptree& c) const
     {
-        if (hasKey(c, "b") && hasKey(c, "boa"))
+        if (PT::hasKey(c, "b") && PT::hasKey(c, "boa"))
             throw ConfigurationException("Either specify 'b' or 'boa', but "
                                          "not both at the same time");
-        if (hasKey(c, "boa"))
+        if (PT::hasKey(c, "boa"))
         {
             double a_ = getA(c);
             return c.get<double>("boa") * a_;
@@ -307,23 +499,23 @@ private:
     
     std::vector<double> getBs (const ptree& c) const
     {
-        if (hasKey(c, "bs") && hasKey(c, "boas"))
+        if (PT::hasKey(c, "bs") && PT::hasKey(c, "boas"))
             throw ConfigurationException("Either specify 'bs' or 'boas', but "
                                          "not both at the same time");
-        if (hasKey(c, "boas"))
+        if (PT::hasKey(c, "boas"))
         {
             double a_ = getA(c);
-            std::vector<double> bs_ = getArray<double>(c.get_child("boas"));
+            std::vector<double> bs_ = PT::getArray<double>(c.get_child("boas"));
             for (size_t i=0; i<bs_.size(); i++)
                 bs_[i] *= a_;
             return bs_;
         }
-        return getArray<double>(c.get_child("bs", ptree()));
+        return PT::getArray<double>(c.get_child("bs", ptree()));
     }
 
     void setAOrV1 (ptree& c) const
     {
-        if (hasKey(c, "V1"))
+        if (PT::hasKey(c, "V1"))
             c.put("V1", 1.0 / a);
         else
             c.put("a", a);
@@ -331,7 +523,7 @@ private:
     
     void setBOrBoa (ptree& c) const
     {
-        if (hasKey(c, "boa"))
+        if (PT::hasKey(c, "boa"))
             c.put("boa", b / a);
         else
             c.put("b", b);
@@ -339,18 +531,21 @@ private:
 
     void setBsOrBoas (ptree& c) const
     {
-        if (hasKey(c, "boas"))
+        if (PT::hasKey(c, "boas"))
         {
             std::vector<double> boas = bs;
             for (size_t i=0; i<boas.size(); i++)
                 boas[i] /= a;
-            c.put_child("boas", constructArray<ptree>(boas));
+            c.put_child("boas", PT::constructArray<ptree>(boas));
         }
         else
-            c.put_child("bs", constructArray<ptree>(bs));
+            c.put_child("bs", PT::constructArray<ptree>(bs));
     }
 };
 
+/**
+ * Configurable QCA base class.
+ */
 class CQcaGenericBase
 {
 public:
@@ -360,6 +555,12 @@ public:
     virtual rtree measure () = 0;
 };
 
+/**
+ * Generic configurable QCA class.
+ *
+ * The template argument is used to specify which model to use (that is, the specific
+ * QCA class, e.g. QcaBond, QcaFixedCharge, or QcaGrandCanonical).
+ */
 template <class QcaSystem>
 class CQcaGeneric : public CQcaGenericBase
 {
@@ -460,8 +661,8 @@ private:
         std::vector<int> cells;
         if (c.get_value<std::string>() == "all")
             cells = allCells;
-        else if (isArray(c))
-            cells = getArray<int>(c);
+        else if (PT::isArray(c))
+            cells = PT::getArray<int>(c);
         else if (c.get_value<std::string>() != "")
             try
             {
@@ -480,8 +681,8 @@ private:
             if (cells[i] >= s.N_p())
                 throw ConfigurationException(
                         "In observable specification: Trying to measure cell " + 
-                        toString(cells[i]) + ", but there are only " + 
-                        toString(s.N_p()) + " cells in the system.");
+                        PT::toString(cells[i]) + ", but there are only " + 
+                        PT::toString(s.N_p()) + " cells in the system.");
         }
 
         return cells;
@@ -492,7 +693,7 @@ private:
         std::vector<int> cells = getCells(c);
         rtree r;
         for (size_t i=0; i<cells.size(); i++)
-            r.put(toString(cells[i]), s.measurePolarization(cells[i]));
+            r.put(PT::toString(cells[i]), s.measurePolarization(cells[i]));
         return r;
     }
 
@@ -501,7 +702,7 @@ private:
         std::vector<int> cells = getCells(c);
         rtree r;
         for (size_t i=0; i<cells.size(); i++)
-            r.put(toString(cells[i]), s.measurePolarization2(cells[i]));
+            r.put(PT::toString(cells[i]), s.measurePolarization2(cells[i]));
         return r;
     }
 
@@ -512,11 +713,11 @@ private:
         for (size_t i=0; i<cells.size(); i++)
         {
             std::vector<double> ns = s.measureParticleNumber(cells[i]);
-            r.put(toString(cells[i]) + ".total", ns[4]);
-            r.put(toString(cells[i]) + ".0", ns[0]);
-            r.put(toString(cells[i]) + ".1", ns[1]);
-            r.put(toString(cells[i]) + ".2", ns[2]);
-            r.put(toString(cells[i]) + ".3", ns[3]);
+            r.put(PT::toString(cells[i]) + ".total", ns[4]);
+            r.put(PT::toString(cells[i]) + ".0", ns[0]);
+            r.put(PT::toString(cells[i]) + ".1", ns[1]);
+            r.put(PT::toString(cells[i]) + ".2", ns[2]);
+            r.put(PT::toString(cells[i]) + ".3", ns[3]);
         }
         return r;
     }
@@ -529,7 +730,7 @@ private:
             rtree v;
             v.put("abs", s.energies()(i));
             v.put("rel", s.energies()(i) - s.Emin());
-            r.push_back(rtree::value_type(toString(i), v));
+            r.push_back(rtree::value_type(PT::toString(i), v));
         }
         return r;
     }
@@ -562,30 +763,40 @@ private:
             rtree n;
             n.put("E", i*deltaE + Emin);
             n.put("DOS", static_cast<double>(h[i])/s.energies().size());
-            r.push_back(rtree::value_type(toString(i), n));
+            r.push_back(rtree::value_type(PT::toString(i), n));
         }
         return r;
     }
 
     double getBeta (const ptree& c) const
     {
-        if (hasKey(c, "beta") && hasKey(c, "T"))
+        if (PT::hasKey(c, "beta") && PT::hasKey(c, "T"))
             throw ConfigurationException("Either specify 'beta' or 'T', but "
                                          "not both at the same time");
-        if (hasKey(c, "T"))
+        if (PT::hasKey(c, "T"))
             return 1.0 / c.get<double>("T");
         return c.get<double>("beta", 1);
     }
 
     void setBetaOrT (ptree& c, double beta) const
     {
-        if (hasKey(c, "T"))
+        if (PT::hasKey(c, "T"))
             c.put("T", 1.0 / beta);
         else
             c.put("beta", beta);
     }
 };
 
+/**
+ * Configurable QCA class.
+ *
+ * The class takes a configuration describing any valid qca system and what to
+ * calculate/measure via setConfig(). It instantiates the correct model (bond,
+ * fixed, grand canonical) and configures the qca system correctly. Then the
+ * observables of intererst (as specified in the configuration) can be obtained
+ * as a result tree by calling measure().
+ * @see rtree
+ */
 class CQca
 {
 private:
@@ -666,6 +877,18 @@ private:
    }
 };
 
+/**
+ * Varying parameter.
+ *
+ * @see Configurator
+ *
+ * A VParam is either a list (json array) or a list generated from a
+ * "generator". The generator syntax is start-value:end-value:interval. 
+ *
+ * increment() increments to the next element in the list. value() gets the
+ * current element's value. name() is the name of the VParam. size() returns the
+ * number of elements in the list.
+ */
 class VParam
 {
 /*
@@ -694,14 +917,14 @@ public:
         try {
             c.get_child(name_);
         }
-        catch (ptree_bad_path e)
+        catch (boost::property_tree::ptree_bad_path e)
         {
             throw ConfigurationException("Changing parameter '" + name_ + 
                                          "' does not exist.");
         }
 
         ptree& p = c.get_child(name_);
-        if (isArray(p))
+        if (PT::isArray(p))
         {
             IAmAnArray = true;
             t = &p;
@@ -725,7 +948,7 @@ public:
         else
         {
             ptree n;
-            n.put_value(toString(values[index]));
+            n.put_value(PT::toString(values[index]));
             return n;
         }
     }
@@ -804,7 +1027,7 @@ private:
             if (pos2 == v.npos) pos2 = v.size();
             if (pos2 == pos1) 
                 throw ConfigurationException("Error parsing list: '" + v + "'.");
-            T item = fromString<T>(v.substr(pos1, pos2-pos1));
+            T item = PT::fromString<T>(v.substr(pos1, pos2-pos1));
             list.push_back(item);
             pos1 = pos2+1;
         }
@@ -812,6 +1035,17 @@ private:
     }
 };
 
+/**
+ * Configuration with Variants.
+ *
+ * @see Configurator
+ *
+ * Each VConfiguration can have multiple "Variants". A VConfiguration has
+ * varying parameters (VParam), as specified in the "changing" json array. A
+ * VParam is effectively a parameter with a list of different values. A
+ * "Variant" of a VConfiguration corresponds to one specific set of values of
+ * all possible sets of values of VParams.
+ */
 class VConfiguration
 {
 private:
@@ -870,7 +1104,7 @@ private:
             return;
         
         const ptree p = c.get_child("changing", ptree());
-        if (!isArray(p))
+        if (!PT::isArray(p))
         {
             if (p.get_value<std::string>() != "")
                 throw ConfigurationException("'changing' must be an array of changing parameters");
@@ -880,7 +1114,7 @@ private:
 
         hasVariants = true;
         changed.clear();
-        std::vector<std::string> names = getArray<std::string>(p);
+        std::vector<std::string> names = PT::getArray<std::string>(p);
         for (size_t i=0; i<names.size(); i++)
         {
             vparams.push_back(VParam(c, names[i]));
@@ -902,7 +1136,7 @@ private:
             nc.put_child("original." + vparams[i].name(), o);
             nc.put_child(vparams[i].name(), vparams[i].value());
         }
-        nc.put_child("changed", constructArray<ptree>(changed));
+        nc.put_child("changed", PT::constructArray<ptree>(changed));
         return nc;
     }
 
@@ -932,6 +1166,25 @@ private:
     }
 };
 
+/**
+ * Generates individual qca system configurations from one single global
+ * configuration file or string.
+ *
+ * The single global configuration is a list of qca system configurations,
+ * possibly using parameter lists or generators. Individual qca system
+ * configurations (which can be fed to the CQca class) can be retrieved with
+ * getNext().
+ *
+ * More specifically, the single global configuration is either a json list (an
+ * array) of configurations or just one configuration by itself. Each of these
+ * configurations (represented by VConfiguration) can have "Variants". Each
+ * Variant then is one final concrete qca system configuration. A VConfiguration
+ * has one or more varying parameters (represented by VParam). In JSON these
+ * parameters must be listed in the "changing" array. Each VParam is either a
+ * list of values (a JSON array) or a "generator" that generates this list. The
+ * generator syntax is start-value:end-value:interval. See the test cases in
+ * cqcaTest.cpp for examples.
+ */
 class Configurator 
 {
 private:
@@ -942,22 +1195,8 @@ public:
     Configurator (const std::string& json)
     : i_c(0)
     {
-        ptree c;
-        if (isfile(json))
-        {
-            std::ifstream is(json.c_str());
-            std::stringstream ss(jsonify(is));
-            is.close();
-            read_json(ss, c);
-        }
-        else
-        {
-            std::stringstream ss(jsonify(json));
-            read_json(ss, c);
-        }
-        preprocessPtree(c);
-        
-        if (isArray(c))
+        ptree c = PT::treeFromJson(json);
+        if (PT::isArray(c))
             for (ptree::const_iterator i=c.begin(); i!=c.end(); i++)
                 cs.push_back(VConfiguration(i->second));
         else
@@ -990,79 +1229,17 @@ public:
             sum += cs[i].numberOfVariants();
         return sum;
     }
-
-    static std::string jsonify (std::istream& is)
-    {
-        std::stringstream os;
-
-        bool needClosingBracket = false;
-        if (is.peek() != '{' && is.peek() != '[')
-        {
-            os << "{";
-            needClosingBracket = true;
-        }
-
-        bool meQuoting = false;
-        bool userQuoting = false;
-        char c;
-        while (is >> std::noskipws >> c)
-        {
-            if (c == '\'' || c == '"')
-            {
-                if (userQuoting) userQuoting = false;
-                else userQuoting = true;
-                os << "\"";
-            }
-            else if (userQuoting)
-                os << c;
-            else if (std::isspace(c))
-                continue;
-            else if (c == '{' || c == '}' || c == '[' || c == ']' || c == ',' || c == ':')
-            {
-                if (meQuoting)
-                {
-                    os << "\"";
-                    meQuoting = false;
-                }
-                os << c;
-            }
-            else if (!meQuoting)
-            {
-                os << "\"" << c;
-                meQuoting = true;
-            }
-            else
-                os << c;
-        }
-
-        if (meQuoting)
-            os << "\"";
-        if (needClosingBracket)
-            os << "}";
-
-        return os.str();
-    }
-
-    static std::string jsonify (const std::string& s)
-    {
-        std::stringstream is(s);
-        return jsonify(is);
-    }
-
-private:
-    bool isfile(std::string path)
-    {
-        struct stat s;
-        if (stat(path.c_str(), &s) != 0) {
-            return false;
-        }
-        if (S_ISREG(s.st_mode)) {
-            return true;
-        }
-        return false;
-    }
 };
 
+/**
+ * Write results of measurements to the standard output.
+ *
+ * "Stores" measurements to stdout. Results of measurements are held in a result
+ * tree (rtree). The configuraion that was used to calculate those results is
+ * held in a property tree (ptree). Prints nicely formatted output and also
+ * understands varying parameters (VParam) and Variants of configurations
+ * (VConfiguration). 
+ */
 class Store
 {
 private:
@@ -1120,11 +1297,8 @@ private:
                   << "# date: " << getDate() << std::endl
                   << "# " << std::endl;
         
-        std::stringstream ss;
+        std::stringstream ss(PT::treeToJson(prepareForPrinting(c)));
         std::string line;
-        ptree cc = prepareForPrinting(c);
-        postprocessPtree(cc);
-        write_json(ss, cc);
         while (getline(ss, line))
         {
             std::cout << "# " << line << std::endl;
@@ -1142,9 +1316,9 @@ private:
         for (size_t i=0; i<ps.size(); i++)
         {
             const ptree& n = c.get_child(ps[i]);
-            if (isArray(n))
+            if (PT::isArray(n))
                 for (size_t j=0; j<n.size(); j++)
-                    std::cout << std::setw(columnWidth) << (ps[i] + "." + toString(j));
+                    std::cout << std::setw(columnWidth) << (ps[i] + "." + PT::toString(j));
             else 
                 std::cout << std::setw(columnWidth) << ps[i];
         }
@@ -1167,7 +1341,7 @@ private:
         for (size_t i=0; i<ps.size(); i++)
         {
             const ptree& n = c.get_child(ps[i]);
-            if (isArray(n))
+            if (PT::isArray(n))
                 for (ptree::const_iterator j=n.begin(); j!=n.end(); j++)
                     std::cout << std::setw(columnWidth) << j->second.get_value<double>();
             else
@@ -1183,15 +1357,15 @@ private:
     {
         std::vector<std::string> vparams;
         ptree p1 = c.get_child("changing", ptree());
-        if (isArray(p1))
+        if (PT::isArray(p1))
         {
-            const std::vector<std::string> a1 = getArray<std::string>(p1);
+            const std::vector<std::string> a1 = PT::getArray<std::string>(p1);
             vparams.insert(vparams.end(), a1.begin(), a1.end());
         }
         ptree p2 = c.get_child("findmax.vary", ptree());
-        if (isArray(p2))
+        if (PT::isArray(p2))
         {
-            const std::vector<std::string> a2 = getArray<std::string>(p2);
+            const std::vector<std::string> a2 = PT::getArray<std::string>(p2);
             vparams.insert(vparams.end(), a2.begin(), a2.end());
         }
         return vparams;
@@ -1217,7 +1391,7 @@ private:
             return;
         }
 
-        bool isarray = isArray(t);
+        bool isarray = PT::isArray(t);
         int l=0;
         for (typename Tree::const_iterator i=t.begin(); i!=t.end(); i++)
         {
@@ -1225,7 +1399,7 @@ private:
             if (npath.length() != 0)
                 npath += ".";
             if (isarray)
-                npath += toString(l);
+                npath += PT::toString(l);
             else
                 npath += i->first;
             getFlattenedTreeRecursive(i->second, v, npath);
@@ -1266,48 +1440,15 @@ private:
     }
 };
 
+/**
+ * Run the simulation.
+ *
+ * Uses Configurator to retrieve all qca system configurations (including
+ * Variants), CQca to do the actual calculations and Store to print the results
+ * to the standard output.
+ */
 class Runner
 {
-private:
-    static void findmax (ptree c, CQca& s, Store& o)
-    {
-        std::string of = c.get<std::string>("findmax.of");
-        std::vector<std::string> pns; 
-        std::vector<double> pvs;
-        const ptree& p = c.get_child("findmax.vary");
-        for (ptree::const_iterator i=p.begin(); i!=p.end(); i++)
-        {
-            const std::string pname = i->second.get_value<std::string>();
-            if (isArray(c.get_child(pname)))
-            {
-                std::vector<double> vs = getArray<double>(c.get_child(pname));
-                for (size_t j=0; j<vs.size(); j++)
-                {
-                    pns.push_back(pname + "." + toString(j));
-                    pvs.push_back(vs[j]);
-                }
-            }
-            else
-            {
-                pns.push_back(pname);
-                pvs.push_back(c.get<double>(pname));
-            }
-            ptree o = c.get_child(pname);
-            c.put_child("original." + pname, o);
-        }
-
-        // TODO: here goes the actual algorithm
-        for (double delta=0; delta<1; delta+=0.1)
-        {
-            pvs[0] += delta;
-
-            for (size_t i=0; i<pns.size(); i++)
-                c.put(pns[i], pvs[i]);
-            s.setConfig(c);
-            o.store(s.getConfig(), s.measure());
-        }
-    }
-
 public:
     static void run (const std::string& jsonConfig)
     {
@@ -1317,15 +1458,8 @@ public:
 
         while (c.hasNext())
         {
-            const ptree cc = c.getNext();
-            
-            if (hasKey(cc, "findmax"))
-                findmax(cc, s, o);
-            else
-            {
-                s.setConfig(cc);
-                o.store(s.getConfig(), s.measure());
-            }
+            s.setConfig(c.getNext());
+            o.store(s.getConfig(), s.measure());
         }
     }
 };
