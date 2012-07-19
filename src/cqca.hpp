@@ -13,6 +13,7 @@
  * * a system to generate multiple QCA system configurations out of one
  *   single configuration file (Configurator, VConfiguration, VParam)
  * * a Store, for nicely formatted output
+ * * a stochastic optimization method to find maxima (StochasticFindMax, Random)
  * * Runner, to run the simulation
  *
  * @author Burkhard Ritter <burkhard@ualberta.ca>
@@ -22,6 +23,9 @@
 
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/json_parser.hpp>
+#include <boost/random/mersenne_twister.hpp>
+#include <boost/random/uniform_real.hpp>
+#include <boost/random/variate_generator.hpp>
 #include <ctime>
 #include "qca.hpp"
 #include "version.hpp"
@@ -1283,7 +1287,9 @@ private:
         std::vector<std::string> names = getVParams(c);
         for (size_t i=0; i<names.size(); i++)
             c.put_child(names[i], ptree());
+        // remove "internal" fields
         c.put_child("changed", ptree());
+        c.put_child("_additionalcolumns", ptree());
         return c;
     }
 
@@ -1310,9 +1316,16 @@ private:
 
     void printTableHeader (const ptree& c, const rtree& r) const
     {
-        std::vector<std::string> ps = getVParams(c);
-        TreeTypes<rtree>::vector os = getFlattenedTree(r);
         std::cout << "# ";
+
+        if (PT::hasKey(c, "_additionalcolumns"))
+        {
+            const ptree ac = c.get_child("_additionalcolumns");
+            for (ptree::const_iterator i=ac.begin(); i!=ac.end(); i++)
+                std::cout << std::setw(columnWidth) << i->first;
+        }
+        
+        std::vector<std::string> ps = getVParams(c);
         for (size_t i=0; i<ps.size(); i++)
         {
             const ptree& n = c.get_child(ps[i]);
@@ -1322,8 +1335,11 @@ private:
             else 
                 std::cout << std::setw(columnWidth) << ps[i];
         }
+        
+        TreeTypes<rtree>::vector os = getFlattenedTree(r);
         for (size_t i=0; i<os.size(); i++)
             std::cout << std::setw(columnWidth) << os[i].first;
+        
         std::cout << std::endl;
     }
 
@@ -1335,9 +1351,16 @@ private:
         if (lineCount % tableHeaderEveryXLines == 0)
             printTableHeader(c,r);
 
-        std::vector<std::string> ps = getVParams(c);
-        TreeTypes<rtree>::vector os = getFlattenedTree(r);
         std::cout << "  ";
+        
+        if (PT::hasKey(c, "_additionalcolumns"))
+        {
+            const ptree ac = c.get_child("_additionalcolumns");
+            for (ptree::const_iterator i=ac.begin(); i!=ac.end(); i++)
+                std::cout << std::setw(columnWidth) << i->second.get_value<double>();
+        }
+        
+        std::vector<std::string> ps = getVParams(c);
         for (size_t i=0; i<ps.size(); i++)
         {
             const ptree& n = c.get_child(ps[i]);
@@ -1347,8 +1370,11 @@ private:
             else
                 std::cout << std::setw(columnWidth) << c.get<double>(ps[i], 0);
         }
+        
+        TreeTypes<rtree>::vector os = getFlattenedTree(r);
         for (size_t i=0; i<os.size(); i++)
             std::cout << std::setw(columnWidth) << os[i].second;
+        
         std::cout << std::endl;
         lineCount++;
     }
@@ -1362,7 +1388,7 @@ private:
             const std::vector<std::string> a1 = PT::getArray<std::string>(p1);
             vparams.insert(vparams.end(), a1.begin(), a1.end());
         }
-        ptree p2 = c.get_child("findmax.vary", ptree());
+        ptree p2 = c.get_child("findmax.optimize", ptree());
         if (PT::isArray(p2))
         {
             const std::vector<std::string> a2 = PT::getArray<std::string>(p2);
@@ -1422,6 +1448,9 @@ private:
     ptree prepareForPrinting (ptree c)
     {
         ptree::assoc_iterator i;
+        i = c.find("_additionalcolumns");
+        if (i != c.not_found())
+            c.erase(c.to_iterator(i));
         i = c.find("changed");
         if (i != c.not_found())
             c.erase(c.to_iterator(i));
@@ -1437,6 +1466,217 @@ private:
         }
         
         return c;
+    }
+};
+
+class Random
+{
+private:
+    typedef boost::mt19937 baseGeneratorT;
+    typedef boost::uniform_real<> distributionT;
+    typedef boost::variate_generator<baseGeneratorT&, distributionT> generatorT;
+
+    baseGeneratorT baseGenerator;
+    distributionT distribution;
+    generatorT generator;
+
+public:
+    Random (unsigned int seed=42u)
+    : baseGenerator(seed), distribution(0,1), 
+      generator(baseGenerator, distribution)
+    {
+    }
+    
+    double operator() ()
+    {
+        return generator();
+    }
+};
+
+/**
+ * Stochastic optimization method to find maxima.
+ *
+ * This is a stochastic annealing optimization method to find the maximum of a
+ * chosen observable, varying a chosen set of parameters. E.g. Optimize the
+ * inter-cell spacings in a non-uniform wire for maximal output polarization.
+ *
+ * The method is from the following paper:
+ * * PhysRevB.76.104432
+ *    * title: Variational ground states of two-dimensional antiferromagnets in the valence bond basis
+ *    * author: Lou, Jie and Sandvik, Anders W.
+ *    * journal: Phys. Rev. B
+ *    * volume: 76
+ *    * issue: 10
+ *    * pages: 104432
+ *    * numpages: 8
+ *    * year: 2007
+ *    * month: Sep
+ *    * doi: 10.1103/PhysRevB.76.104432
+ *    * url: http://link.aps.org/doi/10.1103/PhysRevB.76.104432
+ *    * publisher: American Physical Society
+ *
+ * Usage
+ * -----
+ *
+ * In the json configuration the following fields must be defined:
+ * * findmax.of -- find maximum of this observable, e.g. P.2
+ * * findmax.optimize -- list of parameters that should be varied / optimized,
+ *                       e.g. layout.boas
+ *
+ * The following fields are optional:
+ * * findmax.iterations -- number of iteration steps, default is 1000
+ */
+class StochasticFindMax
+{
+private:
+    Random R;
+    
+    // constant after initialization
+    std::string findMaxOf;
+    std::vector<std::string> ans; // argument names
+    int maxN;
+    double alpha;
+
+    // change with each iteration step
+    double beta;
+    std::vector<double> avs; // current argument values
+    std::vector<double> oldAvs; // old argument values
+    double fv; // current function value
+    double oldFv; // old function value
+    
+    ptree c;
+    CQca& s;
+    Store& o;
+    rtree r;
+
+public:
+    StochasticFindMax (ptree c_, CQca& s_, Store& o_)
+    : alpha(0.75), beta(1), c(c_), s(s_), o(o_)
+    {
+        readFindMaxConfig();
+
+        // initialize old argument values, function value
+        oldAvs.resize(avs.size());
+        for (size_t i=0; i<avs.size(); i++)
+            oldAvs[i] = avs[i] + 0.01 * avs[i];
+        calculateFunctionValue();
+        oldFv = fv;
+    }
+
+    /**
+     * Find the maximum.
+     *
+     * Implements the annealing loop and uses the following annealing scheme:
+     *
+     * @f[ \beta = \frac{1}{i^\alpha} @f]
+     * 
+     * with i the iteration number 
+     * and @f$ 0.5 < \alpha < 1 @f$, 
+     * @f$ \alpha \sim 0.75 @f$ is recommended as a starting point
+     */
+    void findmax ()
+    {
+        for (size_t i=1; i<=maxN; i++)
+        {
+            beta = std::pow(i, -alpha);
+
+            // additional columns in output
+            c.put("_additionalcolumns.Iteration", i);
+            c.put("_additionalcolumns.beta", beta);
+            
+            update();
+            o.store(s.getConfig(), r);
+        }
+    }
+
+private:
+    /**
+     * Calculates the function value (findmax.of) for the current argument
+     * values (findmax.optimize). 
+     *
+     * Updates the variables fv and r.
+     */
+    void calculateFunctionValue ()
+    {
+        assert (ans.size() == avs.size());
+        for (size_t i=0; i<ans.size(); i++)
+            c.put(ans[i], avs[i]);
+        s.setConfig(c);
+        r = s.measure();
+        fv = r.get<double>(findMaxOf);
+    }
+
+    /**
+     * Update the argument values and the function value.
+     *
+     * Implements the stochastic scheme as detailed in the paper. 
+     * @see StochasticFindMax
+     *
+     * More specifically, the update scheme is, for each argument
+     * @f[ \ln av^{i+1} = \ln av^i + R \beta \mathrm{sign} 
+     *     \left( \frac{\partial fv}{\partial av} \right) @f]
+     * where R is a random number [0,1] and @f$ \beta @f$ is the annealing
+     * temperature.
+     *
+     */
+    void update ()
+    {
+        oldFv = fv;
+
+        // determine sign of slope for all arguments
+        std::vector<int> ss(avs.size());
+        for (size_t i=0; i<ss.size(); i++)
+        {
+            const double ov = avs[i];
+            avs[i] += 0.1 * std::abs(avs[i] - oldAvs[i]);
+            calculateFunctionValue();
+            avs[i] = ov;
+            if (fv >= oldFv)
+                ss[i] = 1;
+            else
+                ss[i] = -1;
+        }
+
+        // update argument values
+        oldAvs = avs;
+        for (size_t i=0; i<ss.size(); i++)
+            avs[i] = avs[i] * std::exp(R() * beta * ss[i]);
+
+        // update function value
+        calculateFunctionValue();
+    }
+
+    void readFindMaxConfig ()
+    {
+        findMaxOf = c.get<std::string>("findmax.of");
+        maxN = c.get("findmax.iterations", 1000);
+
+        // which arguments to optimize ("findmax.optimize")
+        // read their names to ans and their initial values to avs
+        ans.clear();
+        avs.clear();
+        const ptree& p = c.get_child("findmax.optimize");
+        for (ptree::const_iterator i=p.begin(); i!=p.end(); i++)
+        {
+            const std::string name = i->second.get_value<std::string>();
+            // "unfold" arrays, i.e. [a] -> a.0, a.1, a.2 and so on
+            if (PT::isArray(c.get_child(name)))
+            {
+                std::vector<double> vs = PT::getArray<double>(c.get_child(name));
+                for (size_t j=0; j<vs.size(); j++)
+                {
+                    ans.push_back(name + "." + PT::toString(j));
+                    avs.push_back(vs[j]);
+                }
+            }
+            else
+            {
+                ans.push_back(name);
+                avs.push_back(c.get<double>(name));
+            }
+            ptree op = c.get_child(name);
+            c.put_child("original." + name, op);
+        }
     }
 };
 
@@ -1458,8 +1698,18 @@ public:
 
         while (c.hasNext())
         {
-            s.setConfig(c.getNext());
-            o.store(s.getConfig(), s.measure());
+            const ptree cc = c.getNext();
+            
+            if (PT::hasKey(cc, "findmax"))
+            {
+                StochasticFindMax f(cc, s, o);
+                f.findmax();
+            }
+            else
+            {
+                s.setConfig(cc);
+                o.store(s.getConfig(), s.measure());
+            }
         }
     }
 };
