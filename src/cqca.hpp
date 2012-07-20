@@ -814,6 +814,43 @@ public:
     : model(none)
     {}
 
+    /**
+     * Copy constructor.
+     *
+     * This is not a true copy constructor in the sense that it copies the
+     * object. Rather it takes the qca system configuration and constructs a new
+     * CQca object with this configuration, from scratch. Hence, the basis and
+     * all matrices are not copied, but constructed from scratch. Depending on
+     * the specific use case, this might be a significant performance overhead.
+     *
+     * Implementation detail: Truly copying the object is not trivial. I would
+     * need to typecast s to the correct CQcaGeneric<model> class, so that the
+     * assignment operator operator=() actually copies object members. Otherwise
+     * the assignment operator is invoked for the abstract base class
+     * CQcaGenericBase and does not copy anything. Additionally, as it is, the
+     * Basis class might not be copyable due to the usage of pointers for the
+     * SymmetryOperators (although, this likely could be fixed easily). For the
+     * time being it seems easier to reconstruct the whole CQca object on
+     * copying.
+     */
+    CQca (const CQca& o)
+    : model(none)
+    {
+        setConfig(o.getConfig());
+    }
+
+    /**
+     * Assignment operator.
+     *
+     * see the copy constructor
+     * @see CQca
+     */
+    CQca& operator= (const CQca& o)
+    {
+        setConfig(o.getConfig());
+        return *this;
+    }
+
     ~CQca ()
     {
         if (model != none)
@@ -827,24 +864,25 @@ public:
         {
             if (model != none)
                 delete s;
-            model = nm;
-            if (model == bond)
+            if (nm == bond)
                 s = new CQcaGeneric<QcaBond>();
-            else if (model == fixed)
+            else if (nm == fixed)
                 s = new CQcaGeneric<QcaFixedCharge>();
-            else if (model == grand)
+            else if (nm == grand)
                 s = new CQcaGeneric<QcaGrandCanonical>();
+            model = nm;
         }
-        s->setConfig(c);
+        if (model != none)
+            s->setConfig(c);
     }
 
     ptree getConfig () const
     {
-        if (model == none)
-            return ptree();
+        ptree c;
+        if (model != none)
+            c = s->getConfig();
         // it's nice to have "model" as the first entry in the configuration,
         // that's why we're using c.push_front instead of the simpler c.put()
-        ptree c = s->getConfig();
         if (c.find("model") == c.not_found())
             c.push_front(ptree::value_type("model", ptree(modelToString(model))));
         return c;
@@ -866,6 +904,8 @@ private:
            return grand;
        if (s == "fixed" || s == "fixedcharge")
            return fixed;
+       if (s == "none")
+           return none;
        throw ConfigurationException("Invalid model: '" + s + "'");
    }
 
@@ -1534,7 +1574,7 @@ private:
     // constant after initialization
     std::string findMaxOf;
     std::vector<std::string> ans; // argument names
-    int maxN;
+    size_t maxN;
     double alpha;
 
     // change with each iteration step
@@ -1542,7 +1582,6 @@ private:
     std::vector<double> avs; // current argument values
     std::vector<double> oldAvs; // old argument values
     double fv; // current function value
-    double oldFv; // old function value
     
     ptree c;
     CQca& s;
@@ -1554,13 +1593,6 @@ public:
     : alpha(0.75), beta(1), c(c_), s(s_), o(o_)
     {
         readFindMaxConfig();
-
-        // initialize old argument values, function value
-        oldAvs.resize(avs.size());
-        for (size_t i=0; i<avs.size(); i++)
-            oldAvs[i] = avs[i] + 0.01 * avs[i];
-        calculateFunctionValue();
-        oldFv = fv;
     }
 
     /**
@@ -1576,6 +1608,13 @@ public:
      */
     void findmax ()
     {
+
+        // initialize old argument values and the function value
+        oldAvs.resize(avs.size());
+        for (size_t i=0; i<avs.size(); i++)
+            oldAvs[i] = avs[i] + 0.01 * avs[i];
+        calculateFunctionValue();
+
         for (size_t i=1; i<=maxN; i++)
         {
             beta = std::pow(i, -alpha);
@@ -1594,7 +1633,7 @@ private:
      * Calculates the function value (findmax.of) for the current argument
      * values (findmax.optimize). 
      *
-     * Updates the variables fv and r.
+     * Updates the variables fv and r (and c and s).
      */
     void calculateFunctionValue ()
     {
@@ -1621,21 +1660,44 @@ private:
      */
     void update ()
     {
-        oldFv = fv;
-
         // determine sign of slope for all arguments
         std::vector<int> ss(avs.size());
+#ifdef _OPENMP
+#pragma omp parallel for
+        for (size_t i=0; i<ss.size(); i++)
+        {
+            std::vector<double> vs(avs);
+            ptree nc(c);
+            CQca ns(s);
+            rtree nr;
+            double nfv;
+
+            vs[i] += 0.1 * std::abs(vs[i] - oldAvs[i]);
+            for (size_t j=0; j<ans.size(); j++)
+                nc.put(ans[j], vs[j]);
+            ns.setConfig(nc);
+            nr = ns.measure();
+            nfv = nr.get<double>(findMaxOf);
+
+            if (nfv >= fv)
+                ss[i] = 1;
+            else
+                ss[i] = -1;
+        }
+#else
+        const double ofv = fv;
         for (size_t i=0; i<ss.size(); i++)
         {
             const double ov = avs[i];
             avs[i] += 0.1 * std::abs(avs[i] - oldAvs[i]);
             calculateFunctionValue();
             avs[i] = ov;
-            if (fv >= oldFv)
+            if (fv >= ofv)
                 ss[i] = 1;
             else
                 ss[i] = -1;
         }
+#endif
 
         // update argument values
         oldAvs = avs;

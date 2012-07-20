@@ -176,10 +176,13 @@ BOOST_AUTO_TEST_CASE ( test_configurable_layout_with_alternate_parameters )
 BOOST_AUTO_TEST_CASE ( test_configurable_qca_systems )
 {
     CQca s1;
-    BOOST_CHECK (s1.getConfig() == ptree());
+    BOOST_CHECK (s1.getConfig() == ptreeFromJson("{'model': 'none'}"));
     s1.measure();
     // operator== does not work for rtree
     //BOOST_CHECK (s1.measure() == rtree());
+    s1.setConfig(ptreeFromJson("{'model': 'none'}"));
+    BOOST_CHECK (s1.getConfig() == ptreeFromJson("{'model': 'none'}"));
+    s1.measure();
 
     CQca s2;
     s2.setConfig(ptreeFromJson("{}")); // default configuration
@@ -685,4 +688,66 @@ BOOST_AUTO_TEST_CASE ( test_ptree_convert_arrays )
     
     PropertyTree::detail::walkTree(p2, PropertyTree::detail::ConvertArrayBack());
     BOOST_CHECK (p2 == p1);
+}
+
+BOOST_AUTO_TEST_CASE ( test_copy_cqca )
+{
+    const ptree c1 = ptreeFromJson(
+        "{'model': 'bond', 't': 1, 'td': 0, 'V0': 1000, 'beta': 1, "
+        "'layout': {'type': 'wire', 'cells': 3, 'a': 0.01, "
+        "'b': 0.023, 'Pext': 1}, 'observables': {'P': 'all'}}");
+    const double P11 = 0.462795;
+    const ptree c2 = ptreeFromJson(
+        "{'model': 'fixed', 't': 1, 'td': 0.2, 'V0': 2500, " 
+        "'beta': 1000, 'layout': {'type': 'wire', 'cells': 2, "
+        "'a': 0.004, 'b': 0.02, 'Pext': 0.1, "
+        "'epc': 6}, 'observables': {'P': 'all', 'N': 0}}");
+    const double P12 = 0.212;
+    rtree r1, r2;
+
+    CQca s1;
+    CQca s2(s1);
+
+    s2.setConfig(c2);
+    r2 = s2.measure();
+    s1.setConfig(c1);
+    r1 = s1.measure();
+    BOOST_CHECK (epsilonEqual(r1.get<double>("P.1"), P11, 1E-3));
+    BOOST_CHECK (epsilonEqual(r2.get<double>("P.1"), P12, 1E-3));
+    
+    s1.setConfig(c2);
+    r1 = s1.measure();
+    s2.setConfig(c1);
+    r2 = s2.measure();
+    BOOST_CHECK (epsilonEqual(r1.get<double>("P.1"), P12, 1E-3));
+    BOOST_CHECK (epsilonEqual(r2.get<double>("P.1"), P11, 1E-3));
+    s2.setConfig(c1);
+    r1 = s1.measure();
+    BOOST_CHECK (epsilonEqual(r1.get<double>("P.1"), P12, 1E-3));
+
+    CQca s3, s4;
+    s3.setConfig(c1);
+    s4 = s3;
+    r1 = s3.measure();
+    r2 = s4.measure();
+    BOOST_CHECK (epsilonEqual(r1.get<double>("P.1"), P11, 1E-3));
+    BOOST_CHECK (epsilonEqual(r2.get<double>("P.1"), P11, 1E-3));
+
+    s4 = s1;
+    r1 = s3.measure();
+    r2 = s4.measure();
+    BOOST_CHECK (epsilonEqual(r1.get<double>("P.1"), P11, 1E-3));
+    BOOST_CHECK (epsilonEqual(r2.get<double>("P.1"), P12, 1E-3));
+    
+    s3 = s2;
+    r1 = s3.measure();
+    BOOST_CHECK (epsilonEqual(r1.get<double>("P.1"), P11, 1E-3));
+    BOOST_CHECK (epsilonEqual(r2.get<double>("P.1"), P12, 1E-3));
+
+    CQca s5(s3);
+    r1 = s5.measure();
+    BOOST_CHECK (epsilonEqual(r1.get<double>("P.1"), P11, 1E-3));
+    s5.setConfig(c2);
+    r1 = s5.measure();
+    BOOST_CHECK (epsilonEqual(r1.get<double>("P.1"), P12, 1E-3));
 }
