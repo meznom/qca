@@ -1584,13 +1584,13 @@ private:
     double fv; // current function value
     
     ptree c;
-    CQca& s;
+    std::vector<CQca> s;
     Store& o;
     rtree r;
 
 public:
-    StochasticFindMax (ptree c_, CQca& s_, Store& o_)
-    : alpha(0.75), beta(1), c(c_), s(s_), o(o_)
+    StochasticFindMax (ptree c_, Store& o_)
+    : alpha(0.75), beta(1), c(c_), s(1), o(o_)
     {
         readFindMaxConfig();
     }
@@ -1624,7 +1624,7 @@ public:
             c.put("_additionalcolumns.beta", beta);
             
             update();
-            o.store(s.getConfig(), r);
+            o.store(s[0].getConfig(), r);
         }
     }
 
@@ -1640,8 +1640,8 @@ private:
         assert (ans.size() == avs.size());
         for (size_t i=0; i<ans.size(); i++)
             c.put(ans[i], avs[i]);
-        s.setConfig(c);
-        r = s.measure();
+        s[0].setConfig(c);
+        r = s[0].measure();
         fv = r.get<double>(findMaxOf);
     }
 
@@ -1662,27 +1662,39 @@ private:
     {
         // determine sign of slope for all arguments
         std::vector<int> ss(avs.size());
+
 #ifdef _OPENMP
-#pragma omp parallel for
-        for (size_t i=0; i<ss.size(); i++)
+        #pragma omp parallel
         {
-            std::vector<double> vs(avs);
-            ptree nc(c);
-            CQca ns(s);
-            rtree nr;
-            double nfv;
+            /*
+             * We use a pool of CQca objects (s), one for each thread.
+             */
+            #pragma omp single
+            {
+                if (s.size() < static_cast<size_t>(omp_get_num_threads()))
+                    s.resize(omp_get_num_threads());
+            }
+            #pragma omp for
+            for (size_t i=0; i<ss.size(); i++)
+            {
+                int n = omp_get_thread_num();
+                std::vector<double> vs(avs);
+                ptree nc(c);
+                rtree nr;
+                double nfv;
 
-            vs[i] += 0.1 * std::abs(vs[i] - oldAvs[i]);
-            for (size_t j=0; j<ans.size(); j++)
-                nc.put(ans[j], vs[j]);
-            ns.setConfig(nc);
-            nr = ns.measure();
-            nfv = nr.get<double>(findMaxOf);
+                vs[i] += 0.1 * std::abs(vs[i] - oldAvs[i]);
+                for (size_t j=0; j<ans.size(); j++)
+                    nc.put(ans[j], vs[j]);
+                s[n].setConfig(nc);
+                nr = s[n].measure();
+                nfv = nr.get<double>(findMaxOf);
 
-            if (nfv >= fv)
-                ss[i] = 1;
-            else
-                ss[i] = -1;
+                if (nfv >= fv)
+                    ss[i] = 1;
+                else
+                    ss[i] = -1;
+            }
         }
 #else
         const double ofv = fv;
@@ -1764,7 +1776,7 @@ public:
             
             if (PT::hasKey(cc, "findmax"))
             {
-                StochasticFindMax f(cc, s, o);
+                StochasticFindMax f(cc, o);
                 f.findmax();
             }
             else
