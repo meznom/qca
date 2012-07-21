@@ -30,6 +30,12 @@
 #include "qca.hpp"
 #include "version.hpp"
 
+// for Random
+#include <sys/time.h>
+#include <sys/types.h>
+#include <unistd.h>
+
+
 class ConfigurationException: public std::runtime_error
 {
 public:
@@ -1531,6 +1537,33 @@ public:
     {
         return generator();
     }
+
+    void dynamicSeed ()
+    {
+        unsigned int mySeed(0);
+
+        /*
+         * urandom is specific to Linux
+         * see man urandom
+         */
+        FILE* urandom = fopen("/dev/urandom", "r");
+        if (urandom!=0 && fread(&mySeed, sizeof(unsigned int), 1, urandom)==1)
+        {
+            fclose(urandom);
+            baseGenerator.seed(mySeed);
+            return;
+        }
+
+        std::cerr << "Warning: Can't read /dev/urandom, falling back to weaker random seed." << std::endl;
+        struct timeval tv;
+        gettimeofday(&tv, 0);
+        mySeed = static_cast<unsigned int>(getpid());
+        mySeed <<= (sizeof(unsigned int)/2)*8;
+        mySeed += static_cast<unsigned int>(getppid());
+        mySeed <<= (sizeof(unsigned int)/2)*8;
+        mySeed += static_cast<unsigned int>(tv.tv_sec + tv.tv_usec);
+        baseGenerator.seed(mySeed);
+    }
 };
 
 /**
@@ -1565,6 +1598,9 @@ public:
  *
  * The following fields are optional:
  * * findmax.iterations -- number of iteration steps, default is 1000
+ * * findmax.alpha -- exponent used in the "annealing"
+ * * findmax.dynamicseed -- use a dynamic (i.e. changing) seed for the random
+ *                          number generator, otherwise a constant seed is used
  */
 class StochasticFindMax
 {
@@ -1590,7 +1626,7 @@ private:
 
 public:
     StochasticFindMax (ptree c_, Store& o_)
-    : alpha(0.75), beta(1), c(c_), s(1), o(o_)
+    : beta(1), c(c_), s(1), o(o_)
     {
         readFindMaxConfig();
     }
@@ -1724,6 +1760,18 @@ private:
     {
         findMaxOf = c.get<std::string>("findmax.of");
         maxN = c.get("findmax.iterations", 1000);
+        alpha = c.get("findmax.alpha", 0.75);
+        if (alpha < 0) alpha = 0;
+        if (alpha > 1) alpha = 1;
+        std::string dynamicseed = c.get("findmax.dynamicseed", "no");
+        if (dynamicseed == "yes")
+            R.dynamicSeed();
+
+        // write optional fields back to the configuration so that they always
+        // get printed along with the results
+        c.put("findmax.iterations", maxN);
+        c.put("findmax.alpha", alpha);
+        c.put("findmax.dynamicseed", dynamicseed);
 
         // which arguments to optimize ("findmax.optimize")
         // read their names to ans and their initial values to avs
