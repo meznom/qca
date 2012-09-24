@@ -772,6 +772,7 @@ private:
         {
             rtree n;
             n.put("E", i*deltaE + Emin);
+            n.put("Count", static_cast<double>(h[i]));
             n.put("DOS", static_cast<double>(h[i])/s.energies().size());
             r.push_back(rtree::value_type(PT::toString(i), n));
         }
