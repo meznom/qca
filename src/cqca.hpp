@@ -1539,6 +1539,13 @@ public:
         return generator();
     }
 
+    std::string getState () const
+    {
+        std::stringstream ss;
+        ss << baseGenerator;
+        return ss.str();
+    }
+
     void dynamicSeed ()
     {
         unsigned int mySeed(0);
@@ -1613,6 +1620,7 @@ private:
     std::vector<std::string> ans; // argument names
     size_t maxN;
     double alpha;
+    std::string stateFile;
 
     // change with each iteration step
     double beta;
@@ -1624,10 +1632,11 @@ private:
     std::vector<CQca> s;
     Store& o;
     rtree r;
+    size_t it;
 
 public:
     StochasticFindMax (ptree c_, Store& o_)
-    : beta(1), c(c_), s(1), o(o_)
+    : beta(1), c(c_), s(1), o(o_), it(1)
     {
         readFindMaxConfig();
     }
@@ -1652,16 +1661,19 @@ public:
             oldAvs[i] = avs[i] + 0.01 * avs[i];
         calculateFunctionValue();
 
-        for (size_t i=1; i<=maxN; i++)
+        for (it=1; it<=maxN; it++)
         {
-            beta = std::pow(i, -alpha);
+            beta = std::pow(it, -alpha);
 
             // additional columns in output
-            c.put("_additionalcolumns.Iteration", i);
+            c.put("_additionalcolumns.Iteration", it);
             c.put("_additionalcolumns.beta", beta);
             
             update();
             o.store(s[0].getConfig(), r);
+
+            if (stateFile != "")
+                writeState();
         }
     }
 
@@ -1767,12 +1779,14 @@ private:
         std::string dynamicseed = c.get("findmax.dynamicseed", "no");
         if (dynamicseed == "yes")
             R.dynamicSeed();
+        stateFile = c.get("findmax.statefile", "");
 
         // write optional fields back to the configuration so that they always
         // get printed along with the results
         c.put("findmax.iterations", maxN);
         c.put("findmax.alpha", alpha);
         c.put("findmax.dynamicseed", dynamicseed);
+        c.put("findmax.statefile", stateFile);
 
         // which arguments to optimize ("findmax.optimize")
         // read their names to ans and their initial values to avs
@@ -1800,6 +1814,21 @@ private:
             ptree op = c.get_child(name);
             c.put_child("original." + name, op);
         }
+    }
+
+    void writeState () const
+    {
+        std::ofstream f(stateFile.c_str());
+        ptree t;
+        t.put("findmax_currentstate.iteration", it);
+        t.put("findmax_currentstate.beta", beta);
+        t.get_child("findmax_currentstate")
+         .put_child("avs", PT::constructArray<ptree>(avs));
+        t.get_child("findmax_currentstate")
+         .put_child("oldAvs", PT::constructArray<ptree>(oldAvs));
+        t.put("findmax_currentstate.rng", R.getState());
+        f << PT::treeToJson(t);
+        f.close();
     }
 };
 
