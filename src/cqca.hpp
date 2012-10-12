@@ -35,7 +35,6 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-
 class ConfigurationException: public std::runtime_error
 {
 public:
@@ -1546,6 +1545,12 @@ public:
         return ss.str();
     }
 
+    void setState (const std::string& s)
+    {
+        std::stringstream ss(s);
+        ss >> baseGenerator;
+    }
+
     void dynamicSeed ()
     {
         unsigned int mySeed(0);
@@ -1623,6 +1628,7 @@ private:
     std::string stateFile;
 
     // change with each iteration step
+    size_t it; // current iteration
     double beta;
     std::vector<double> avs; // current argument values
     std::vector<double> oldAvs; // old argument values
@@ -1632,11 +1638,10 @@ private:
     std::vector<CQca> s;
     Store& o;
     rtree r;
-    size_t it;
 
 public:
     StochasticFindMax (ptree c_, Store& o_)
-    : beta(1), c(c_), s(1), o(o_), it(1)
+    : it(1), beta(1), c(c_), s(1), o(o_)
     {
         readFindMaxConfig();
     }
@@ -1655,13 +1660,25 @@ public:
     void findmax ()
     {
 
-        // initialize old argument values and the function value
-        oldAvs.resize(avs.size());
-        for (size_t i=0; i<avs.size(); i++)
-            oldAvs[i] = avs[i] + 0.01 * avs[i];
-        calculateFunctionValue();
+        // optionally read state from a file -- to resume an aborted calculation
+        if (PT::detail::isfile(stateFile))
+        {
+            readState();
+            it++;
+        }
+        else
+        {
+            // initialize iteration counter, old argument values and 
+            // function value
+            it = 1;
+            oldAvs.resize(avs.size());
+            for (size_t i=0; i<avs.size(); i++)
+                oldAvs[i] = avs[i] + 0.01 * avs[i];
+            calculateFunctionValue();
+        }
 
-        for (it=1; it<=maxN; it++)
+        // annealing loop
+        for (; it<=maxN; it++)
         {
             beta = std::pow(it, -alpha);
 
@@ -1818,10 +1835,14 @@ private:
 
     void writeState () const
     {
+        std::string backupFile = stateFile + ".old";
+        std::rename(stateFile.c_str(), backupFile.c_str());
+        
         std::ofstream f(stateFile.c_str());
         ptree t;
         t.put("findmax_currentstate.iteration", it);
         t.put("findmax_currentstate.beta", beta);
+        t.put("findmax_currentstate.functionvalue", fv);
         t.get_child("findmax_currentstate")
          .put_child("avs", PT::constructArray<ptree>(avs));
         t.get_child("findmax_currentstate")
@@ -1829,6 +1850,19 @@ private:
         t.put("findmax_currentstate.rng", R.getState());
         f << PT::treeToJson(t);
         f.close();
+        
+        unlink(backupFile.c_str());
+    }
+
+    void readState ()
+    {
+        ptree t = PT::treeFromJson(stateFile);
+        it = t.get<size_t>("findmax_currentstate.iteration");
+        beta = t.get<double>("findmax_currentstate.beta");
+        fv = t.get<double>("findmax_currentstate.functionvalue");
+        avs = PT::getArray<double>(t.get_child("findmax_currentstate").get_child("avs"));
+        oldAvs = PT::getArray<double>(t.get_child("findmax_currentstate").get_child("oldAvs"));
+        R.setState(t.get<std::string>("findmax_currentstate.rng"));
     }
 };
 
