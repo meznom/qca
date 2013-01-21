@@ -2,11 +2,17 @@ import numpy
 import re
 import json
 import copy
+import datetime
+from os import walk as oswalk
+import fnmatch
+import sys
 
 # TODO: rename to QcaDatafile
-# TODO: parse dates as datetime
-#       e.g. datetime.datetime.strptime(ds, "%a %b %d %H:%M:%S %Y -0600")
 # TODO: change date, so it conforms to RFC 2822 (email), e.g. 'Thu, 28 Jun 2001 14:17:15 +0000'
+
+# # we ignore the timezone information, e.g. -0600
+# dateString = m.group(1)
+# date = datetime.datetime.strptime(dateString[:-6], "%a %b %d %H:%M:%S %Y")
 
 class DatafileError(Exception):
     def __init__(self, value):
@@ -112,10 +118,10 @@ class Datafile:
         ls = self.getAsString(index, block)
         return numpy.loadtxt(self._lines(ls))
 
-    def getHeader (self, index, block):
+    def getHeader (self, index):
         # read header from file
-        start = self._indices[index][block][0][1]
-        end = self._indices[index][block][1][1]
+        start = self._indices[index][0][0][1]
+        end = self._indices[index][0][1][1]
         header = self._readfile(start, end)
         # remove leading pound character
         header = re.sub(r'^# ?', '', header, 0, re.MULTILINE)
@@ -144,14 +150,16 @@ class Datafile:
                 'tableHeaders': tableHeaders
                };
 
-    def getBody (self, index, block):
+    def getBody (self, index):
         # read body from file
-        start = self._indices[index][block][1][1]
-        end = self._indices[index][block][2][1]
+        # we ignore the blocks and just read the data of all blocks as one body
+        start = self._indices[index][0][1][1]
+        end = self._indices[index][-1][2][1]
         body = self._readfile(start, end)
-        # remove comments and leading white spaces
+        # remove comments, leading white spaces, and empty lines
         body = re.sub(r'^#.+$\n?', '', body, 0, re.MULTILINE)
         body = re.sub(r'^\s*', '', body, 0, re.MULTILINE)
+        body = re.sub(r'\n\n', '\n', body, 0, re.MULTILINE)
         # parse body
         rows = []
         for l in body.splitlines():
@@ -159,9 +167,9 @@ class Datafile:
             rows.append(cols)
         return rows
 
-    def get (self, index, block):
-        h = self.getHeader(index, block)
-        b = self.getBody(index, block)
+    def get (self, index):
+        h = self.getHeader(index)
+        b = self.getBody(index)
         if len(b) < 1:
             raise DatafileError('Body is empty')
         if len(h['tableHeaders']) != len(b[0]):
@@ -182,17 +190,16 @@ class Datafile:
         os = []
         l = copy.deepcopy(self.EMPTY_DOCUMENT)
         for i, index in enumerate(self._indices):
-            for j, block in enumerate(index):
-                o = self.get(i,j)
-                if (o['info']['date'] is None and 
-                    o['info']['version'] is None and
-                    o['params'] is None):
-                        o['info'] = copy.deepcopy(l['info'])
-                        o['params'] = copy.deepcopy(l['params'])
-                else:
-                    l['info'] = copy.deepcopy(o['info'])
-                    l['params'] = copy.deepcopy(o['params'])
-                os.append(o)
+            o = self.get(i)
+            if (o['info']['date'] is None and 
+                o['info']['version'] is None and
+                o['params'] is None):
+                    o['info'] = copy.deepcopy(l['info'])
+                    o['params'] = copy.deepcopy(l['params'])
+            else:
+                l['info'] = copy.deepcopy(o['info'])
+                l['params'] = copy.deepcopy(o['params'])
+            os.append(o)
         return os
 
     def toJson (self, prettyPrint=True):
@@ -241,3 +248,36 @@ class Datafile:
             return n
         else:
             return f(d)
+
+class PrintJson:
+    def __init__ (self, prettyPrint=True):
+        self._prettyPrint = prettyPrint
+        self._count = 0
+
+    def __call__ (self, o):
+        if self._count > 0:
+            print(',')
+        if self._prettyPrint:
+            print(json.dumps(o, indent=2, separators=(',', ': ')))
+        else:
+            print(json.dumps(o))
+        self._count += 1
+
+def processFiles (directory, function):
+    for d, ds, fs in oswalk(directory):
+        for f in fnmatch.filter(fs, '*.dat'):
+            sys.stderr.write('Processing ' + f + '\n')
+            df = Datafile(f)
+            os = df.getAll()
+            for o in os:
+                function(o)
+
+def filesToJson (directory, prettyPrint=True):
+    print('[')
+    processFiles(directory, PrintJson(prettyPrint))
+    print(']')
+
+if __name__ == '__main__':
+    if len(sys.argv) > 1:
+        d = sys.argv[1]
+        filesToJson(d)
