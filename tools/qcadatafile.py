@@ -7,20 +7,23 @@ from os import walk as oswalk
 import fnmatch
 import sys
 
-# TODO: rename to QcaDatafile
-# TODO: change date, so it conforms to RFC 2822 (email), e.g. 'Thu, 28 Jun 2001 14:17:15 +0000'
+hasMongo = False
+try:
+    from pymongo import MongoClient
+    hasMongo = True
+except ImportError:
+    pass
 
-# # we ignore the timezone information, e.g. -0600
-# dateString = m.group(1)
-# date = datetime.datetime.strptime(dateString[:-6], "%a %b %d %H:%M:%S %Y")
+# TODO: change date, so it conforms to RFC 2822 (email), e.g. 'Thu, 28 Jun 2001
+#       14:17:15 +0000', or use '2013-01-11T19:28:20Z'; and use UTC
 
-class DatafileError(Exception):
-    def __init__(self, value):
+class QcaDatafileError (Exception):
+    def __init__ (self, value):
         self.value = value
-    def __str__(self):
+    def __str__ (self):
         return repr(self.value)
 
-class Datafile:
+class QcaDatafile:
     EMPTY_DOCUMENT = {
             'info': {
                 'program': None, 
@@ -171,9 +174,10 @@ class Datafile:
         h = self.getHeader(index)
         b = self.getBody(index)
         if len(b) < 1:
-            raise DatafileError('Body is empty')
+            raise QcaDatafileError('Body is empty')
         if len(h['tableHeaders']) != len(b[0]):
-            raise DatafileError('Number of table headers does not match number of table columns')
+            raise QcaDatafileError('Number of table headers does not match number ' +
+                    'of table columns (Index {:d})'.format(index))
         o = copy.deepcopy(self.EMPTY_DOCUMENT)
         o['info']['version'] = h['version']
         o['info']['date'] = h['date']
@@ -263,21 +267,51 @@ class PrintJson:
             print(json.dumps(o))
         self._count += 1
 
+class ObjectIntoMongo:
+    def __init__ (self):
+        c = MongoClient()
+        self._db = c.physics
+
+    def __call__ (self, o):
+        # Convert date string to a Datetime object
+        # We ignore the timezone information, e.g. -0600
+        if o['info']['date'] is not None:
+            dateString = o['info']['date']
+            date = datetime.datetime.strptime(dateString[:-6], "%a %b %d %H:%M:%S %Y")
+            o['info']['date'] = date
+        self._db.qca.insert(o)
+
 def processFiles (directory, function):
     for d, ds, fs in oswalk(directory):
         for f in fnmatch.filter(fs, '*.dat'):
-            sys.stderr.write('Processing ' + f + '\n')
-            df = Datafile(f)
-            os = df.getAll()
-            for o in os:
-                function(o)
+            sys.stderr.write('Processing ' + d + '/' + f)
+            try:
+                df = QcaDatafile(d + '/' + f)
+                os = df.getAll()
+                for o in os:
+                    function(o)
+                sys.stderr.write(' [Ok]\n')
+            except QcaDatafileError as e:
+                sys.stderr.write(' [Failed]\n')
+                sys.stderr.write('    ' + str(e) + '\n')
 
 def filesToJson (directory, prettyPrint=True):
     print('[')
     processFiles(directory, PrintJson(prettyPrint))
     print(']')
 
+def filesToMongo (directory):
+    processFiles(directory, ObjectIntoMongo())
+
 if __name__ == '__main__':
-    if len(sys.argv) > 1:
-        d = sys.argv[1]
+    if len(sys.argv) == 3 and sys.argv[1] == 'toJson':
+        d = sys.argv[2]
         filesToJson(d)
+    elif len(sys.argv) == 3 and sys.argv[1] == 'toMongo':
+        if not hasMongo:
+            sys.stderr.write('Sorry, PyMongo is not installed.\n')
+            sys.exit(-1)
+        d = sys.argv[2]
+        filesToMongo(d)
+    else:
+        sys.stderr.write('Usage: python ' + sys.argv[0] + ' toJson|toMongo\n')
