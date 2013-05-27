@@ -10,14 +10,17 @@ find_path(
 	PATHS ~/include ~/src/include ~/o/include ~/o/src/include /opt/local/include /sw/include
 	PATH_SUFFIXES eigen3 eigen
 )
-find_path(
-	BOOST_INCLUDE_DIR
-	boost/test/unit_test.hpp
-	PATHS ~/include ~/src/include ~/o/include ~/o/src/include /opt/local/include /sw/include
-)
+# Boost
+set(Boost_DEBUG OFF)
+set(Boost_USE_STATIC_LIBS OFF)
+set(Boost_USE_MULTITHREADED ON)
+set(Boost_USE_STATIC_RUNTIME OFF)
+find_package(Boost 1.49.0)
+find_package(Boost 1.49.0 COMPONENTS unit_test_framework)
+
 include_directories(
 	${EIGEN_INCLUDE_DIR}
-	${BOOST_INCLUDE_DIR}
+    ${Boost_INCLUDE_DIRS}
 )
 
 set(BASIS_NUMBER_OF_BITS "16" CACHE STRING "Number of bits used to store basis. Should be 16, 32 or 64. Generally this should be equal to or larger than 8 times the number of QCA cells.")
@@ -46,16 +49,16 @@ if (${COMPILER} STREQUAL "Intel")
  	set(USE_CXX_FLAGS_RELEASE "-fast -Wall -DNDEBUG" CACHE STRING "")
 elseif (${COMPILER} STREQUAL "GCC")
     message(STATUS "Setting flags for GCC and Clang compiler")
-    set(USE_CXX_FLAGS_DEBUG "-m64 -O0 -Wall -ggdb -fopenmp" CACHE STRING "")
- 	set(USE_CXX_FLAGS_RELEASE "-m64 -O3 -Wall -march=native -fopenmp -DNDEBUG" CACHE STRING "")
+    set(USE_CXX_FLAGS_DEBUG "-m64 -O0 -Wall -Wno-unused-local-typedefs -ggdb -fopenmp" CACHE STRING "")
+ 	set(USE_CXX_FLAGS_RELEASE "-m64 -O3 -Wall -Wno-unused-local-typedefs -march=native -fopenmp -DNDEBUG" CACHE STRING "")
 elseif (${COMPILER} STREQUAL "Clang")
     message(STATUS "Setting flags for GCC and Clang compiler")
     set(USE_CXX_FLAGS_DEBUG "-m64 -O0 -Wall -ggdb" CACHE STRING "")
  	set(USE_CXX_FLAGS_RELEASE "-m64 -O3 -Wall -march=native -DNDEBUG" CACHE STRING "")
 endif()
 
-set(CMAKE_CXX_FLAGS_DEBUG "${USE_CXX_FLAGS_DEBUG} -DEIGEN_YES_I_KNOW_SPARSE_MODULE_IS_NOT_STABLE_YET -DSTORAGE_TYPE_OF_FERMIONIC_STATE=uint${BASIS_NUMBER_OF_BITS}_t")
-set(CMAKE_CXX_FLAGS_RELEASE "${USE_CXX_FLAGS_RELEASE} -DEIGEN_YES_I_KNOW_SPARSE_MODULE_IS_NOT_STABLE_YET -DSTORAGE_TYPE_OF_FERMIONIC_STATE=uint${BASIS_NUMBER_OF_BITS}_t")
+set(CMAKE_CXX_FLAGS_DEBUG "${USE_CXX_FLAGS_DEBUG} -DSTORAGE_TYPE_OF_FERMIONIC_STATE=uint${BASIS_NUMBER_OF_BITS}_t")
+set(CMAKE_CXX_FLAGS_RELEASE "${USE_CXX_FLAGS_RELEASE} -DSTORAGE_TYPE_OF_FERMIONIC_STATE=uint${BASIS_NUMBER_OF_BITS}_t")
 
 # make sure that the default is a Release
 if (NOT CMAKE_BUILD_TYPE)

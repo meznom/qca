@@ -54,6 +54,7 @@ public:
     }
 
 private:
+    // TODO: update to use Eigen's new SparseMatrix interface
     void constructMatrix (int i)
     {
         cs[i] = SMatrix(s.basis.size(), s.basis.size());

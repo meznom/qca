@@ -279,6 +279,7 @@ public:
     }
 
 private:
+    // TODO: update to use Eigen's new SparseMatrix interface
     void constructIdentityMatrix ()
     {
         I = SMatrix(s.basis.size(), s.basis.size());
@@ -428,6 +429,7 @@ public:
 
 
 private:
+    // TODO: update to use Eigen's new SparseMatrix interface
     void constructMatrix (size_t i, size_t j)
     {
         SMatrix& m = cas[I(i,j)];

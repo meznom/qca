@@ -10,15 +10,16 @@ using namespace EigenHelpers;
 
 SMatrix constructSparseMatrix ()
 {
-    DynamicSparseMatrix<double> dsm(5,5);
+    SparseMatrix<double> sm(5,5);
+    sm.reserve(VectorXi::Constant(5,5));
     int k=1;
     for (int i=0; i<5; i++)
         for (int j=0; j<5; j++)
         {
-            dsm.coeffRef(i,j) = k;
+            sm.insert(i,j) = k;
             k++;
         }
-    SMatrix sm(dsm);
+    sm.makeCompressed();
     return sm;
 }
 
