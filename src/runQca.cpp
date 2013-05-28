@@ -5,7 +5,7 @@ const char PROGRAM_NAME[] = "runQca";
 
 void printVersion ()
 {
-    std::cout << PROGRAM_NAME << ", version " << GIT_PROGRAM_VERSION << std::endl;
+    std::cout << PROGRAM_NAME << ", version " << PROGRAM_VERSION << std::endl;
 }
 
 void printUsage ()

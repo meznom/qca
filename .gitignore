@@ -1,5 +1,8 @@
 *.swp
+*.so
 Debug*
 Release*
 ExactDiagonalization.*
 version.hpp
+_version.py
+build

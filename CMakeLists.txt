@@ -16,11 +16,24 @@ set(Boost_USE_STATIC_LIBS OFF)
 set(Boost_USE_MULTITHREADED ON)
 set(Boost_USE_STATIC_RUNTIME OFF)
 find_package(Boost 1.49.0)
+find_package(Boost 1.49.0 COMPONENTS python)
 find_package(Boost 1.49.0 COMPONENTS unit_test_framework)
+
+# # Boost.NumPy
+# find_path(BoostNumPy_INCLUDE_DIRS boost/numpy.hpp)
+# find_library(BoostNumPy_LIBRARIES boost_numpy)
+
+# Python
+# If we don't set Python_ADDITIONCAL_VERSIONS first, cmake confuses versions and
+# includes 2.7 and links against 3.2, for example.
+set(Python_ADDITIONAL_VERSIONS "2.7")
+set(PYTHON_LIBRARY "/opt/local/Library/Frameworks/Python.framework/Versions/2.7/Python")
+find_package(PythonLibs)
 
 include_directories(
 	${EIGEN_INCLUDE_DIR}
     ${Boost_INCLUDE_DIRS}
+    ${PYTHON_INCLUDE_DIRS}
 )
 
 set(BASIS_NUMBER_OF_BITS "16" CACHE STRING "Number of bits used to store basis. Should be 16, 32 or 64. Generally this should be equal to or larger than 8 times the number of QCA cells.")
@@ -49,8 +62,8 @@ if (${COMPILER} STREQUAL "Intel")
  	set(USE_CXX_FLAGS_RELEASE "-fast -Wall -DNDEBUG" CACHE STRING "")
 elseif (${COMPILER} STREQUAL "GCC")
     message(STATUS "Setting flags for GCC and Clang compiler")
-    set(USE_CXX_FLAGS_DEBUG "-m64 -O0 -Wall -Wno-unused-local-typedefs -ggdb -fopenmp" CACHE STRING "")
- 	set(USE_CXX_FLAGS_RELEASE "-m64 -O3 -Wall -Wno-unused-local-typedefs -march=native -fopenmp -DNDEBUG" CACHE STRING "")
+    set(USE_CXX_FLAGS_DEBUG "-std=c++11 -m64 -O0 -Wall -Wno-unused-local-typedefs -ggdb -fopenmp" CACHE STRING "")
+ 	set(USE_CXX_FLAGS_RELEASE "-std=c++11 -m64 -O3 -Wall -Wno-unused-local-typedefs -march=native -fopenmp -DNDEBUG" CACHE STRING "")
 elseif (${COMPILER} STREQUAL "Clang")
     message(STATUS "Setting flags for GCC and Clang compiler")
     set(USE_CXX_FLAGS_DEBUG "-m64 -O0 -Wall -ggdb" CACHE STRING "")

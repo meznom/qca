@@ -9,6 +9,6 @@
 #ifndef __VERSION_HPP__
 #define __VERSION_HPP__
 
-const char GIT_PROGRAM_VERSION[] = "${GIT_PROGRAM_VERSION}";
+const char PROGRAM_VERSION[] = "${PROGRAM_VERSION}";
 
 #endif // __VERSION_HPP__
