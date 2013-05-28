@@ -610,6 +610,43 @@ public:
         return measureParticleNumber(beta, p);
     }
 
+    std::vector<std::vector<double>> measureParticleNumberOverEnergy ()
+    {
+        if (s.N_sites()==0)
+            return std::vector<std::vector<double>>();
+
+        // Construct the operator O which measures the overall particle number
+        SMatrix O = s.n(0);
+        for (size_t i=1; i<s.N_sites(); i++)
+            O += s.n(i);
+
+        // Partition function
+        double Z = 0;
+        const std::vector<DVector>& eigenvalues = H.eigenvaluesBySectors();
+        const std::vector<DMatrix>& eigenvectors = H.eigenvectorsBySectors();
+        for (size_t i=0; i<eigenvalues.size(); i++)
+            for (int j=0; j<eigenvalues[i].size(); j++)
+                Z += std::exp(-beta * (eigenvalues[i](j) - H.Emin()));
+
+        // Calculate the particle number / occupancy of each energy level
+        std::vector<std::vector<double>> Ns(H.eigenvalues().size(), std::vector<double>(2));
+        size_t index = 0;
+        for (size_t i=0; i<eigenvalues.size(); i++)
+        {
+            const int size = eigenvalues[i].size();
+            SMatrix O_block = EigenHelpers::sparseToSparseBlock(O, index, index, size, size);
+            for (int j=0; j<size; j++)
+            {
+                Ns[index+j][0] = eigenvalues[i](j);
+                Ns[index+j][1] = 
+                    std::exp(-beta * (eigenvalues[i](j) - H.Emin())) / Z * 
+                    eigenvectors[i].col(j).adjoint() * O_block * eigenvectors[i].col(j);
+            }
+            index += size;
+        }
+        return Ns;
+    }
+
     //TODO: better return a std::vector -- only use Eigen internally (inside Qca
     //classes)
     const DVector& energies ()

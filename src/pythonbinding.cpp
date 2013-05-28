@@ -19,6 +19,22 @@ struct vector_to_python_list
     }
 };
 
+struct vectorvector_to_python_list
+{
+    static PyObject* convert(std::vector<std::vector<double>> const& vv)
+    {
+        p::list k;
+        for (const std::vector<double>& v : vv)
+        {
+            p::list l;
+            for (double d : v)
+                l.append(d);
+            k.append(l);
+        }
+        return p::incref(k.ptr());
+    }
+};
+
 struct dvector_to_python_list
 {
     static PyObject* convert(DVector const& v)
@@ -52,6 +68,9 @@ void define_qca_python_class(const std::string& name)
         .def("measureParticleNumber",
              measureParticleNumber,
              "Measure the particle numbers of a cell.")
+        .def("measureParticleNumberOverEnergy",
+             &QcaSystem::measureParticleNumberOverEnergy,
+             "Total particle number / occupancy per energy level.")
         .def("energies",
              &QcaSystem::energies,
              p::return_value_policy<p::copy_const_reference>(),
@@ -84,6 +103,7 @@ BOOST_PYTHON_MODULE (_qca)
      * Register automatic type conversion from C++ to Python
      */
     p::to_python_converter<std::vector<double>, vector_to_python_list>();
+    p::to_python_converter<std::vector<std::vector<double>>, vectorvector_to_python_list>();
     p::to_python_converter<const DVector, dvector_to_python_list>();
 
     /*
