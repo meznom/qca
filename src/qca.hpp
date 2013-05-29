@@ -617,7 +617,7 @@ public:
 
         // Construct the operator O which measures the overall particle number
         SMatrix O = s.n(0);
-        for (size_t i=1; i<s.N_sites(); i++)
+        for (int i=1; i<s.N_sites(); i++)
             O += s.n(i);
 
         // Partition function

@@ -27,7 +27,6 @@ find_package(Boost 1.49.0 COMPONENTS unit_test_framework)
 # If we don't set Python_ADDITIONCAL_VERSIONS first, cmake confuses versions and
 # includes 2.7 and links against 3.2, for example.
 set(Python_ADDITIONAL_VERSIONS "2.7")
-set(PYTHON_LIBRARY "/opt/local/Library/Frameworks/Python.framework/Versions/2.7/Python")
 find_package(PythonLibs)
 
 include_directories(
@@ -52,7 +51,7 @@ elseif("${CXX_VERSION}" MATCHES "(GCC)|(gcc)|(g\\+\\+)")
     message(STATUS "GCC compiler detected")
     set(COMPILER "GCC")
 else()
-    message(SATUS "Unknown compiler, default is GCC")
+    message(STATUS "Unknown compiler, default is GCC")
     set(COMPILER "GCC")
 endif()
 

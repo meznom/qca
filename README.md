@@ -32,7 +32,8 @@ For example, in the `source_dir`:
     $ mkdir Release
     $ cd Release
     $ rm -f CMakeCache.txt && CXX=/opt/local/bin/clang++-mp-3.0 cmake \
-      -DCMAKE_BUILD_TYPE=Release -DBASIS_NUMBER_OF_BITS=32 ..
+      -DCMAKE_BUILD_TYPE=Release -DBASIS_NUMBER_OF_BITS=32 \
+      -DPYTHON_LIBRARY="/opt/local/Library/Frameworks/Python.framework/Versions/2.7/Python" ..
     $ make
     $ cd ..
     $ ./setup.py install --user
