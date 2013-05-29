@@ -87,9 +87,11 @@ void define_qca_python_class(const std::string& name)
         .def_readwrite("l",
                        &QcaSystem::l,
                        "QCA cell layout.")
+        .def_readwrite("mu",
+                       &QcaSystem::mu,
+                       "Chemical potential mu.")
         ;
 }
-
 
 BOOST_PYTHON_MODULE (_qca)
 {
