@@ -5,4 +5,6 @@ try:
 except ImportError:
     pass
 
-from ._qca import Layout,QcaBond,QcaFixedCharge,QcaGrandCanonical,ElectronsPerCell
+#from ._qca import Layout,QcaBond,QcaFixedCharge,QcaGrandCanonical,ElectronsPerCell
+from ._qca import Layout,QcaFixedCharge,QcaGrandCanonical,ElectronsPerCell
+from .models import QcaBond
