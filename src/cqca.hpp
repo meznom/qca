@@ -406,6 +406,7 @@ public:
                 bs.push_back(3.0);
         Pext = c.get("Pext", 0.0);
         epc = getEpc(c);
+        l.epc = epc;
 
         // validate parameter values
         if (cells<1)

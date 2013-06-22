@@ -16,10 +16,11 @@ private:
     std::vector<Vector2d> r_sites;
     std::vector<Vector2d> r_charges;
     std::vector<double> charges;
+public:
     ElectronsPerCell epc;
 public:
-    Layout (ElectronsPerCell epc_ = epc2)
-    : epc(epc_)
+    Layout ()
+    : epc(epc2)
     {}
 
     Layout& addSite (double r_x, double r_y)
@@ -44,14 +45,14 @@ public:
         return *this;
     }
 
-    Layout& addDriverCell (double r_x, double r_y, double a, double P)
+    Layout& addDriverCell (double r_x, double r_y, double a, double P, ElectronsPerCell epc_)
     {
         // compensation charge. 
         // q=0 for 2 electrons per cell, q=1 for 6 electrons per cell
-        assert(epc==2 || epc==6);
+        assert(epc_==2 || epc_==6);
         double q = 0;
-        if (epc==2) q=0;
-        if (epc==6) q=1;
+        if (epc_==2) q=0;
+        if (epc_==6) q=1;
         addCharge(r_x, r_y, q + (P+1)/2);
         addCharge(r_x, r_y+a, q + (1-P)/2);
         addCharge(r_x+a, r_y+a, q + (P+1)/2);
@@ -59,84 +60,48 @@ public:
         return *this;
     }
 
-    Layout& addWire (double r_x, double r_y, int N_p, double a, double b, double P)
+    Layout& addDriverCell (double r_x, double r_y, double a, double P)
     {
-        addDriverCell (r_x-b-a, r_y, a, P);
-        for (int i=0; i<N_p; i++)
-            addCell(r_x+i*(a+b), r_y, a);
-        return *this;
+        return addDriverCell(r_x, r_y, a, P, epc);
     }
 
-    Layout& addWireNoDriver (double r_x, double r_y, int N_p, double a, double b)
+    void wire (int N_p, double a, double b, double P, ElectronsPerCell epc_)
     {
+        clear();
+
+        double r_x = 0;
+        double r_y = 0;
+
+        addDriverCell(r_x-b-a, r_y, a, P, epc_);
         for (int i=0; i<N_p; i++)
             addCell(r_x+i*(a+b), r_y, a);
-        return *this;
     }
 
-    Layout& addNonuniformWire (double r_x, double r_y, int N_p, double a, 
-                               std::vector<double> bs, double P)
+    void wire (int N_p, double a, double b, double P)
     {
+        wire(N_p, a, b, P, epc);
+    }
+
+    void nonuniformWire (int N_p, double a, std::vector<double> bs, double P, ElectronsPerCell epc_)
+    {
+        clear();
+
+        double r_x = 0;
+        double r_y = 0;
+
         assert (N_p == static_cast<int>(bs.size()));
-        addDriverCell (r_x-bs[0]-a, r_y, a, P);
+        addDriverCell(r_x-bs[0]-a, r_y, a, P, epc_);
         double x_off=0;
         for (int i=0; i<static_cast<int>(bs.size()); i++)
         {
             if (i!=0) x_off += a+bs[i];
             addCell(x_off+r_x, r_y, a);
         }
-        return *this;
     }
 
-    void wire (int N_p, double a, double b, double P, ElectronsPerCell epc_)
+    void nonuniformWire (int N_p, double a, std::vector<double> bs, double P)
     {
-        clear();
-        setElectronsPerCell(epc_);
-        addWire(0,0, N_p, a, b, P);
-    }
-
-    void wire2e (int N_p, double a=1, double b=3, double P=0)
-    {
-        wire(N_p, a, b, P, epc2);
-    }
-
-    void wire6e (int N_p, double a=1, double b=3, double P=0)
-    {
-        wire(N_p, a, b, P, epc6);
-    }
-
-    void wireNoDriver (int N_p, double a, double b, ElectronsPerCell epc_)
-    {
-        clear();
-        setElectronsPerCell(epc_);
-        addWireNoDriver(0,0, N_p, a, b);
-    }
-
-    void wireNoDriver2e (int N_p, double a=1, double b=3)
-    {
-        wireNoDriver(N_p, a, b, epc2);
-    }
-
-    void wireNoDriver6e (int N_p, double a=1, double b=3)
-    {
-        wireNoDriver(N_p, a, b, epc6);
-    }
-
-    void nonuniformWire (int N_p, double a, std::vector<double> bs, double P, ElectronsPerCell epc_)
-    {
-        clear();
-        setElectronsPerCell(epc_);
-        addNonuniformWire(0,0, N_p, a, bs, P);
-    }
-
-    void nonuniformWire2e (int N_p, double a, std::vector<double> bs, double P)
-    {
-        nonuniformWire(N_p, a, bs, P, epc2);
-    }
-
-    void nonuniformWire6e (int N_p, double a, std::vector<double> bs, double P)
-    {
-        nonuniformWire(N_p, a, bs, P, epc6);
+        nonuniformWire(N_p, a, bs, P, epc);
     }
 
     int N_sites () const
@@ -167,16 +132,6 @@ public:
         return charges[i];
     }
 
-    int getElectronsPerCell () const
-    {
-        return epc;
-    }
-
-    void setElectronsPerCell (ElectronsPerCell epc_)
-    {
-        epc = epc_;
-    }
-
     void clear ()
     {
         r_sites.clear();
@@ -189,44 +144,7 @@ public:
         return 
             r_sites == l.r_sites &&
             r_charges == l.r_charges &&
-            charges == l.charges &&
-            epc == l.epc;
-    }
-};
-
-class Wire2e : public Layout
-{
-public:
-    Wire2e (int N_p, double a = 1, double b = 3, double P = 0)
-    {
-        wire2e(N_p, a, b, P);
-    }
-};
-
-class Wire6e : public Layout
-{
-public:
-    Wire6e (int N_p, double a = 1, double b = 3, double P = 0)
-    {
-        wire6e(N_p, a, b, P);
-    }
-};
-
-class WireNoDriver2e : public Layout
-{
-public:
-    WireNoDriver2e (int N_p, double a = 1, double b = 3)
-    {
-        wireNoDriver2e(N_p, a, b);
-    }
-};
-
-class WireNoDriver6e : public Layout
-{
-public:
-    WireNoDriver6e (int N_p, double a = 1, double b = 3)
-    {
-        wireNoDriver6e(N_p, a, b);
+            charges == l.charges;
     }
 };
 
@@ -536,6 +454,7 @@ public:
 
     void update ()
     {
+        // TODO: This is not sufficient. epc might change as well.
         if (l.N_sites() != N_sites_)
             s.constructBasis();
         H.construct();
@@ -749,7 +668,7 @@ public:
         basis = Basis();
         basis.addSymmetryOperator(&PPSO);
         basis.addSymmetryOperator(&SSO);
-        int filterValue = PPSO.valueForNElectronsPerPlaquet(l.getElectronsPerCell(), Base::N_p());
+        int filterValue = PPSO.valueForNElectronsPerPlaquet(Base::l.epc, Base::N_p());
         basis.setFilter(constructSector(filterValue));
         basis.construct(plaquetSize*Base::N_p());
         creatorAnnihilator.construct();

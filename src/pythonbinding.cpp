@@ -1,5 +1,6 @@
 #include <boost/python.hpp>
 #include <boost/python/to_python_converter.hpp>
+#include <boost/python/enum.hpp>
 #include "qca.hpp"
 #include "eigenHelpers.hpp"
 
@@ -93,6 +94,16 @@ void define_qca_python_class(const std::string& name)
         ;
 }
 
+/*
+ * Overloaded member functions in Layout
+ */
+BOOST_PYTHON_MEMBER_FUNCTION_OVERLOADS(wire_overloads, wire, 4, 5)
+BOOST_PYTHON_MEMBER_FUNCTION_OVERLOADS(nonuniformWire_overloads, nonuniformWire, 4, 5)
+BOOST_PYTHON_MEMBER_FUNCTION_OVERLOADS(addDriverCell_overloads, addDriverCell, 4, 5)
+
+/*
+ * Define the qca module
+ */
 BOOST_PYTHON_MODULE (_qca)
 {
     /*
@@ -111,13 +122,40 @@ BOOST_PYTHON_MODULE (_qca)
     /*
      * Layout
      */
+    p::enum_<ElectronsPerCell>("ElectronsPerCell")
+        .value("epc2", epc2)
+        .value("epc6", epc6);
     p::class_<Layout>("Layout", "QCA cell layout")
         .def("wire",
-             &Layout::wire2e,
-             "Construct a uniform wire.")
+             &Layout::wire,
+             wire_overloads("Construct a uniform wire."))
         .def("nonuniformWire",
-             &Layout::nonuniformWire2e,
-             "Construct a non-uniform wire.")
+             &Layout::nonuniformWire,
+             nonuniformWire_overloads("Construct a non-uniform wire."))
+        .def("addSite",
+             &Layout::addSite,
+             p::return_internal_reference<>(),
+             "Add a site.")
+        .def("addCharge",
+             &Layout::addCharge,
+             p::return_internal_reference<>(),
+             "Add a charge.")
+        .def("addCell",
+             &Layout::addCell,
+             p::return_internal_reference<>(),
+             "Add a cell.")
+        .def("addDriverCell",
+             &Layout::addDriverCell,
+             addDriverCell_overloads("Add a driver cell.")[p::return_internal_reference<>()])
+        .def("N_sites",
+             &Layout::N_sites,
+             "Number of sites.")
+        .def("N_charges",
+             &Layout::N_charges,
+             "Number of charges.")
+        .def("clear",
+             &Layout::clear,
+             "Clear / reset layout.")
     ;
 
     /*

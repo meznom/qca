@@ -115,7 +115,7 @@ BOOST_AUTO_TEST_CASE ( test_configurable_layout )
     bs.push_back(1);
     bs.push_back(1);
     bs.push_back(1.2);
-    l9_.addNonuniformWire(0,0, 3, 0.1, bs, 0);
+    l9_.nonuniformWire(3, 0.1, bs, 0);
     BOOST_CHECK (l9.layout() == l9_);
 
     CLayout l10;

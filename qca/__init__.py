@@ -5,4 +5,4 @@ try:
 except ImportError:
     pass
 
-from ._qca import Layout,QcaBond,QcaFixedCharge,QcaGrandCanonical
+from ._qca import Layout,QcaBond,QcaFixedCharge,QcaGrandCanonical,ElectronsPerCell

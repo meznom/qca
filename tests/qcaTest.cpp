@@ -6,6 +6,55 @@
 #define STORAGE_TYPE_OF_FERMIONIC_STATE uint32_t
 #include "qca.hpp"
 
+class Wire2e : public Layout
+{
+public:
+    Wire2e (int N_p, double a = 1, double b = 3, double P = 0)
+    {
+        epc = epc2;
+        wire(N_p, a, b, P, epc2);
+    }
+};
+
+class Wire6e : public Layout
+{
+public:
+    Wire6e (int N_p, double a = 1, double b = 3, double P = 0)
+    {
+        epc = epc6;
+        wire(N_p, a, b, P, epc6);
+    }
+};
+
+class WireNoDriver2e : public Layout
+{
+public:
+    WireNoDriver2e (int N_p, double a = 1, double b = 3)
+    {
+        epc = epc2;
+
+        double r_x = 0;
+        double r_y = 0;
+        
+        for (int i=0; i<N_p; i++)
+            addCell(r_x+i*(a+b), r_y, a);
+    }
+};
+
+class WireNoDriver6e : public Layout
+{
+public:
+    WireNoDriver6e (int N_p, double a = 1, double b = 3)
+    {
+        epc = epc6;
+
+        double r_x = 0;
+        double r_y = 0;
+        
+        for (int i=0; i<N_p; i++)
+            addCell(r_x+i*(a+b), r_y, a);
+     }
+ };
 
 bool epsilonEqual (double v, double w, double epsilon = 10E-10)
 {
@@ -777,7 +826,7 @@ BOOST_AUTO_TEST_CASE ( test_basic_layouts )
     BOOST_CHECK(l2.N_charges() == 5);
 
     Layout l3;
-    l3.addWire(10,10, 4, 0.2, 0.4, 0.7);
+    l3.wire(4, 0.2, 0.4, 0.7);
     BOOST_CHECK(l3.N_sites() == 16);
     BOOST_CHECK(l3.N_charges() == 4);
     BOOST_CHECK(epsilonEqual(
@@ -797,13 +846,13 @@ BOOST_AUTO_TEST_CASE ( test_basic_layouts )
                 std::sqrt((2*0.4+1*0.2)*(2*0.4+1*0.2)+0.2*0.2)
     ));
 
-    Layout l4(epc6);
+    Layout l4;
     std::vector<double> bs;
     bs.push_back(0.4);
     bs.push_back(0.4);
     bs.push_back(0.4);
     bs.push_back(0.4);
-    l4.addNonuniformWire(3.2,3.2, 4, 0.2, bs, -0.2);
+    l4.nonuniformWire(4, 0.2, bs, -0.2, epc6);
     BOOST_CHECK(l4.N_sites() == 16);
     BOOST_CHECK(l4.N_charges() == 4);
     BOOST_CHECK(epsilonEqual(
@@ -828,7 +877,7 @@ BOOST_AUTO_TEST_CASE ( test_basic_layouts )
     bs.push_back(1);
     bs.push_back(1);
     bs.push_back(1.2);
-    l5.addNonuniformWire(0,0, 3, 0.1, bs, 0);
+    l5.nonuniformWire(3, 0.1, bs, 0);
     BOOST_CHECK(epsilonEqual(
                 l5.r_charge_dot(0,0),
                 1.1
@@ -842,15 +891,15 @@ BOOST_AUTO_TEST_CASE ( test_basic_layouts )
                 std::sqrt((2*0.1+1+1.2)*(2*0.1+1+1.2)+0.1*0.1)
     ));
 
-    Layout l6(epc6);
-    l6.addDriverCell(0,0, 1, 0.3);
+    Layout l6;
+    l6.addDriverCell(0,0, 1, 0.3, epc6);
     BOOST_CHECK(epsilonEqual(
                 0.5*(l6.charge(0)+l6.charge(2)-l6.charge(1)-l6.charge(3)), 
                 0.3
     ));
 
-    Layout l7(epc6);
-    l7.addDriverCell(0,0, 1, -0.12);
+    Layout l7;
+    l7.addDriverCell(0,0, 1, -0.12, epc6);
     BOOST_CHECK(epsilonEqual(
                 0.5*(l7.charge(0)+l7.charge(2)-l7.charge(1)-l7.charge(3)), 
                 -0.12
@@ -923,7 +972,7 @@ BOOST_AUTO_TEST_CASE ( reuse_same_system_multiple_times_with_different_layouts )
                 ));
     
     // again, change layout completely
-    s1.l.wire2e(1, 0.01, 0.03, 0.4);
+    s1.l.wire(1, 0.01, 0.03, 0.4);
     s1.update();
     BOOST_CHECK (epsilonEqual(
                 s1.measurePolarization(0),
@@ -950,11 +999,17 @@ BOOST_AUTO_TEST_CASE ( reuse_same_system_multiple_times_with_different_layouts )
     
     // chage to 6 electrons per cell instead of two, and also different number
     // of cells
-    s2.l.wire6e(1, 0.01, 0.04, 0.1);
+    s2.l.epc = epc6;
+    s2.l.wire(1, 0.01, 0.04, 0.1, epc6);
     s2.update();
     BOOST_CHECK (epsilonEqual(
                 s2.measurePolarization(0),
                 0.0347185,
+                1E-5
+                ));
+    BOOST_CHECK (epsilonEqual(
+                s2.measure(s2.beta, s2.N(0)),
+                6,
                 1E-5
                 ));
     
@@ -982,12 +1037,12 @@ BOOST_AUTO_TEST_CASE ( limits_of_nonuniform_wire )
     bs1.push_back(0.02);
     
     QcaBond s1;
-    s1.l.nonuniformWire2e(3, 0.01, bs1, 1);
+    s1.l.nonuniformWire(3, 0.01, bs1, 1);
     s1.beta = 1;
     s1.update();
     
     QcaBond s2;
-    s2.l.wire2e(3, 0.01, 0.02, 1);
+    s2.l.wire(3, 0.01, 0.02, 1);
     s2.beta = 1;
     s2.update();
 
@@ -1018,13 +1073,15 @@ BOOST_AUTO_TEST_CASE ( limits_of_nonuniform_wire )
     bs2.push_back(0.035);
     
     QcaFixedCharge s3;
-    s3.l.nonuniformWire6e(2, 0.01, bs2, 1);
+    s3.l.epc = epc6;
+    s3.l.nonuniformWire(2, 0.01, bs2, 1, epc6);
     s3.V0 = 1000;
     s3.beta = 1;
     s3.update();
 
     QcaFixedCharge s4;
-    s4.l.wire6e(2, 0.01, 0.035, 1);
+    s4.l.epc = epc6;
+    s4.l.wire(2, 0.01, 0.035, 1, epc6);
     s4.V0 = 1000;
     s4.beta = 1;
     s4.update();
@@ -1053,7 +1110,7 @@ BOOST_AUTO_TEST_CASE ( limits_of_nonuniform_wire )
     bs3.push_back(0.02);
 
     QcaBond s5;
-    s5.l.nonuniformWire2e(3, 0.01, bs3, 1);
+    s5.l.nonuniformWire(3, 0.01, bs3, 1);
     s5.beta = 1;
     s5.update();
 
@@ -1080,7 +1137,7 @@ BOOST_AUTO_TEST_CASE ( limits_of_nonuniform_wire )
     bs4.push_back(10);
 
     QcaBond s6;
-    s6.l.nonuniformWire2e(3, 0.01, bs4, 1);
+    s6.l.nonuniformWire(3, 0.01, bs4, 1);
     s6.beta = 1;
     s6.update();
 
