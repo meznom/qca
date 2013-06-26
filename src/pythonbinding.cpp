@@ -1,10 +1,9 @@
 #include <boost/python.hpp>
 #include <boost/python/to_python_converter.hpp>
+#include <boost/python/stl_iterator.hpp>
 #include <boost/python/enum.hpp>
 #include "qca.hpp"
 #include "eigenHelpers.hpp"
-
-#include <memory>
 
 namespace p = boost::python;
 
@@ -14,14 +13,6 @@ namespace p = boost::python;
 template<class T>
 struct vector_to_python_list
 {
-    // static PyObject* convert(std::vector<double> const& v)
-    // {
-    //     p::list l;
-    //     for (double d : v)
-    //         l.append(d);
-    //     return p::incref(l.ptr());
-    // }
-    
     static PyObject* convert(std::vector<T> const& v)
     {
         p::list l;
@@ -40,22 +31,6 @@ struct vector2d_to_python_tuple
     }
 };
 
-// struct vectorvector_to_python_list
-// {
-//     static PyObject* convert(std::vector<std::vector<double>> const& vv)
-//     {
-//         p::list k;
-//         for (const std::vector<double>& v : vv)
-//         {
-//             p::list l;
-//             for (double d : v)
-//                 l.append(d);
-//             k.append(l);
-//         }
-//         return p::incref(k.ptr());
-//     }
-// };
-
 struct dvector_to_python_list
 {
     static PyObject* convert(DVector const& v)
@@ -64,6 +39,36 @@ struct dvector_to_python_list
         for (int i=0; i<v.size(); i++)
             l.append(v(i));
         return p::incref(l.ptr());
+    }
+};
+
+/*
+ * Structs for automatic type conversion from Python to C++.
+ */
+template<class T>
+struct vector_from_python_list
+{
+    vector_from_python_list()
+    {
+        p::converter::registry::push_back(&convertible, &construct, p::type_id<std::vector<T>>());
+    }
+
+    static void* convertible(PyObject* obj_ptr)
+    {
+        if (!PyList_Check(obj_ptr))
+            return 0;
+        return obj_ptr;
+    }
+
+    static void construct(PyObject* obj_ptr, p::converter::rvalue_from_python_stage1_data* data)
+    {
+        void* storage = ((p::converter::rvalue_from_python_storage<std::vector<T>>*) data)->storage.bytes;
+        
+        p::object o(p::handle<>(p::borrowed(obj_ptr)));
+        p::stl_input_iterator<T> begin(o), end;
+        
+        new (storage) std::vector<T>(begin,end);
+        data->convertible = storage;
     }
 };
 
@@ -95,13 +100,6 @@ void define_qca_python_class(const std::string& name)
              &QcaSystem::energies,
              p::return_value_policy<p::copy_const_reference>(),
              "Retrieve the eigenenergies.")
-        .def("getLayout",
-             &QcaSystem::getLayout,
-             p::return_internal_reference<>(),
-             "Retrieve the layout.")
-        .def("setLayout",
-             &QcaSystem::setLayout,
-             "Set the layout.")
         .def_readwrite("t",
                        &QcaSystem::t,
                        "Hopping parameter t.")
@@ -111,12 +109,9 @@ void define_qca_python_class(const std::string& name)
         .def_readwrite("beta",
                        &QcaSystem::beta,
                        "Inverse temperature beta.")
-        .def_readwrite("l",
+        .def_readwrite("_primitive_layout",
                        &QcaSystem::l,
-                       "QCA cell layout.")
-        .add_property("l_",
-                      p::make_function(&QcaSystem::getLayout, p::return_internal_reference<>()),
-                      &QcaSystem::setLayout)
+                       "QCA cell primitive layout.")
         .def_readwrite("mu",
                        &QcaSystem::mu,
                        "Chemical potential mu.")
@@ -126,68 +121,12 @@ void define_qca_python_class(const std::string& name)
 /*
  * Overloaded member functions in Layout
  */
-// BOOST_PYTHON_MEMBER_FUNCTION_OVERLOADS(wire_overloads, wire, 4, 5)
-// BOOST_PYTHON_MEMBER_FUNCTION_OVERLOADS(nonuniformWire_overloads, nonuniformWire, 4, 5)
-// BOOST_PYTHON_MEMBER_FUNCTION_OVERLOADS(addDriverCell_overloads, addDriverCell, 4, 5)
-
 void (Layout::*wire1)(int,double,double,double) = &Layout::wire;
 void (Layout::*wire2)(int,double,double,double,ElectronsPerCell) = &Layout::wire;
 void (Layout::*nonuniformWire1)(int,double,std::vector<double>,double) = &Layout::nonuniformWire;
 void (Layout::*nonuniformWire2)(int,double,std::vector<double>,double,ElectronsPerCell) = &Layout::nonuniformWire;
 void (Layout::*addDriverCell1)(double,double,double,double) = &Layout::addDriverCell;
 void (Layout::*addDriverCell2)(double,double,double,double,ElectronsPerCell) = &Layout::addDriverCell;
-
-struct LayoutWrap : Layout, p::wrapper<Layout>
-{
-    void addSite(double r_x, double r_y)
-    {
-        if (p::override addSite = this->get_override("addSite"))
-            addSite(r_x,r_y);
-        else
-            Layout::addSite(r_x,r_y);
-    }
-
-    void default_addSite(double r_x, double r_y) { this->Layout::addSite(r_x,r_y); }
-};
-
-// class LayoutWrapper : public Layout
-// {
-// private:
-//     PyObject* const self;
-// public:
-//     LayoutWrapper(PyObject* self_)
-//     : self(self_)
-//     {}
-// 
-//     // LayoutWrapper(PyObject* self_, const Layout& l)
-//     // : Layout(l), self(self_)
-//     // {}
-// 
-//     void addSite(double r_x, double r_y)
-//     {
-//         p::call_method<void>(self, "addSite", r_x, r_y);
-//     }
-// 
-//     void default_addSite(double r_x, double r_y)
-//     {
-//         Layout::addSite(r_x,r_y);
-//     }
-// };
-
-std::shared_ptr<Layout> test(const std::shared_ptr<Layout>& lw)
-{
-    //std::shared_ptr<Layout> l = std::make_shared<Layout>();
-    std::shared_ptr<Layout> l; // = std::make_shared<Layout>(lw);
-    l = lw;
-    return l;
-}
-
-Layout* test2(Layout* lw)
-{
-    return lw;
-}
-
-
 
 /*
  * Define the qca module
@@ -203,12 +142,18 @@ BOOST_PYTHON_MODULE (_qca)
     /*
      * Register automatic type conversion from C++ to Python
      */
-    //p::to_python_converter<std::vector<double>, vector_to_python_list>();
     p::to_python_converter<std::vector<double>, vector_to_python_list<double>>();
     p::to_python_converter<std::vector<Vector2d>, vector_to_python_list<Vector2d>>();
     p::to_python_converter<Vector2d, vector2d_to_python_tuple>();
-    p::to_python_converter<std::vector<std::vector<double>>, vector_to_python_list<std::vector<double>>>();
+    p::to_python_converter<
+        std::vector<std::vector<double>>, 
+        vector_to_python_list<std::vector<double>> >();
     p::to_python_converter<const DVector, dvector_to_python_list>();
+
+    /*
+     * Register automatic type conversion from Python to C++
+     */
+    vector_from_python_list<double>();
 
     /*
      * Layout
@@ -216,20 +161,7 @@ BOOST_PYTHON_MODULE (_qca)
     p::enum_<ElectronsPerCell>("ElectronsPerCell")
         .value("epc2", epc2)
         .value("epc6", epc6);
-    //p::class_<Layout, std::shared_ptr<LayoutWrap>, boost::noncopyable>("Layout", "QCA cell layout")
-    p::class_<LayoutWrap, boost::noncopyable>("Layout", "QCA cell layout")
-    //p::class_<Layout, std::shared_ptr<Layout>, boost::noncopyable>("LayoutBase");
-    //p::class_<Layout, LayoutWrapper, boost::noncopyable>("Layout", "QCA cell layout")
-    //p::class_<Layout, std::shared_ptr<LayoutWrapper>, boost::noncopyable>("Layout", "QCA cell layout")
-        // .def("wire",
-        //      &Layout::wire,
-        //      wire_overloads("Construct a uniform wire."))
-        // .def("nonuniformWire",
-        //      &Layout::nonuniformWire,
-        //      nonuniformWire_overloads("Construct a non-uniform wire."))
-        // .def("addDriverCell",
-        //      &Layout::addDriverCell,
-        //      addDriverCell_overloads("Add a driver cell.")[p::return_internal_reference<>()])
+    p::class_<Layout>("PrimitiveLayout", "QCA cell layout")
         .def("wire",
              wire1,
              "Construct a uniform wire.")
@@ -248,12 +180,8 @@ BOOST_PYTHON_MODULE (_qca)
         .def("addDriverCell_",
              addDriverCell2,
              "Add a driver cell, with electrons-per-cell parameter.")
-        // .def("addSite",
-        //      &Layout::addSite,
-        //      "Add a site.")
         .def("addSite",
              &Layout::addSite,
-             &LayoutWrap::default_addSite,
              "Add a site.")
         .def("addCharge",
              &Layout::addCharge,
@@ -270,17 +198,19 @@ BOOST_PYTHON_MODULE (_qca)
         .def("clear",
              &Layout::clear,
              "Clear / reset layout.")
-        .add_property("r_sites", p::make_getter(&Layout::r_sites, p::return_value_policy<p::return_by_value>()))
-        .add_property("r_charges", p::make_getter(&Layout::r_charges, p::return_value_policy<p::return_by_value>()))
-        .add_property("charges", p::make_getter(&Layout::charges, p::return_value_policy<p::return_by_value>()))
-
+        .add_property("r_sites",
+                      p::make_getter(&Layout::r_sites, 
+                                     p::return_value_policy<p::return_by_value>()))
+        .add_property("r_charges",
+                      p::make_getter(&Layout::r_charges,
+                                     p::return_value_policy<p::return_by_value>()))
+        .add_property("charges",
+                      p::make_getter(&Layout::charges,
+                                     p::return_value_policy<p::return_by_value>()))
+        .def_readwrite("epc",
+                       &Layout::epc,
+                       "Electrons per cell.")
     ;
-
-    p::register_ptr_to_python<std::shared_ptr<Layout>>();
-    //p::register_ptr_to_python<std::shared_ptr<LayoutWrapper>>();
-
-    p::def("test", &test);
-    p::def("test2", &test2, p::return_internal_reference<>());
 
     /*
      * QCA systems

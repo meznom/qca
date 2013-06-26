@@ -6,10 +6,19 @@ from collections import OrderedDict
 class QcaBond(_qca.QcaBond):
     def __init__(self):
         _qca.QcaBond.__init__(self)
-        self.l = Layout()
         self.program = 'QcaEd'
         self.version = __version__
         self.results = OrderedDict()
+        self.l = Layout()
+
+    @property
+    def l(self):
+        return self._l
+
+    @l.setter
+    def l(self, l):
+        self._l = l
+        self._primitive_layout = l.primitive_layout
 
     def measureAll(self):
         self.results['P'] = [self.measurePolarization(i) for i in range(self.N_p())]

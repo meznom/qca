@@ -6,7 +6,7 @@ class TestQCA(unittest.TestCase):
     def test_run(self):
         s = qca.QcaBond()
 
-        s.l.wire(2,1,3,1)
+        s.l = qca.Wire(2,1,3,1)
 
         s.V0 = 1E6
         s.beta = 1
@@ -20,6 +20,7 @@ class TestQCA(unittest.TestCase):
 
     def test_serialization(self):
         s = qca.QcaBond()
+        s.l = qca.NonuniformWire(2,1,[2.5,3],1)
         m = Measurement(1, '.')
         m.start()
         m.end()

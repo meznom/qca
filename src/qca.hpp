@@ -22,10 +22,7 @@ public:
     : epc(epc2)
     {}
 
-    virtual ~Layout ()
-    {}
-
-    virtual void addSite (double r_x, double r_y)
+    void addSite (double r_x, double r_y)
     {
         r_sites.push_back(Vector2d(r_x, r_y));
     }
@@ -232,7 +229,7 @@ private:
     {
         if (i == j)
             return s.V0;
-        const double r = s.l->r(i,j);
+        const double r = s.l.r(i,j);
         if (s.lambdaD == 0)
             return QCA_ELEMENTARY_CHARGE / 
                    (4*M_PI * s.epsilon0 * s.epsilonr * r * 1e-9);
@@ -253,14 +250,14 @@ private:
 
         // external potential due to static charges, e.g. a driver cell
         // formerly I called this dead plaquet
-        for (int j=0; j<s.l->N_charges(); j++)
+        for (int j=0; j<s.l.N_charges(); j++)
         {
-            const double r = s.l->r_charge_dot(j,i);
+            const double r = s.l.r_charge_dot(j,i);
             if (s.lambdaD == 0)
-                V += (s.l->charge(j) - s.q) * QCA_ELEMENTARY_CHARGE / 
+                V += (s.l.charge(j) - s.q) * QCA_ELEMENTARY_CHARGE / 
                        (4*M_PI * s.epsilon0 * s.epsilonr * r * 1e-9);
             else
-                V += (s.l->charge(j) - s.q) * QCA_ELEMENTARY_CHARGE * exp(- r / s.lambdaD) / 
+                V += (s.l.charge(j) - s.q) * QCA_ELEMENTARY_CHARGE * exp(- r / s.lambdaD) / 
                        (4*M_PI * s.epsilon0 * s.epsilonr * r * 1e-9);
         }
         
@@ -438,13 +435,13 @@ public:
     EnsembleAverageBySectors<S> ensembleAverage;
     Polarization<S> P;
     ParticleNumber<S> N;
-    Layout* l;
+    Layout l;
     double t, td, V0, Vext, mu, epsilonr, lambdaD, epsilon0, q, beta;
 
 public:
     QcaCommon (QcaSystem& s_)
         : s(s_), N_p_(0), N_sites_(0), 
-          H(s), ensembleAverage(s), P(s), N(s), l(nullptr),
+          H(s), ensembleAverage(s), P(s), N(s), l(Layout()),
           t(1), td(0), V0(1000), Vext(0), mu(0),
           epsilonr(QCA_NATURAL_EPSILON_R), lambdaD(0), 
           epsilon0(QCA_EPSILON_0), q(0), beta(1)
@@ -453,7 +450,7 @@ public:
     void update ()
     {
         // TODO: This is not sufficient. epc might change as well.
-        if (l->N_sites() != N_sites_)
+        if (l.N_sites() != N_sites_)
             s.constructBasis();
         H.construct();
         H.diagonalizeUsingSymmetriesBySectors();
@@ -586,23 +583,13 @@ public:
         return N_sites_;
     }
 
-    Layout* getLayout()
-    {
-        return l;
-    }
-
-    void setLayout(Layout* l_)
-    {
-        l = l_;
-    }
-
 protected:
     void updateParametersFromLayout ()
     {
-            N_sites_ = l->N_sites();
-            N_p_ = l->N_sites()/4;
+            N_sites_ = l.N_sites();
+            N_p_ = l.N_sites()/4;
             assert(N_sites_ = N_p_ * 4);
-            assert(l->N_charges() == 4 || l->N_charges() == 0);
+            assert(l.N_charges() == 4 || l.N_charges() == 0);
     }
 };
 
@@ -672,7 +659,7 @@ public:
         basis = Basis();
         basis.addSymmetryOperator(&PPSO);
         basis.addSymmetryOperator(&SSO);
-        int filterValue = PPSO.valueForNElectronsPerPlaquet(Base::l->epc, Base::N_p());
+        int filterValue = PPSO.valueForNElectronsPerPlaquet(Base::l.epc, Base::N_p());
         basis.setFilter(constructSector(filterValue));
         basis.construct(plaquetSize*Base::N_p());
         creatorAnnihilator.construct();

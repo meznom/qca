@@ -21,7 +21,6 @@
 #ifndef __CQCA_HPP__
 #define __CQCA_HPP__
 
-#include <memory>
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/json_parser.hpp>
 #include <boost/random/mersenne_twister.hpp>
@@ -387,14 +386,12 @@ private:
     double a, b, Pext;
     std::vector<double> bs;
     ElectronsPerCell epc;
-    std::shared_ptr<Layout> l;
+    Layout l;
     ptree oc;
 
 public:
     CLayout ()
-    {
-        l = std::make_shared<Layout>();
-    }
+    {}
 
     void setConfig (const ptree& c)
     {
@@ -409,7 +406,7 @@ public:
                 bs.push_back(3.0);
         Pext = c.get("Pext", 0.0);
         epc = getEpc(c);
-        l->epc = epc;
+        l.epc = epc;
 
         // validate parameter values
         if (cells<1)
@@ -427,9 +424,9 @@ public:
 
         // construct the wire
         if (type == wire)
-            l->wire(cells, a, b, Pext, epc);
+            l.wire(cells, a, b, Pext, epc);
         else if (type == nonuniformwire)
-            l->nonuniformWire(cells, a, bs, Pext, epc);
+            l.nonuniformWire(cells, a, bs, Pext, epc);
 
         oc = c;
     }
@@ -459,7 +456,7 @@ public:
         return c;
     }
 
-    std::shared_ptr<Layout> layout ()
+    Layout& layout ()
     {
         return l;
     }

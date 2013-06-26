@@ -95,15 +95,18 @@ BOOST_AUTO_TEST_CASE ( test_particle_number_per_plaquet_symmetry_operator )
 
 BOOST_AUTO_TEST_CASE ( test_construct_qca_bond_system )
 {
-    QcaBond s1(WireNoDriver2e(1));
+    QcaBond s1;
+    s1.l = WireNoDriver2e(1);
     s1.constructBasis();
     BOOST_CHECK (s1.basis.size() == 6);
 
-    QcaBond s2(WireNoDriver2e(2));
+    QcaBond s2;
+    s2.l = WireNoDriver2e(2);
     s2.constructBasis();
     BOOST_CHECK (s2.basis.size() == 36);
 
-    QcaBond s3(WireNoDriver2e(3));
+    QcaBond s3;
+    s3.l = WireNoDriver2e(3);
     s3.constructBasis();
     BOOST_CHECK (s3.basis.size() == 216);
 }
@@ -113,7 +116,8 @@ BOOST_AUTO_TEST_CASE ( test_qca_bond_system_for_some_parameters )
     /*
      * These values here are coming from tests/NotesAndTests.txt.
      */
-    QcaBond s1(WireNoDriver2e(1));
+    QcaBond s1;
+    s1.l = WireNoDriver2e(1);
     s1.Vext = 0;
     s1.t = 0.2;
     s1.td = 0.04;
@@ -129,7 +133,8 @@ BOOST_AUTO_TEST_CASE ( test_qca_bond_system_for_some_parameters )
     for (size_t i=0; i<expected1.size(); i++)
         BOOST_CHECK (epsilonEqual(expected1[i], s1.energies()(i), 0.01));
 
-    QcaBond s2(WireNoDriver2e(2));
+    QcaBond s2;
+    s2.l = WireNoDriver2e(2);
     s2.Vext = 0.1;
     s2.t = 1;
     s2.td = 0;
@@ -143,7 +148,8 @@ BOOST_AUTO_TEST_CASE ( test_qca_bond_system_for_some_parameters )
     for (size_t i=0; i<expected2.size(); i++)
         BOOST_CHECK (epsilonEqual(expected2[i], s2.energies()(i), 0.01));
 
-    QcaBond s3(Wire2e(1));
+    QcaBond s3;
+    s3.l = Wire2e(1);
     double a = 1.0/250.0;
     double b = 1.75 * a;
     s3.Vext = 0;
@@ -163,7 +169,8 @@ BOOST_AUTO_TEST_CASE ( test_qca_bond_system_for_some_parameters )
     s3.update();
     BOOST_CHECK (epsilonEqual(s3.measure(1000000, s3.P(0)), 0.93, 0.01));
 
-    QcaBond s4(Wire2e(3));
+    QcaBond s4;
+    s4.l = Wire2e(3);
     s4.Vext = 0;
     s4.t = 1;
     s4.td = 0;
@@ -181,28 +188,33 @@ BOOST_AUTO_TEST_CASE ( test_qca_bond_system_for_some_parameters )
 
 BOOST_AUTO_TEST_CASE ( test_construct_qca_fixed_charge_system )
 {
-    QcaFixedCharge s1(WireNoDriver2e(1));
+    QcaFixedCharge s1;
+    s1.l = WireNoDriver2e(1);
     s1.constructBasis();
     BOOST_CHECK (s1.basis.size() == 28);
     BOOST_CHECK (s1.basis.getRanges().size() == 3);
 
-    QcaFixedCharge s2(WireNoDriver2e(2));
+    QcaFixedCharge s2;
+    s2.l = WireNoDriver2e(2);
     s2.constructBasis();
     BOOST_CHECK (s2.basis.size() == 28*28);
     BOOST_CHECK (s2.basis.getRanges().size() == 5);
 
 #ifdef NDEBUG
-    QcaFixedCharge s3(WireNoDriver2e(3));
+    QcaFixedCharge s3;
+    s3.l = WireNoDriver2e(3);
     s3.constructBasis();
     BOOST_CHECK (s3.basis.size() == 28*28*28);
     BOOST_CHECK (s3.basis.getRanges().size() == 7);
 #endif
 
-    QcaFixedCharge s4(WireNoDriver6e(1));
+    QcaFixedCharge s4;
+    s4.l = WireNoDriver6e(1);
     s4.constructBasis();
     BOOST_CHECK (s4.basis.size() == 28);
 
-    QcaFixedCharge s5(WireNoDriver6e(2));
+    QcaFixedCharge s5;
+    s5.l = WireNoDriver6e(2);
     s5.constructBasis();
     BOOST_CHECK (s5.basis.size() == 28*28);
 }
@@ -212,7 +224,8 @@ BOOST_AUTO_TEST_CASE ( test_qca_fixed_charge_system_for_some_parameters )
     double a,b,Pext;
 
     //see tests/NotesAndTests.txt
-    QcaFixedCharge s1(Wire2e(1));
+    QcaFixedCharge s1;
+    s1.l = Wire2e(1);
     s1.Vext = 0;
     Pext = 0;
     s1.t = 1;
@@ -233,7 +246,8 @@ BOOST_AUTO_TEST_CASE ( test_qca_fixed_charge_system_for_some_parameters )
     BOOST_CHECK (epsilonEqual(s1.measure(1000, s1.P(0)), 0.895, 0.001));
 
 
-    QcaFixedCharge s2(Wire2e(2));
+    QcaFixedCharge s2;
+    s2.l = Wire2e(2);
     s2.Vext = 0;
     Pext = 0;
     s2.t = 1;
@@ -283,7 +297,8 @@ BOOST_AUTO_TEST_CASE ( test_qca_fixed_charge_system_for_some_parameters )
     BOOST_CHECK (epsilonEqual(s2.measure(1000000, s2.P(1)), -0.850, 0.001));
 
 
-    QcaFixedCharge s3(Wire6e(1));
+    QcaFixedCharge s3;
+    s3.l = Wire6e(1);
     s3.Vext = 0;
     Pext = 0;
     s3.t = 1;
@@ -305,7 +320,8 @@ BOOST_AUTO_TEST_CASE ( test_qca_fixed_charge_system_for_some_parameters )
     BOOST_CHECK (epsilonEqual(s3.measure(1000, s3.P(0)), 0.213, 0.001));
 
 
-    QcaFixedCharge s4(Wire6e(2));
+    QcaFixedCharge s4;
+    s4.l = Wire6e(2);
     s4.Vext = 0;
     Pext = 0;
     s4.t = 1;
@@ -330,19 +346,22 @@ BOOST_AUTO_TEST_CASE ( test_qca_fixed_charge_system_for_some_parameters )
 
 BOOST_AUTO_TEST_CASE ( test_construct_qca_grandcanonical_system )
 {
-    QcaGrandCanonical s1(WireNoDriver2e(1));
+    QcaGrandCanonical s1;
+    s1.l = WireNoDriver2e(1);
     s1.constructBasis();
     BOOST_CHECK (s1.basis.size() == 256);
     BOOST_CHECK (s1.basis.getRanges().size() == 1+2+3+4+5+4+3+2+1);
 
-    QcaGrandCanonical s2(WireNoDriver2e(2));
+    QcaGrandCanonical s2;
+    s2.l = WireNoDriver2e(2);
     s2.constructBasis();
     BOOST_CHECK (s2.basis.size() == 256*256);
 }
 
 BOOST_AUTO_TEST_CASE ( test_diagonalization_of_qca_grand_canonical_system )
 {
-    QcaGrandCanonical s1(WireNoDriver2e(1));
+    QcaGrandCanonical s1;
+    s1.l = WireNoDriver2e(1);
     s1.constructBasis();
     s1.H.construct();
     s1.H.diagonalizeNoSymmetries();
@@ -374,7 +393,8 @@ BOOST_AUTO_TEST_CASE ( test_diagonalization_of_qca_grand_canonical_system )
         BOOST_CHECK (epsilonEqual(ev1[i], ev3[i]));
     }
 
-    QcaGrandCanonical s2(WireNoDriver2e(2));
+    QcaGrandCanonical s2;
+    s2.l = WireNoDriver2e(2);
     s2.constructBasis();
     s2.H.construct();
 
@@ -404,7 +424,8 @@ BOOST_AUTO_TEST_CASE ( simple_sanity_checks_for_qca_grand_canonical_system )
 {
     double a, b, Pext;
 
-    QcaGrandCanonical s1(Wire2e(1));
+    QcaGrandCanonical s1;
+    s1.l = Wire2e(1);
     s1.Vext = 0;
     Pext = 0;
     s1.t = 1;
@@ -427,7 +448,8 @@ BOOST_AUTO_TEST_CASE ( simple_sanity_checks_for_qca_grand_canonical_system )
     BOOST_CHECK (P > 0.1 && P < 1);
 
 
-    QcaGrandCanonical s2(Wire6e(1));
+    QcaGrandCanonical s2;
+    s2.l = Wire6e(1);
     s2.Vext = 0;
     Pext = 0;
     s2.t = 1;
@@ -456,7 +478,8 @@ BOOST_AUTO_TEST_CASE ( compare_performance_qca_fixed_charge_with_and_without_usi
     double cpuTime = 0;
 
     startCPUTime = std::clock();
-    QcaFixedCharge s(Wire2e(2));
+    QcaFixedCharge s;
+    s.l = Wire2e(2);
     s.constructBasis();
     s.H.construct();
     endCPUTime = std::clock();
@@ -490,7 +513,8 @@ BOOST_AUTO_TEST_CASE ( test_scaling_of_parameters_for_grand_canonical_system )
 {
     double a, b;
 
-    QcaGrandCanonical s1(WireNoDriver2e(1));
+    QcaGrandCanonical s1;
+    s1.l = WireNoDriver2e(1);
     s1.Vext = 0;
     s1.t = 1;
     s1.td = 0;
@@ -505,7 +529,8 @@ BOOST_AUTO_TEST_CASE ( test_scaling_of_parameters_for_grand_canonical_system )
     double N1 = s1.measure(0.1, s1.N(0));
     double P1 = s1.measure(0.1, s1.P(0));
 
-    QcaGrandCanonical s2(WireNoDriver2e(1));
+    QcaGrandCanonical s2;
+    s2.l = WireNoDriver2e(1);
     s2.Vext = 0;
     s2.t = 1 * 10;
     s2.td = 0;
@@ -524,7 +549,8 @@ BOOST_AUTO_TEST_CASE ( test_scaling_of_parameters_for_grand_canonical_system )
     BOOST_CHECK (epsilonEqual(P1, P2));
 
 
-    QcaGrandCanonical s3(WireNoDriver2e(1));
+    QcaGrandCanonical s3;
+    s3.l = WireNoDriver2e(1);
     s3.Vext = 1;
     s3.t = 1;
     s3.td = 0;
@@ -539,7 +565,8 @@ BOOST_AUTO_TEST_CASE ( test_scaling_of_parameters_for_grand_canonical_system )
     double N3 = s3.measure(0.1, s3.N(0));
     double P3 = s3.measure(0.1, s3.P(0));
 
-    QcaGrandCanonical s4(WireNoDriver2e(1));
+    QcaGrandCanonical s4;
+    s4.l = WireNoDriver2e(1);
     s4.Vext = 1 * 1000;
     s4.t = 1 * 1000;
     s4.td = 0;
@@ -566,7 +593,8 @@ BOOST_AUTO_TEST_CASE ( test_compensation_charge )
      * Grand canonical, one plaquet: Should be four electrons per plaquet at 
      * mu = 0.
      */
-    QcaGrandCanonical s1(WireNoDriver2e(1));
+    QcaGrandCanonical s1;
+    s1.l = WireNoDriver2e(1);
     s1.Vext = 0;
     s1.t = 1;
     s1.td = 0;
@@ -586,7 +614,8 @@ BOOST_AUTO_TEST_CASE ( test_compensation_charge )
      * charges and the 6e per plaquet system with compensation charges should
      * behave identical.
      */
-    QcaFixedCharge s2(WireNoDriver2e(2));
+    QcaFixedCharge s2;
+    s2.l = WireNoDriver2e(2);
     s2.Vext = 0.1;
     s2.t = 1;
     s2.td = 0;
@@ -601,7 +630,8 @@ BOOST_AUTO_TEST_CASE ( test_compensation_charge )
     double P21 = s2.measure(10, s2.P(0));
     double P22 = s2.measure(10, s2.P(1));
 
-    QcaFixedCharge s3(WireNoDriver6e(2));
+    QcaFixedCharge s3;
+    s3.l = WireNoDriver6e(2);
     s3.Vext = 0.1;
     s3.t = 1;
     s3.td = 0;
@@ -628,7 +658,8 @@ BOOST_AUTO_TEST_CASE ( test_compensation_charge )
      * plaquet system with compensation charge, provided we set the chemical
      * potential correctly.
      */
-    QcaGrandCanonical s4(Wire6e(1));
+    QcaGrandCanonical s4;
+    s4.l = Wire6e(1);
     s4.Vext = 0;
     Pext = 1;
     s4.t = 1;
@@ -643,7 +674,8 @@ BOOST_AUTO_TEST_CASE ( test_compensation_charge )
     s4.update();
     double P41 = s4.measure(10, s4.P(0));
 
-    QcaGrandCanonical s5(Wire2e(1));
+    QcaGrandCanonical s5;
+    s5.l = Wire2e(1);
     s5.Vext = 0;
     Pext = 1;
     s5.t = 1;
@@ -666,7 +698,8 @@ BOOST_AUTO_TEST_CASE ( test_compensation_charge )
      * Fixed, two plaquets: The 2e and 6e dead plaquet systems should be
      * equivalent.
      */
-    QcaFixedCharge s6(Wire2e(2));
+    QcaFixedCharge s6;
+    s6.l = Wire2e(2);
     s6.Vext = 0;
     Pext = 1;
     s6.t = 1;
@@ -682,7 +715,8 @@ BOOST_AUTO_TEST_CASE ( test_compensation_charge )
     double P61 = s6.measure(10, s6.P(0));
     double P62 = s6.measure(10, s6.P(1));
 
-    QcaFixedCharge s7(Wire6e(2));
+    QcaFixedCharge s7;
+    s7.l = Wire6e(2);
     s7.Vext = 0;
     Pext = 1;
     s7.t = 1;
@@ -709,7 +743,8 @@ BOOST_AUTO_TEST_CASE ( compare_polarization_and_polarization2 )
 {
     double a, b, Pext;
 
-    QcaGrandCanonical s1(Wire6e(1));
+    QcaGrandCanonical s1;
+    s1.l = Wire6e(1);
     s1.Vext = 0;
     Pext = 1;
     s1.t = 1;
@@ -729,7 +764,8 @@ BOOST_AUTO_TEST_CASE ( compare_polarization_and_polarization2 )
     BOOST_CHECK (epsilonEqual(s1.measure(10, s1.N(0)), 6));
     BOOST_CHECK (epsilonEqual(P11, P12, 1e-5));
 
-    QcaGrandCanonical s2(Wire6e(1));
+    QcaGrandCanonical s2;
+    s2.l = Wire6e(1);
     s2.Vext = 0;
     Pext = 1;
     s2.t = 1;
@@ -750,7 +786,8 @@ BOOST_AUTO_TEST_CASE ( compare_polarization_and_polarization2 )
     BOOST_CHECK (P21 > 0.9);
     BOOST_CHECK (P22 < 0.1);
 
-    QcaFixedCharge s3(Wire6e(2));
+    QcaFixedCharge s3;
+    s3.l = Wire6e(2);
     s3.Vext = 0;
     Pext = 1;
     s3.t = 1;
@@ -771,7 +808,8 @@ BOOST_AUTO_TEST_CASE ( compare_polarization_and_polarization2 )
     BOOST_CHECK (epsilonEqual(P311, P321, 1e-5));
     BOOST_CHECK (epsilonEqual(P312, P322, 1e-5));
 
-    QcaFixedCharge s4(Wire6e(2));
+    QcaFixedCharge s4;
+    s4.l = Wire6e(2);
     s4.Vext = 0;
     Pext = 1;
     s4.t = 1;
@@ -798,21 +836,21 @@ BOOST_AUTO_TEST_CASE ( compare_polarization_and_polarization2 )
 BOOST_AUTO_TEST_CASE ( test_basic_layouts )
 {
     Layout l1;
-    l1.addSite(0,0)
-      .addSite(0,1)
-      .addSite(1,1)
-      .addSite(1,0)
-      .addCharge(-1,1,1);
+    l1.addSite(0,0);
+    l1.addSite(0,1);
+    l1.addSite(1,1);
+    l1.addSite(1,0);
+    l1.addCharge(-1,1,1);
     BOOST_CHECK (l1.r(0,1) == 1);
     BOOST_CHECK (l1.r(1,3) == std::sqrt(2));
     BOOST_CHECK (l1.r_charge_dot(0,3) == std::sqrt(5));
 
     Layout l2;
-    l2.addCell(0,0,0.2)
-      .addCell(0,2,0.2)
-      .addDriverCell(1,0,0.2,1)
-      .addSite(1,1)
-      .addCharge(0,-1,0.5);
+    l2.addCell(0,0,0.2);
+    l2.addCell(0,2,0.2);
+    l2.addDriverCell(1,0,0.2,1);
+    l2.addSite(1,1);
+    l2.addCharge(0,-1,0.5);
     BOOST_CHECK(epsilonEqual(l2.r(0,3), 0.2));
     BOOST_CHECK(epsilonEqual(l2.r(4,6), std::sqrt(0.2*0.2+0.2*0.2)));
     BOOST_CHECK(epsilonEqual(l2.r(0,4), 2));
