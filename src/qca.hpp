@@ -12,40 +12,39 @@ enum ElectronsPerCell {epc2 = 2, epc6 = 6};
 
 class Layout
 {
-private:
+public:
     std::vector<Vector2d> r_sites;
     std::vector<Vector2d> r_charges;
     std::vector<double> charges;
-public:
     ElectronsPerCell epc;
 public:
     Layout ()
     : epc(epc2)
     {}
 
-    Layout& addSite (double r_x, double r_y)
+    virtual ~Layout ()
+    {}
+
+    virtual void addSite (double r_x, double r_y)
     {
         r_sites.push_back(Vector2d(r_x, r_y));
-        return *this;
     }
 
-    Layout& addCharge (double r_x, double r_y, double c)
+    void addCharge (double r_x, double r_y, double c)
     {
         r_charges.push_back(Vector2d(r_x, r_y));
         charges.push_back(c);
-        return *this;
     }
 
-    Layout& addCell (double r_x, double r_y, double a)
+    void addCell (double r_x, double r_y, double a)
     {
         addSite(r_x, r_y);
         addSite(r_x, r_y+a);
         addSite(r_x+a, r_y+a);
         addSite(r_x+a, r_y);
-        return *this;
     }
 
-    Layout& addDriverCell (double r_x, double r_y, double a, double P, ElectronsPerCell epc_)
+    void addDriverCell (double r_x, double r_y, double a, double P, ElectronsPerCell epc_)
     {
         // compensation charge. 
         // q=0 for 2 electrons per cell, q=1 for 6 electrons per cell
@@ -57,10 +56,9 @@ public:
         addCharge(r_x, r_y+a, q + (1-P)/2);
         addCharge(r_x+a, r_y+a, q + (P+1)/2);
         addCharge(r_x+a, r_y, q + (1-P)/2);
-        return *this;
     }
 
-    Layout& addDriverCell (double r_x, double r_y, double a, double P)
+    void addDriverCell (double r_x, double r_y, double a, double P)
     {
         return addDriverCell(r_x, r_y, a, P, epc);
     }
@@ -234,7 +232,7 @@ private:
     {
         if (i == j)
             return s.V0;
-        const double r = s.l.r(i,j);
+        const double r = s.l->r(i,j);
         if (s.lambdaD == 0)
             return QCA_ELEMENTARY_CHARGE / 
                    (4*M_PI * s.epsilon0 * s.epsilonr * r * 1e-9);
@@ -255,14 +253,14 @@ private:
 
         // external potential due to static charges, e.g. a driver cell
         // formerly I called this dead plaquet
-        for (int j=0; j<s.l.N_charges(); j++)
+        for (int j=0; j<s.l->N_charges(); j++)
         {
-            const double r = s.l.r_charge_dot(j,i);
+            const double r = s.l->r_charge_dot(j,i);
             if (s.lambdaD == 0)
-                V += (s.l.charge(j) - s.q) * QCA_ELEMENTARY_CHARGE / 
+                V += (s.l->charge(j) - s.q) * QCA_ELEMENTARY_CHARGE / 
                        (4*M_PI * s.epsilon0 * s.epsilonr * r * 1e-9);
             else
-                V += (s.l.charge(j) - s.q) * QCA_ELEMENTARY_CHARGE * exp(- r / s.lambdaD) / 
+                V += (s.l->charge(j) - s.q) * QCA_ELEMENTARY_CHARGE * exp(- r / s.lambdaD) / 
                        (4*M_PI * s.epsilon0 * s.epsilonr * r * 1e-9);
         }
         
@@ -440,13 +438,13 @@ public:
     EnsembleAverageBySectors<S> ensembleAverage;
     Polarization<S> P;
     ParticleNumber<S> N;
-    Layout l;
+    Layout* l;
     double t, td, V0, Vext, mu, epsilonr, lambdaD, epsilon0, q, beta;
 
 public:
     QcaCommon (QcaSystem& s_)
         : s(s_), N_p_(0), N_sites_(0), 
-          H(s), ensembleAverage(s), P(s), N(s), 
+          H(s), ensembleAverage(s), P(s), N(s), l(nullptr),
           t(1), td(0), V0(1000), Vext(0), mu(0),
           epsilonr(QCA_NATURAL_EPSILON_R), lambdaD(0), 
           epsilon0(QCA_EPSILON_0), q(0), beta(1)
@@ -455,7 +453,7 @@ public:
     void update ()
     {
         // TODO: This is not sufficient. epc might change as well.
-        if (l.N_sites() != N_sites_)
+        if (l->N_sites() != N_sites_)
             s.constructBasis();
         H.construct();
         H.diagonalizeUsingSymmetriesBySectors();
@@ -588,13 +586,23 @@ public:
         return N_sites_;
     }
 
+    Layout* getLayout()
+    {
+        return l;
+    }
+
+    void setLayout(Layout* l_)
+    {
+        l = l_;
+    }
+
 protected:
     void updateParametersFromLayout ()
     {
-            N_sites_ = l.N_sites();
-            N_p_ = l.N_sites()/4;
+            N_sites_ = l->N_sites();
+            N_p_ = l->N_sites()/4;
             assert(N_sites_ = N_p_ * 4);
-            assert(l.N_charges() == 4 || l.N_charges() == 0);
+            assert(l->N_charges() == 4 || l->N_charges() == 0);
     }
 };
 
@@ -612,11 +620,9 @@ private:
     ParticleNumberPerPlaquetSymmetryOperator PPSO;
 
 public:
-    QcaBond (Layout l_ = Layout())
+    QcaBond ()
         : Base(*this), ca(*this), PPSO(plaquetSize)
-    {
-        Base::l = l_;
-    }
+    {}
 
     void constructBasis ()
     {
@@ -656,11 +662,9 @@ private:
     SpinSymmetryOperator SSO;
 
 public:
-    QcaFixedCharge (Layout l_ = Layout())
+    QcaFixedCharge ()
         : Base(*this), creatorAnnihilator(*this), PPSO(plaquetSize)
-    {
-        Base::l = l_;
-    }
+    {}
 
     void constructBasis ()
     {
@@ -668,7 +672,7 @@ public:
         basis = Basis();
         basis.addSymmetryOperator(&PPSO);
         basis.addSymmetryOperator(&SSO);
-        int filterValue = PPSO.valueForNElectronsPerPlaquet(Base::l.epc, Base::N_p());
+        int filterValue = PPSO.valueForNElectronsPerPlaquet(Base::l->epc, Base::N_p());
         basis.setFilter(constructSector(filterValue));
         basis.construct(plaquetSize*Base::N_p());
         creatorAnnihilator.construct();
@@ -721,11 +725,9 @@ private:
     SpinSymmetryOperator SSO;
 
 public:
-    QcaGrandCanonical (Layout l_ = Layout())
+    QcaGrandCanonical ()
         : Base(*this), creator(*this), annihilator(*this) 
-    {
-        Base::l = l_;
-    }
+    {}
 
     void constructBasis ()
     {
