@@ -449,7 +449,6 @@ public:
 
     void update ()
     {
-        // TODO: This is not sufficient. epc might change as well.
         if (l.N_sites() != N_sites_)
             s.constructBasis();
         H.construct();
@@ -561,8 +560,6 @@ public:
         return Ns;
     }
 
-    //TODO: better return a std::vector -- only use Eigen internally (inside Qca
-    //classes)
     const DVector& energies ()
     {
         return H.eigenvalues();
