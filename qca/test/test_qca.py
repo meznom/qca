@@ -1,5 +1,6 @@
 import unittest
 import os
+import shutil
 import qca
 from coma import Measurement, Experiment
 import numpy as np
@@ -150,8 +151,10 @@ class TestQCA(unittest.TestCase):
         s.V0 = 1E6
         s.beta = 1
         
-        d = os.path.dirname(__file__)
-        m = Measurement(1, d)
+        f = os.path.join(os.path.dirname(__file__), 'testmeasurement.xml')
+        if os.path.exists(f):
+            os.remove(f)
+        m = Measurement(f)
         m.start()
         
         s.init()
@@ -161,24 +164,10 @@ class TestQCA(unittest.TestCase):
         m.save(s)
 
     def test_create_an_experiment_and_create_a_plot(self):
-        # TODO: currently the experiment directory needs to created by hand
-        # This really is a shortcoming of the coma library
-        # Hence for coma:
-        #   * the original idea was for coma to be simple, flexible and unintrusive
-        #   * I think that's currently not the case
-        #   * more specifically: Measurement and Experiment should be useful by
-        #     themselves
-        #   * currently they require the whole directory structure (including
-        #     templates, etc) to be there
-        #   * in that light: It would be useful to use Measurment and
-        #     Experiment standalone and be able to specify filename /
-        #     directoryname (which are then automatically created) and possibly
-        #     non-numeric ids (because the enumeration scheme makes only sense
-        #     within an existing experimentsdirectory structure)
-        #   * Measurement and Experiment are useful by themselves in principle,
-        #     just for serialization, etc
         d = os.path.join(os.path.dirname(__file__), 'test_create_an_experiment')
-        e = Experiment(1, d)
+        if os.path.exists(d):
+            shutil.rmtree(d)
+        e = Experiment(d)
         e.description = 'Test creating an experiment for the qca module.'
         e.reset()
         e.start()
