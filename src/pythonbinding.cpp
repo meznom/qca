@@ -109,9 +109,9 @@ void define_qca_python_class(const std::string& name)
         .def_readwrite("beta",
                        &QcaSystem::beta,
                        "Inverse temperature beta.")
-        .def_readwrite("_primitive_layout",
+        .def_readwrite("l",
                        &QcaSystem::l,
-                       "QCA cell primitive layout.")
+                       "QCA layout.")
         .def_readwrite("mu",
                        &QcaSystem::mu,
                        "Chemical potential mu.")
@@ -167,7 +167,7 @@ BOOST_PYTHON_MODULE (_qca)
     p::enum_<ElectronsPerCell>("ElectronsPerCell")
         .value("epc2", epc2)
         .value("epc6", epc6);
-    p::class_<Layout>("PrimitiveLayout", "QCA cell layout")
+    p::class_<Layout>("Layout", "QCA cell layout")
         .def("wire",
              wire1,
              "Construct a uniform wire.")

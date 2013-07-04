@@ -1,6 +1,7 @@
 import unittest
 import os
 import shutil
+import pickle
 import qca
 from coma import Measurement, Experiment
 import numpy as np
@@ -13,75 +14,86 @@ class TestQCA(unittest.TestCase):
         s = qca.QcaBond()
         s.l = qca.Wire(2,100,2,1)
         s.beta = 1
-        s.update()
-        self.assertAlmostEqual(s.measurePolarization(0), 0.863919, 5)
-        self.assertAlmostEqual(s.measurePolarization(1), 0.603095, 5)
+        s.init()
+        s.run()
+        self.assertAlmostEqual(s.results['P'][0], 0.863919, 5)
+        self.assertAlmostEqual(s.results['P'][1], 0.603095, 5)
 
         # for changed beta, update() is not necessary
         s.beta = 2
-        self.assertAlmostEqual(s.measurePolarization(0), 0.986214, 5)
-        self.assertAlmostEqual(s.measurePolarization(1), 0.813721, 5)
+        s.init()
+        s.run(changedTonly=True)
+        self.assertAlmostEqual(s.results['P'][0], 0.986214, 5)
+        self.assertAlmostEqual(s.results['P'][1], 0.813721, 5)
 
         # change layout, for example, inter-cell spacing
         s.l = qca.Wire(2, 50, 1, 1)
-        s.update()
-        self.assertAlmostEqual(s.measurePolarization(0), 0.978439, 5)
-        self.assertAlmostEqual(s.measurePolarization(1), 0.00399499, 5)
+        s.init()
+        s.run()
+        self.assertAlmostEqual(s.results['P'][0], 0.978439, 5)
+        self.assertAlmostEqual(s.results['P'][1], 0.00399499, 5)
 
         # change layout completely: different number of cells
         s.l = qca.Wire(3, 1.0/0.03, 2, 1);
-        s.update()
-        self.assertAlmostEqual(s.measurePolarization(0), 0.668657, 5)
-        self.assertAlmostEqual(s.measurePolarization(1), 0.455502, 5)
-        self.assertAlmostEqual(s.measurePolarization(2), 0.115793, 5)
+        s.init()
+        s.run()
+        self.assertAlmostEqual(s.results['P'][0], 0.668657, 5)
+        self.assertAlmostEqual(s.results['P'][1], 0.455502, 5)
+        self.assertAlmostEqual(s.results['P'][2], 0.115793, 5)
         
         # again, change layout completely
         s.l = qca.Wire(1, 100, 3, 0.4);
-        s.update()
-        self.assertAlmostEqual(s.measurePolarization(0), 0.234819, 5)
+        s.init()
+        s.run()
+        self.assertAlmostEqual(s.results['P'][0], 0.234819, 5)
 
         # test fixed charge system as well
         s = qca.QcaFixedCharge()
         s.l = qca.Wire(2, 100, 2, 0.1)
         s.V0 = 1000
         s.beta = 100
-        s.update()
-        self.assertAlmostEqual(s.measurePolarization(0), 0.940904, 5)
-        self.assertAlmostEqual(s.measurePolarization(1), 0.765352, 5)
+        s.init()
+        s.run()
+        self.assertAlmostEqual(s.results['P'][0], 0.940904, 5)
+        self.assertAlmostEqual(s.results['P'][1], 0.765352, 5)
 
         # now from "limits_of_nonuniform_wire"
         # A non-uniform with uniform inter-cell spacing is just a uniform wire
         s1 = qca.QcaBond()
         s1.l = qca.NonuniformWire(3, 100, [2,2,2], 1)
         s1.beta = 1
-        s1.update()
+        s1.init()
+        s1.run()
         
         s2 = qca.QcaBond()
         s2.l = qca.Wire(3, 100, 2, 1);
         s2.beta = 1
-        s2.update()
+        s2.init()
+        s2.run()
 
-        self.assertAlmostEqual(s1.measurePolarization(0), s2.measurePolarization(0), 5)
-        self.assertAlmostEqual(s1.measurePolarization(1), s2.measurePolarization(1), 5)
-        self.assertAlmostEqual(s1.measurePolarization(2), s2.measurePolarization(2), 5)
+        self.assertAlmostEqual(s1.results['P'][0], s2.results['P'][0], 5)
+        self.assertAlmostEqual(s1.results['P'][1], s2.results['P'][1], 5)
+        self.assertAlmostEqual(s1.results['P'][2], s2.results['P'][2], 5)
 
         # In the limit of a very large inter-cell spacing, we should see no
         # polarization response. First we put the driver cell far away.
         s = qca.QcaBond()
         s.l = qca.NonuniformWire(3, 100, [1000, 2, 2], 1)
         s.beta = 1
-        s.update()
-        self.assertAlmostEqual(s.measurePolarization(0), 0, 5)
-        self.assertAlmostEqual(s.measurePolarization(1), 0, 5)
-        self.assertAlmostEqual(s.measurePolarization(2), 0, 5)
+        s.init()
+        s.run()
+        self.assertAlmostEqual(s.results['P'][0], 0, 5)
+        self.assertAlmostEqual(s.results['P'][1], 0, 5)
+        self.assertAlmostEqual(s.results['P'][2], 0, 5)
 
         # Now we move the right-most cell (the output cell) far away.
         s.l = qca.NonuniformWire(3, 100, [2,2,1000], 1)
         s.beta = 1
-        s.update()
-        self.assertGreater(s.measurePolarization(0), 0.3)
-        self.assertGreater(s.measurePolarization(1), 0.3)
-        self.assertAlmostEqual(s.measurePolarization(2), 0, 5)
+        s.init()
+        s.run()
+        self.assertGreater(s.results['P'][0], 0.3)
+        self.assertGreater(s.results['P'][1], 0.3)
+        self.assertAlmostEqual(s.results['P'][2], 0, 5)
 
         # from "simple_sanity_checks_for_qca_grand_canonical_system"
         s = qca.QcaGrandCanonical()
@@ -89,44 +101,74 @@ class TestQCA(unittest.TestCase):
         s.V0 = 1000
         s.mu = 300
         s.beta = 1000000
-        s.update()
-        self.assertAlmostEqual(s.measurePolarization(0), 0, 10)
+        s.init()
+        s.run()
+        self.assertAlmostEqual(s.results['P'][0], 0, 10)
 
         s.l = qca.Wire(1, 160, 3, 0.1)
         s.beta = 100000
-        s.update()
-        self.assertAlmostEqual(s.measureParticleNumber(0)[4], 2, 10)
-        self.assertGreater(s.measurePolarization(0), 0.1)
-        self.assertLess(s.measurePolarization(0), 1)
+        s.init()
+        s.run()
+        self.assertAlmostEqual(s.results['N'][0][4], 2, 10)
+        self.assertGreater(s.results['P'][0], 0.1)
+        self.assertLess(s.results['P'][0], 1)
 
     def test_retrieve_energies(self):
         s = qca.QcaBond()
         s.l = qca.Wire(1,1,2,0)
-        s.update()
+        s.init()
+        s.run()
         es = s.energies()
         self.assertEqual(len(es), 6)
         
         s.l = qca.Wire(2,1,2,0)
-        s.update()
+        s.init()
+        s.run()
         es = s.energies()
         self.assertEqual(len(es), 36)
 
         s = qca.QcaFixedCharge()
         s.l = qca.Wire(1,1,2,0)
-        s.update()
+        s.init()
+        s.run()
         es = s.energies()
         self.assertEqual(len(es), 28)
         
         s.l = qca.Wire(2,1,2,0)
-        s.update()
+        s.init()
+        s.run()
         es = s.energies()
         self.assertEqual(len(es), 28*28)
 
         s = qca.QcaGrandCanonical()
         s.l = qca.Wire(1,1,2,0)
-        s.update()
+        s.init()
+        s.run()
         es = s.energies()
         self.assertEqual(len(es), 256)
+
+    def test_pickling_and_unpickling(self):
+        s = qca.QcaBond()
+        s.t = 2
+        s.V0 = 1E6
+        s.mu = 3
+        s.T = 0.1
+        s.l = qca.NonuniformWire(3,100,[2.0,2.1,2.2],0.7)
+        s.init()
+        s.run()
+
+        ss = pickle.dumps(s)
+        s2 = pickle.loads(ss)
+        self.assertEqual(s, s2)
+
+        s2.init()
+        s2.run()
+        self.assertEqual(s,s2)
+
+        with self.assertRaises(qca.QcaError):
+            s.version = 'foo'
+            ss = pickle.dumps(s)
+            s2 = pickle.loads(ss)
 
     def test_demonstrate_recommended_usage(self):
         s = qca.QcaBond()
