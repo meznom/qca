@@ -115,15 +115,16 @@ class NonuniformWireWithTwoDriverCells(Layout):
         self.P1 = P1_
         self.P2 = P2_
 
-        assert len(self.boas) == self.N
+        assert len(self.boas) == self.N+1
         
         a = 1.0 / self.V1
         bs = [boa * a for boa in self.boas]
         x_off = 0
         self._pl.addDriverCell(x_off, 0, a, self.P1)
-        for b in bs:
-            x_off += b+a
+        x_off += bs[0]+a
+        for b in bs[1:]:
             self._pl.addCell(x_off, 0, a)
+            x_off += b+a
         self._pl.addDriverCell(x_off, 0, a, self.P2)
 
     def __getstate__(self):
