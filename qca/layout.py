@@ -17,6 +17,11 @@ class Layout(object):
         i['epc'] = str(self._pl.epc)
         return i
 
+    def __setstate__(self, i):
+        # we do not deserialize properly
+        # TODO: properly reconstruct state
+        self.__init__()
+
     def __eq__(self, l):
         d1 = self.__dict__.copy()
         d2 = l.__dict__.copy()
