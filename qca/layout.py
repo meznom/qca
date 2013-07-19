@@ -145,3 +145,37 @@ class NonuniformWireWithTwoDriverCells(Layout):
     
     def __setstate__(self, i):
         self.__init__(i['N'], i['V1'], i['boas'], i['P1'], i['P2'])
+
+class InfiniteWire(Layout):
+    def __init__(self, N_, N_dead_, V1_, boa_, P_):
+        Layout.__init__(self)
+        self.N = N_
+        self.N_dead = N_dead_
+        self.V1 = V1_
+        self.boa = boa_
+        self.P = P_
+        self.construct_wire()
+    
+    def construct_wire(self):
+        a = 1.0 / self.V1
+        b = self.boa * a
+        for i in range(0, self.N_dead):
+            self._pl.addDriverCell(i*(b+a), 0, a, self.P)
+        for i in range(self.N_dead, self.N_dead + self.N):
+            self._pl.addCell(i*(b+a), 0, a)
+        for i in range(self.N_dead + self.N, 2*self.N_dead + self.N):
+            self._pl.addDriverCell(i*(b+a), 0, a, self.P)
+    
+    def __getstate__(self):
+        i = OrderedDict()
+        i['type'] = 'infinite_wire'
+        i['N'] = self.N
+        i['N_dead'] = self.N_dead
+        i['V1'] = self.V1
+        i['boa'] = self.boa
+        i['P'] = self.P
+        i.update(Layout.__getstate__(self))
+        return i
+    
+    def __setstate__(self, i):
+        self.__init__(i['N'], i['N_dead'], i['V1'], i['boa'], i['P'])
