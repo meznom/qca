@@ -6,6 +6,8 @@
 #define STORAGE_TYPE_OF_FERMIONIC_STATE uint32_t
 #include "qca.hpp"
 
+// TODO: replace Vext tests (commented for now) with tests that don't need Vext
+
 class Wire2e : public Layout
 {
 public:
@@ -118,7 +120,6 @@ BOOST_AUTO_TEST_CASE ( test_qca_bond_system_for_some_parameters )
      */
     QcaBond s1;
     s1.l = WireNoDriver2e(1);
-    s1.Vext = 0;
     s1.t = 0.2;
     s1.td = 0.04;
     s1.V0 = 10;
@@ -133,26 +134,25 @@ BOOST_AUTO_TEST_CASE ( test_qca_bond_system_for_some_parameters )
     for (size_t i=0; i<expected1.size(); i++)
         BOOST_CHECK (epsilonEqual(expected1[i], s1.energies()(i), 0.01));
 
-    QcaBond s2;
-    s2.l = WireNoDriver2e(2);
-    s2.Vext = 0.1;
-    s2.t = 1;
-    s2.td = 0;
-    s2.V0 = 1000000;
-    //a = 0.001, b = 0.00175
-    s2.l = WireNoDriver2e(2, 0.001, 0.00175);
-    s2.update();
-    BOOST_CHECK (s2.energies().size() == 36);
-    double eArray2[5] = {2895.12, 2895.32, 2934.7, 2934.87, 2936.78};
-    std::vector<double> expected2(eArray2, eArray2+5);
-    for (size_t i=0; i<expected2.size(); i++)
-        BOOST_CHECK (epsilonEqual(expected2[i], s2.energies()(i), 0.01));
+    // QcaBond s2;
+    // s2.l = WireNoDriver2e(2);
+    // s2.Vext = 0.1;
+    // s2.t = 1;
+    // s2.td = 0;
+    // s2.V0 = 1000000;
+    // //a = 0.001, b = 0.00175
+    // s2.l = WireNoDriver2e(2, 0.001, 0.00175);
+    // s2.update();
+    // BOOST_CHECK (s2.energies().size() == 36);
+    // double eArray2[5] = {2895.12, 2895.32, 2934.7, 2934.87, 2936.78};
+    // std::vector<double> expected2(eArray2, eArray2+5);
+    // for (size_t i=0; i<expected2.size(); i++)
+    //     BOOST_CHECK (epsilonEqual(expected2[i], s2.energies()(i), 0.01));
 
     QcaBond s3;
     s3.l = Wire2e(1);
     double a = 1.0/250.0;
     double b = 1.75 * a;
-    s3.Vext = 0;
     s3.t = 1;
     s3.td = 0.2;
     s3.V0 = 10.0 / a;
@@ -171,7 +171,6 @@ BOOST_AUTO_TEST_CASE ( test_qca_bond_system_for_some_parameters )
 
     QcaBond s4;
     s4.l = Wire2e(3);
-    s4.Vext = 0;
     s4.t = 1;
     s4.td = 0;
     s4.q = 0;
@@ -226,7 +225,6 @@ BOOST_AUTO_TEST_CASE ( test_qca_fixed_charge_system_for_some_parameters )
     //see tests/NotesAndTests.txt
     QcaFixedCharge s1;
     s1.l = Wire2e(1);
-    s1.Vext = 0;
     Pext = 0;
     s1.t = 1;
     s1.td = 0.2;
@@ -248,7 +246,6 @@ BOOST_AUTO_TEST_CASE ( test_qca_fixed_charge_system_for_some_parameters )
 
     QcaFixedCharge s2;
     s2.l = Wire2e(2);
-    s2.Vext = 0;
     Pext = 0;
     s2.t = 1;
     s2.td = 0.2;
@@ -276,7 +273,6 @@ BOOST_AUTO_TEST_CASE ( test_qca_fixed_charge_system_for_some_parameters )
     BOOST_CHECK (epsilonEqual(s2.measure(1000000, s2.P(0)), 0.998, 0.001));
     BOOST_CHECK (epsilonEqual(s2.measure(1000000, s2.P(1)), 0.020, 0.001));
 
-    s2.Vext = 0;
     Pext = 0;
     s2.t = 1;
     s2.td = 0;
@@ -299,7 +295,6 @@ BOOST_AUTO_TEST_CASE ( test_qca_fixed_charge_system_for_some_parameters )
 
     QcaFixedCharge s3;
     s3.l = Wire6e(1);
-    s3.Vext = 0;
     Pext = 0;
     s3.t = 1;
     s3.td = 0.2;
@@ -322,7 +317,6 @@ BOOST_AUTO_TEST_CASE ( test_qca_fixed_charge_system_for_some_parameters )
 
     QcaFixedCharge s4;
     s4.l = Wire6e(2);
-    s4.Vext = 0;
     Pext = 0;
     s4.t = 1;
     s4.td = 0.2;
@@ -426,7 +420,6 @@ BOOST_AUTO_TEST_CASE ( simple_sanity_checks_for_qca_grand_canonical_system )
 
     QcaGrandCanonical s1;
     s1.l = Wire2e(1);
-    s1.Vext = 0;
     Pext = 0;
     s1.t = 1;
     s1.td = 0;
@@ -450,7 +443,6 @@ BOOST_AUTO_TEST_CASE ( simple_sanity_checks_for_qca_grand_canonical_system )
 
     QcaGrandCanonical s2;
     s2.l = Wire6e(1);
-    s2.Vext = 0;
     Pext = 0;
     s2.t = 1;
     s2.td = 0;
@@ -515,7 +507,6 @@ BOOST_AUTO_TEST_CASE ( test_scaling_of_parameters_for_grand_canonical_system )
 
     QcaGrandCanonical s1;
     s1.l = WireNoDriver2e(1);
-    s1.Vext = 0;
     s1.t = 1;
     s1.td = 0;
     a = 1.0/160.0;
@@ -531,7 +522,6 @@ BOOST_AUTO_TEST_CASE ( test_scaling_of_parameters_for_grand_canonical_system )
 
     QcaGrandCanonical s2;
     s2.l = WireNoDriver2e(1);
-    s2.Vext = 0;
     s2.t = 1 * 10;
     s2.td = 0;
     a = 1.0/160.0 * 1.0/10.0;
@@ -549,40 +539,40 @@ BOOST_AUTO_TEST_CASE ( test_scaling_of_parameters_for_grand_canonical_system )
     BOOST_CHECK (epsilonEqual(P1, P2));
 
 
-    QcaGrandCanonical s3;
-    s3.l = WireNoDriver2e(1);
-    s3.Vext = 1;
-    s3.t = 1;
-    s3.td = 0;
-    a = 1.0/160.0;
-    b = 3*a;
-    s3.V0 = 1000;
-    s3.mu = 300;
-    s3.q = 0;
+    // QcaGrandCanonical s3;
+    // s3.l = WireNoDriver2e(1);
+    // s3.Vext = 1;
+    // s3.t = 1;
+    // s3.td = 0;
+    // a = 1.0/160.0;
+    // b = 3*a;
+    // s3.V0 = 1000;
+    // s3.mu = 300;
+    // s3.q = 0;
 
-    s3.l = WireNoDriver2e(1, a, b);
-    s3.update();
-    double N3 = s3.measure(0.1, s3.N(0));
-    double P3 = s3.measure(0.1, s3.P(0));
+    // s3.l = WireNoDriver2e(1, a, b);
+    // s3.update();
+    // double N3 = s3.measure(0.1, s3.N(0));
+    // double P3 = s3.measure(0.1, s3.P(0));
 
-    QcaGrandCanonical s4;
-    s4.l = WireNoDriver2e(1);
-    s4.Vext = 1 * 1000;
-    s4.t = 1 * 1000;
-    s4.td = 0;
-    a = 1.0/160.0 * 1.0/1000.0;
-    b = 3*a;
-    s4.V0 = 1000 * 1000;
-    s4.mu = 300 * 1000;
-    s4.q = 0;
+    // QcaGrandCanonical s4;
+    // s4.l = WireNoDriver2e(1);
+    // s4.Vext = 1 * 1000;
+    // s4.t = 1 * 1000;
+    // s4.td = 0;
+    // a = 1.0/160.0 * 1.0/1000.0;
+    // b = 3*a;
+    // s4.V0 = 1000 * 1000;
+    // s4.mu = 300 * 1000;
+    // s4.q = 0;
 
-    s4.l = WireNoDriver2e(1, a, b);
-    s4.update();
-    double N4 = s4.measure(0.1 * 1.0/1000.0, s4.N(0));
-    double P4 = s4.measure(0.1 * 1.0/1000.0, s4.P(0));
+    // s4.l = WireNoDriver2e(1, a, b);
+    // s4.update();
+    // double N4 = s4.measure(0.1 * 1.0/1000.0, s4.N(0));
+    // double P4 = s4.measure(0.1 * 1.0/1000.0, s4.P(0));
 
-    BOOST_CHECK (epsilonEqual(N3, N4));
-    BOOST_CHECK (epsilonEqual(P3, P4));
+    // BOOST_CHECK (epsilonEqual(N3, N4));
+    // BOOST_CHECK (epsilonEqual(P3, P4));
 }
 
 BOOST_AUTO_TEST_CASE ( test_compensation_charge )
@@ -595,7 +585,6 @@ BOOST_AUTO_TEST_CASE ( test_compensation_charge )
      */
     QcaGrandCanonical s1;
     s1.l = WireNoDriver2e(1);
-    s1.Vext = 0;
     s1.t = 1;
     s1.td = 0;
     a = 1.0/160.0;
@@ -615,8 +604,6 @@ BOOST_AUTO_TEST_CASE ( test_compensation_charge )
      * behave identical.
      */
     QcaFixedCharge s2;
-    s2.l = WireNoDriver2e(2);
-    s2.Vext = 0.1;
     s2.t = 1;
     s2.td = 0;
     a = 1.0/100.0;
@@ -625,14 +612,12 @@ BOOST_AUTO_TEST_CASE ( test_compensation_charge )
     s2.mu = 0;
     s2.q = 0;
 
-    s2.l = WireNoDriver2e(2, a, b);
+    s2.l = Wire2e(2, a, b, 1);
     s2.update();
     double P21 = s2.measure(10, s2.P(0));
     double P22 = s2.measure(10, s2.P(1));
 
     QcaFixedCharge s3;
-    s3.l = WireNoDriver6e(2);
-    s3.Vext = 0.1;
     s3.t = 1;
     s3.td = 0;
     a = 1.0/100.0;
@@ -641,7 +626,7 @@ BOOST_AUTO_TEST_CASE ( test_compensation_charge )
     s3.mu = 0;
     s3.q = 1;
 
-    s3.l = WireNoDriver6e(2, a, b);
+    s3.l = Wire6e(2, a, b, 1);
     s3.update();
     double P31 = s3.measure(10, s3.P(0));
     double P32 = s3.measure(10, s3.P(1));
@@ -660,7 +645,6 @@ BOOST_AUTO_TEST_CASE ( test_compensation_charge )
      */
     QcaGrandCanonical s4;
     s4.l = Wire6e(1);
-    s4.Vext = 0;
     Pext = 1;
     s4.t = 1;
     s4.td = 0;
@@ -676,7 +660,6 @@ BOOST_AUTO_TEST_CASE ( test_compensation_charge )
 
     QcaGrandCanonical s5;
     s5.l = Wire2e(1);
-    s5.Vext = 0;
     Pext = 1;
     s5.t = 1;
     s5.td = 0;
@@ -700,7 +683,6 @@ BOOST_AUTO_TEST_CASE ( test_compensation_charge )
      */
     QcaFixedCharge s6;
     s6.l = Wire2e(2);
-    s6.Vext = 0;
     Pext = 1;
     s6.t = 1;
     s6.td = 0;
@@ -717,7 +699,6 @@ BOOST_AUTO_TEST_CASE ( test_compensation_charge )
 
     QcaFixedCharge s7;
     s7.l = Wire6e(2);
-    s7.Vext = 0;
     Pext = 1;
     s7.t = 1;
     s7.td = 0;
@@ -745,7 +726,6 @@ BOOST_AUTO_TEST_CASE ( compare_polarization_and_polarization2 )
 
     QcaGrandCanonical s1;
     s1.l = Wire6e(1);
-    s1.Vext = 0;
     Pext = 1;
     s1.t = 1;
     s1.td = 0;
@@ -766,7 +746,6 @@ BOOST_AUTO_TEST_CASE ( compare_polarization_and_polarization2 )
 
     QcaGrandCanonical s2;
     s2.l = Wire6e(1);
-    s2.Vext = 0;
     Pext = 1;
     s2.t = 1;
     s2.td = 0;
@@ -788,7 +767,6 @@ BOOST_AUTO_TEST_CASE ( compare_polarization_and_polarization2 )
 
     QcaFixedCharge s3;
     s3.l = Wire6e(2);
-    s3.Vext = 0;
     Pext = 1;
     s3.t = 1;
     s3.td = 0;
@@ -810,7 +788,6 @@ BOOST_AUTO_TEST_CASE ( compare_polarization_and_polarization2 )
 
     QcaFixedCharge s4;
     s4.l = Wire6e(2);
-    s4.Vext = 0;
     Pext = 1;
     s4.t = 1;
     s4.td = 0;

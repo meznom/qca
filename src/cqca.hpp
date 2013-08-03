@@ -587,7 +587,6 @@ public:
     {
         s.t = c.get("t", 1.0);
         s.td = c.get("td", 0.0); 
-        s.Vext = c.get("Vext", 0.0);
         s.V0 = c.get("V0", 1000.0); 
         s.mu = c.get("mu", 0.0);
         s.epsilonr = c.get("epsilonr", QCA_NATURAL_EPSILON_R);
@@ -613,7 +612,6 @@ public:
         ptree c = oc;
         c.put("t", s.t);
         c.put("td", s.td);
-        c.put("Vext", s.Vext);
         c.put("V0", s.V0);
         c.put("mu", s.mu);
         c.put("epsilonr", s.epsilonr);

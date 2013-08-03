@@ -187,7 +187,7 @@ BOOST_AUTO_TEST_CASE ( test_configurable_qca_systems )
     CQca s2;
     s2.setConfig(ptreeFromJson("{}")); // default configuration
     BOOST_CHECK (s2.getConfig() == ptreeFromJson(
-        "{'model': 'grandcanonical', 't': 1, 'td': 0, 'Vext': 0, 'V0': 1000, "
+        "{'model': 'grandcanonical', 't': 1, 'td': 0, 'V0': 1000, "
         "'mu': 0, 'epsilonr': " + toString_(QCA_NATURAL_EPSILON_R) + 
         ", 'lambdaD': 0, 'q': 0, 'beta': 1, "
         "'layout': {'type': 'wire', 'cells': 1, 'a': 1, "
@@ -219,12 +219,12 @@ BOOST_AUTO_TEST_CASE ( test_configurable_qca_systems )
 
     CQca s4;
     s4.setConfig(ptreeFromJson(
-        "{'model': 'bond', 't': 2, 'td': 0.1, 'Vext': 0.001, 'V0': 500, "
+        "{'model': 'bond', 't': 2, 'td': 0.1, 'V0': 500, "
         "'mu': -2, 'epsilonr': 1.3, 'lambdaD': 6.5, 'q': 1, 'beta': 10, "
         "'layout': {'type': 'nonuniformwire', 'cells': 3, 'a': 1.2, "
         "'bs': [1.2,1,2], 'Pext': 0.7, 'epc': 6}, 'observables': {'P': 'all'}}"));
     BOOST_CHECK (s4.getConfig() == ptreeFromJson(
-        "{'model': 'bond', 't': 2, 'td': 0.1, 'Vext': 0.001, 'V0': 500, "
+        "{'model': 'bond', 't': 2, 'td': 0.1, 'V0': 500, "
         "'mu': -2, 'epsilonr': 1.3, 'lambdaD': 6.5, 'q': 1, 'beta': 10, "
         "'layout': {'type': 'nonuniformwire', 'cells': 3, 'a': 1.2, "
         "'bs': [1.2,1,2], 'Pext': 0.7, 'epc': 6}, 'observables': {'P': 'all'}}"));
@@ -240,7 +240,7 @@ BOOST_AUTO_TEST_CASE ( test_configurable_qca_systems )
         "{'model': 'bond', 't': 1, 'td': 0.2, 'V0': " + toString_(V0) + ", "
         "'beta': 1000000, 'layout': {'type': 'wire', 'cells': 1, 'a': " + toString_(a) + ", "
         "'b': " + toString_(b) + ", 'Pext': 0.01, 'epc': 2}, 'observables': {'P': 'all'}, "
-        "'Vext': 0, 'mu': 0, 'epsilonr': " + toString_(QCA_NATURAL_EPSILON_R) + ", 'lambdaD': 0, "
+        "'mu': 0, 'epsilonr': " + toString_(QCA_NATURAL_EPSILON_R) + ", 'lambdaD': 0, "
         "'q': 0}"));
     rtree r = s4.measure();
     BOOST_CHECK (epsilonEqual(r.get<double>("P.0"), 0.29, 0.01));
@@ -274,7 +274,7 @@ BOOST_AUTO_TEST_CASE ( test_configurable_qca_systems )
     s5.setConfig(ptreeFromJson(
         "{'t': 3, 'blah': 'blub'}"));
     BOOST_CHECK (s5.getConfig() == ptreeFromJson(
-        "{'model': 'grandcanonical', 't': 3, 'blah': 'blub', 'td': 0, 'Vext': 0, 'V0': 1000, "
+        "{'model': 'grandcanonical', 't': 3, 'blah': 'blub', 'td': 0, 'V0': 1000, "
         "'mu': 0, 'epsilonr': " + toString_(QCA_NATURAL_EPSILON_R) + 
         ", 'lambdaD': 0, 'q': 0, 'beta': 1, "
         "'layout': {'type': 'wire', 'cells': 1, 'a': 1, "
@@ -291,7 +291,7 @@ BOOST_AUTO_TEST_CASE (test_configurable_qca_systems_with_alternate_parameters )
         ConfigurationException);
     s1.setConfig(ptreeFromJson("{'t': 0.1, 'beta': 10}"));
     BOOST_CHECK (s1.getConfig() == ptreeFromJson(
-        "{'t': 0.1, 'beta': 10, 'td': 0, 'Vext': 0, 'V0': 1000, "
+        "{'t': 0.1, 'beta': 10, 'td': 0, 'V0': 1000, "
         "'mu': 0, 'epsilonr': " + toString_(QCA_NATURAL_EPSILON_R) + 
         ", 'lambdaD': 0, 'q': 0, "
         "'layout': {'type': 'wire', 'cells': 1, 'a': 1, "
@@ -300,7 +300,7 @@ BOOST_AUTO_TEST_CASE (test_configurable_qca_systems_with_alternate_parameters )
 
     s1.setConfig(ptreeFromJson("{'t': 0.1, 'T': 2}"));
     BOOST_CHECK (s1.getConfig() == ptreeFromJson(
-        "{'t': 0.1, 'T': 2, 'td': 0, 'Vext': 0, 'V0': 1000, "
+        "{'t': 0.1, 'T': 2, 'td': 0, 'V0': 1000, "
         "'mu': 0, 'epsilonr': " + toString_(QCA_NATURAL_EPSILON_R) + 
         ", 'lambdaD': 0, 'q': 0, "
         "'layout': {'type': 'wire', 'cells': 1, 'a': 1, "
@@ -310,7 +310,7 @@ BOOST_AUTO_TEST_CASE (test_configurable_qca_systems_with_alternate_parameters )
     s1.setConfig(ptreeFromJson("{'t': 0.1, 'T': 10, 'layout': {'V1': 8}}"));
     BOOST_CHECK (s1.getConfig() == ptreeFromJson(
         "{'t': 0.1, 'T': 10, 'layout': {'V1': 8, 'type': 'wire', 'cells': 1, "
-        "'b': 3, 'Pext': 0, 'epc': 2}, 'td': 0, 'Vext': 0, 'V0': 1000, "
+        "'b': 3, 'Pext': 0, 'epc': 2}, 'td': 0, 'V0': 1000, "
         "'mu': 0, 'epsilonr': " + toString_(QCA_NATURAL_EPSILON_R) + 
         ", 'lambdaD': 0, 'q': 0, 'observables': {}}"));
     BOOST_CHECK (s1.system().beta == 0.1);

@@ -115,6 +115,9 @@ void define_qca_python_class(const std::string& name)
         .def_readwrite("mu",
                        &QcaSystem::mu,
                        "Chemical potential mu.")
+        .def_readwrite("q",
+                       &QcaSystem::q,
+                       "Compensation charge q.")
         .add_property("N_p",
                       &QcaSystem::N_p,
                       "Number of cells/plaquets.")

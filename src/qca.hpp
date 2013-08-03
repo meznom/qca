@@ -146,6 +146,10 @@ public:
 template<class System>
 class QcaHamiltonian : public Hamiltonian<System>
 {
+private:
+    SMatrix& H;
+    const System& s;
+
 public:
     QcaHamiltonian (const System& s_)
     : Hamiltonian<System>(s_), H(Hamiltonian<System>::H), 
@@ -154,7 +158,6 @@ public:
 
     void construct() 
     {
-        constructIdentityMatrix();
         H = SMatrix(s.basis.size(), s.basis.size());
         H.setZero();
         for (int i=0; i<s.N_sites(); i++)
@@ -171,8 +174,6 @@ public:
                    std::fabs((external(i)+s.mu))> NumTraits<double>::dummy_precision());
             
             H += coulomb(i,i) * s.n_updown(i);
-            //TODO: What about the compensation charge? Should it not be n-q for
-            //the external term -- this might be a serious bug
             H += (external(i) - s.mu) * s.n(i);
             for (int j=i+1; j<s.N_sites(); j++)
             {
@@ -184,29 +185,12 @@ public:
                        std::fabs(coulomb(i,j))>NumTraits<double>::dummy_precision());
                 
                 H += - hopping(i,j) * s.ca(i,j) - hopping(j,i) * s.ca(j,i);
-                // V_ij (n_i - q) (n_j - q)
-                H += coulomb(i,j) * (s.n(i) * s.n(j) - s.q * s.n(i) - 
-                                     s.q * s.n(j) - s.q * s.q * I);
+                H += coulomb(i,j) * ( s.n(i) * s.n(j) - s.q * ( s.n(i) + s.n(j) ) );
             }
         }
     }
 
 private:
-    // TODO: update to use Eigen's new SparseMatrix interface
-    void constructIdentityMatrix ()
-    {
-        I = SMatrix(s.basis.size(), s.basis.size());
-        I.setZero();
-        for (int i=0; i<I.cols(); i++)
-        {
-            I.startVec(i);
-            I.insertBack(i,i) = 1;
-        }
-        I.finalize();
-    }
-    
-    //TODO: rewrite this so that hopping depends on the distance, i.e. t_ij =
-    //t_ij(r_ij)
     double hopping (int i, int j) const
     {
         /*
@@ -240,16 +224,9 @@ private:
 
     double external (int i) const
     {
-        double V=0;
-        
-        // simple external potential
-        if (i==1)
-            V += s.Vext;
-        if (i==0)
-            V += -s.Vext;
-
         // external potential due to static charges, e.g. a driver cell
         // formerly I called this dead plaquet
+        double V=0;
         for (int j=0; j<s.l.N_charges(); j++)
         {
             const double r = s.l.r_charge_dot(j,i);
@@ -260,13 +237,8 @@ private:
                 V += (s.l.charge(j) - s.q) * QCA_ELEMENTARY_CHARGE * exp(- r / s.lambdaD) / 
                        (4*M_PI * s.epsilon0 * s.epsilonr * r * 1e-9);
         }
-        
         return V;
     }
-
-    SMatrix& H;
-    SMatrix I;
-    const System& s;
 };
 
 template<class System>
@@ -436,13 +408,13 @@ public:
     Polarization<S> P;
     ParticleNumber<S> N;
     Layout l;
-    double t, td, V0, Vext, mu, epsilonr, lambdaD, epsilon0, q, beta;
+    double t, td, V0, mu, epsilonr, lambdaD, epsilon0, q, beta;
 
 public:
     QcaCommon (QcaSystem& s_)
         : s(s_), N_p_(0), N_sites_(0), 
           H(s), ensembleAverage(s), P(s), N(s), l(Layout()),
-          t(1), td(0), V0(1000), Vext(0), mu(0),
+          t(1), td(0), V0(1000), mu(0),
           epsilonr(QCA_NATURAL_EPSILON_R), lambdaD(0), 
           epsilon0(QCA_EPSILON_0), q(0), beta(1)
     {}
