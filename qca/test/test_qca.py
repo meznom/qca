@@ -147,12 +147,40 @@ class TestQCA(unittest.TestCase):
         es = s.energies()
         self.assertEqual(len(es), 256)
 
+    def test_compensation_charge(self):
+        s = qca.QcaBond()
+        s.l = qca.Wire(1,40,2,1)
+        s.T = 1
+        s.V0 = 1E6
+        
+        Ps = []
+        s.q = 0
+        s.init()
+        s.run()
+        Ps.append(s.results['P'][0])
+
+        s.q = 0.25
+        s.init()
+        s.run()
+        Ps.append(s.results['P'][0])
+
+        s.q = 0.5
+        s.init()
+        s.run()
+        Ps.append(s.results['P'][0])
+
+        print(Ps)
+
+        self.assertGreater(Ps[2], Ps[1])
+        self.assertGreater(Ps[1], Ps[0])
+
     def test_pickling_and_unpickling(self):
         s = qca.QcaBond()
         s.t = 2
         s.V0 = 1E6
         s.mu = 3
         s.T = 0.1
+        s.q = 0.1
         s.l = qca.NonuniformWire(3,100,[2.0,2.1,2.2],0.7)
         s.init()
         s.run()

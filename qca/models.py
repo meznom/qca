@@ -65,6 +65,14 @@ class QcaCommon(object):
         self.beta = 1.0 / T_
 
     @property
+    def q(self):
+        return self.s.q
+
+    @q.setter
+    def q(self, q_):
+        self.s.q = q_ 
+
+    @property
     def N_p(self):
         return self.s.N_p
 
@@ -95,8 +103,9 @@ class QcaCommon(object):
         i['parameters']['V0'] = self.V0
         i['parameters']['mu'] = self.mu
         i['parameters']['T'] = self.T
+        i['parameters']['q'] = self.q
         i['parameters']['layout'] = self.l
-        # ignore td, Vext, epsilonr, lambdaD, epsilon0, q
+        # ignore td, Vext, epsilonr, lambdaD, epsilon0
         i['results'] = self.results
         return i
 
@@ -110,6 +119,7 @@ class QcaCommon(object):
         self.V0 = i['parameters']['V0']
         self.mu = i['parameters']['mu']
         self.T = i['parameters']['T']
+        self.q = i['parameters']['q']
         self.l = i['parameters']['layout']
         self.results = i['results']
 
