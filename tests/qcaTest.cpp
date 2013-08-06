@@ -58,7 +58,7 @@ public:
      }
  };
 
-bool epsilonEqual (double v, double w, double epsilon = 10E-10)
+bool epsilonEqual (double v, double w, double epsilon = 10E-8)
 {
     return fabs(v-w) < epsilon;
 }
@@ -575,7 +575,7 @@ BOOST_AUTO_TEST_CASE ( test_scaling_of_parameters_for_grand_canonical_system )
     // BOOST_CHECK (epsilonEqual(P3, P4));
 }
 
-BOOST_AUTO_TEST_CASE ( test_compensation_charge )
+BOOST_AUTO_TEST_CASE ( test_compensation_charge_2e_and_6e )
 {
     double a, b, Pext;
 
@@ -718,6 +718,154 @@ BOOST_AUTO_TEST_CASE ( test_compensation_charge )
 
     BOOST_CHECK (epsilonEqual(P61, P71));
     BOOST_CHECK (epsilonEqual(P62, P72));
+}
+
+BOOST_AUTO_TEST_CASE ( test_compensation_charge_2e_only )
+{
+    /*
+     * Three tests related to compensations charges and two electrons per cell.
+     * 
+     * All tests use the bond model. The first two tests look at the expected
+     * symmetries and inequalities of the occupancies of the dots without an
+     * external potential (i.e. zero driving cell polarization), for a one cell
+     * and two cell system, respectively. The third test asserts that setting a
+     * finite input polarization yields expected results, namely that a net zero
+     * cell charge (q = 1/2 for 2 electrons per cell) yields the best output
+     * polarization.
+     */
+
+    // Test 1
+    QcaBond s1;
+    s1.l.nonuniformWire(1, 0.01, {0.01}, 0);
+    s1.t = 1;
+    s1.V0 = 1E6;
+    
+    std::vector<std::vector<std::vector<double>>> Ns;
+    std::vector<double> qs = {0,0.25,0.5,0.75,1.0};
+    for (double q: qs)
+    {
+        s1.q = q;
+        s1.update();
+        auto Ns_ = {s1.measureParticleNumber(0)};
+        Ns.push_back(Ns_);
+    }
+    std::cerr << "Testing compensation charges for a one cell wire, "
+              << "with zero input polarization." << std::endl;
+    std::cerr << "   qs = ";
+    for (auto q: qs) std::cerr << q << ", ";
+    std::cerr << std::endl;
+    for (auto Ns_: Ns)
+    {
+        std::cerr << "   One cell wire" << std::endl;
+        for (auto N_: Ns_)
+        {
+            std::cerr << "      Ns = ";
+            for (auto N: N_)
+                std::cerr << N << " ";
+            std::cerr << std::endl;
+        }
+    }
+    for (auto Ns_: Ns)
+    {
+        BOOST_CHECK(epsilonEqual(Ns_[0][0], Ns_[0][1]));
+        BOOST_CHECK(epsilonEqual(Ns_[0][2], Ns_[0][3]));
+    }
+    BOOST_CHECK(Ns[0][0][0] < 0.01);
+    BOOST_CHECK(Ns[0][0][2] > 0.99);
+    BOOST_CHECK(Ns[1][0][2] - Ns[1][0][0] > 0.05);
+    BOOST_CHECK(epsilonEqual(Ns[2][0][0], 0.5));
+    BOOST_CHECK(epsilonEqual(Ns[2][0][2], 0.5));
+    BOOST_CHECK(Ns[3][0][0] - Ns[3][0][2] > 0.05);
+    BOOST_CHECK(Ns[4][0][0] > 0.99);
+    BOOST_CHECK(Ns[4][0][2] < 0.01);
+
+    // Test 2
+    s1.l.nonuniformWire(2, 0.01, {1000, 0.01}, 0);
+    Ns = {};
+    for (double q: qs)
+    {
+        s1.q = q;
+        s1.update();
+        auto Ns_ = {s1.measureParticleNumber(0),s1.measureParticleNumber(1)};
+        Ns.push_back(Ns_);
+    }
+    std::cerr << "Testing compensation charges for a two cell wire, "
+              << "with zero input polarization." << std::endl;
+    std::cerr << "   qs = ";
+    for (auto q: qs) std::cerr << q << ", ";
+    std::cerr << std::endl;
+    for (auto Ns_: Ns)
+    {
+        std::cerr << "   Two cell wire" << std::endl;
+        for (auto N_: Ns_)
+        {
+            std::cerr << "      Ns = ";
+            for (auto N: N_)
+                std::cerr << N << " ";
+            std::cerr << std::endl;
+        }
+    }
+    for (auto Ns_: Ns)
+    {
+        BOOST_CHECK(epsilonEqual(Ns_[0][0], Ns_[0][1]));
+        BOOST_CHECK(epsilonEqual(Ns_[0][2], Ns_[0][3]));
+        BOOST_CHECK(epsilonEqual(Ns_[1][0], Ns_[1][1]));
+        BOOST_CHECK(epsilonEqual(Ns_[1][2], Ns_[1][3]));
+        BOOST_CHECK(epsilonEqual(Ns_[0][0], Ns_[1][2]));
+        BOOST_CHECK(epsilonEqual(Ns_[0][2], Ns_[1][0]));
+    }
+    BOOST_CHECK(Ns[0][0][0] > 0.8);
+    BOOST_CHECK(Ns[0][0][2] < 0.2);
+    BOOST_CHECK(Ns[1][0][0] - Ns[1][0][2] > 0.001);
+    BOOST_CHECK(epsilonEqual(Ns[2][0][0], 0.5));
+    BOOST_CHECK(epsilonEqual(Ns[2][0][2], 0.5));
+    BOOST_CHECK(Ns[3][0][2] - Ns[3][0][0] > 0.001);
+    BOOST_CHECK(Ns[4][0][2] > 0.8);
+    BOOST_CHECK(Ns[4][0][0] < 0.2);
+
+    // Test 3
+    s1.l.nonuniformWire(2, 0.02, {0.04, 0.04}, 1);
+    Ns = {};
+    std::vector<std::vector<double>> Ps;
+    for (double q: qs)
+    {
+        s1.q = q;
+        s1.update();
+        auto Ns_ = {s1.measureParticleNumber(0),s1.measureParticleNumber(1)};
+        auto Ps_ = {s1.measurePolarization(0),s1.measurePolarization(1)};
+        Ns.push_back(Ns_);
+        Ps.push_back(Ps_);
+    }
+    std::cerr << "Testing compensation charges for a two cell wire, "
+              << "with finite input polarization." << std::endl;
+    std::cerr << "   qs = ";
+    for (auto q: qs) std::cerr << q << ", ";
+    std::cerr << std::endl;
+    // for (auto Ns_: Ns)
+    // {
+    //     std::cerr << "   Two cell wire" << std::endl;
+    //     for (auto N_: Ns_)
+    //     {
+    //         std::cerr << "      Ns = ";
+    //         for (auto N: N_)
+    //             std::cerr << N << " ";
+    //         std::cerr << std::endl;
+    //     }
+    // }
+    for (auto Ps_: Ps)
+    {
+        std::cerr << "   Two cell wire" << std::endl;
+        for (auto P: Ps_)
+            std::cerr << "      P = " << P << std::endl;
+    }
+    BOOST_CHECK(epsilonEqual(Ps[0][0], Ps[4][0]));
+    BOOST_CHECK(epsilonEqual(Ps[0][1], Ps[4][1]));
+    BOOST_CHECK(epsilonEqual(Ps[1][0], Ps[3][0]));
+    BOOST_CHECK(epsilonEqual(Ps[1][1], Ps[3][1]));
+    BOOST_CHECK(Ps[2][0] > Ps[1][0]);
+    BOOST_CHECK(Ps[2][1] > Ps[1][1]);
+    BOOST_CHECK(Ps[1][0] > Ps[0][0]);
+    BOOST_CHECK(Ps[1][1] > Ps[0][1]);
 }
 
 BOOST_AUTO_TEST_CASE ( compare_polarization_and_polarization2 )
