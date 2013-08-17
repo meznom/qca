@@ -146,11 +146,10 @@ public:
 template<class System>
 class QcaHamiltonian : public Hamiltonian<System>
 {
-private:
+public:
     SMatrix& H;
     const System& s;
 
-public:
     QcaHamiltonian (const System& s_)
     : Hamiltonian<System>(s_), H(Hamiltonian<System>::H), 
       s(Hamiltonian<System>::s)
@@ -190,7 +189,6 @@ public:
         }
     }
 
-private:
     double hopping (int i, int j) const
     {
         /*
@@ -394,7 +392,7 @@ private:
     size_t plaquetSize;
 };
 
-template<class QcaSystem>
+template<class QcaSystem, template <typename System> class Hamiltonian_=QcaHamiltonian>
 class QcaCommon
 {
 private:
@@ -403,7 +401,7 @@ private:
     int N_p_, N_sites_;
 
 public:
-    QcaHamiltonian<S> H;
+    Hamiltonian_<S> H;
     EnsembleAverageBySectors<S> ensembleAverage;
     Polarization<S> P;
     ParticleNumber<S> N;
@@ -724,6 +722,130 @@ public:
     SMatrix n_updown (int i) const
     {
         return n(i,UP) * n(i,DOWN);
+    }
+};
+
+template<class System>
+class QcaIsingHamiltonian : public QcaHamiltonian<System>
+{
+public:
+    typedef QcaHamiltonian<System> Base;
+    SMatrix& H;
+    const System& s;
+
+    QcaIsingHamiltonian (const System& s_)
+    : Base(s_), H(Base::H), s(Base::s)
+    {}
+
+    void construct() 
+    {
+        H = SMatrix(s.basis.size(), s.basis.size());
+        H.setZero();
+        for (int i=0; i<s.N_sites(); i++)
+        {
+            /*
+             * Eigen seems to truncate very small values in Sparse matrices. The
+             * epsilon value used for the truncation is defined in Eigen's
+             * NumTraits. To be safe we check that our values are bigger than
+             * this threshold. 
+             */
+            assert(Base::coulomb(i,i)==0 || 
+                   std::fabs(Base::coulomb(i,i))>NumTraits<double>::dummy_precision());
+            assert(Base::external(i)==0 || 
+                   std::fabs((Base::external(i)+s.mu))> NumTraits<double>::dummy_precision());
+
+            H += Base::external(i) * s.n(i);
+            H += hoppingMatrix();
+            for (int j=i+1; j<s.N_sites(); j++)
+                H += Base::coulomb(i,j) * ( s.n(i) * s.n(j) - s.q * ( s.n(i) + s.n(j) ) );
+        }
+    }
+
+    SMatrix hoppingMatrix()
+    {
+        // TODO
+        return SMatrix(s.basis.size(), s.basis.size());
+    }
+};
+
+template <class System>
+class Sigma
+{
+private:
+    const System& s;
+    std::vector<SMatrix> ss;
+
+public:
+    Sigma (const System& s_)
+    : s(s_)
+    {}
+
+    void construct()
+    {
+        ss.resize(s.N_p());
+        for (size_t i=0; i<s.N_p(); i++)
+            constructMatrix(i);
+    }
+
+    const SMatrix& operator() (size_t i) const
+    {
+        return ss[i];
+    }
+
+    /** Each matrix measures the "spin" (+1/-1) on cell/plaquet i. */
+    void constructMatrix(size_t i)
+    {
+        SMatrix& m = ss[i];
+        m = SMatrix(s.basis.size(), s.basis.size());
+        // This is diagonal matrix, so one entry per column
+        m.reserve(VectorXi::Constant(s.basis.size(), 1));
+        for (size_t j=0; j<s.basis.size(); j++)
+        {
+            const State& state = s.basis(j);
+            if (state[i] == 1)
+                m.insert(j,j) = +1; //"spin" up
+            else
+                m.insert(j,j) = -1; //"spin" down
+        }
+        m.makeCompressed();
+    }
+};
+
+class QcaIsing : public QcaCommon<QcaIsing, QcaIsingHamiltonian>
+{
+public:
+    typedef QcaIsing Self;
+    typedef QcaCommon<Self, QcaIsingHamiltonian> Base;
+    Basis basis;
+    Sigma<Self> sigma;
+
+    QcaIsing()
+    : Base(*this), sigma(*this)
+    {}
+
+    void constructBasis ()
+    {
+        Base::updateParametersFromLayout();
+        basis = Basis();
+        basis.construct(Base::N_p());
+        sigma.construct();
+    }
+
+    SMatrix n (int i) const
+    {
+        // construct an identity matrix
+        SMatrix I(basis.size(), basis.size());
+        I.reserve(VectorXi(basis.size(),1));
+        for (size_t k=0; k<basis.size(); k++)
+            I.insert(k,k) = 1;
+        I.makeCompressed();
+
+        int c = i/4; // which cell
+        int j = i%4; // which site on the cell
+        if (j==0 || j==2)
+            return 0.5 * (I + sigma(c));
+        else // j==1 || j==3
+            return 0.5 * (I - sigma(c));
     }
 };
 
