@@ -156,3 +156,12 @@ class QcaGrandCanonical(QcaCommon):
     def __setstate__(self, i):
         self.__init__()
         QcaCommon.__setstate__(self, i)
+
+class QcaIsing(QcaCommon):
+    def __init__(self):
+        QcaCommon.__init__(self, _qca.QcaIsing())
+        self.model = 'QcaIsing'
+    
+    def __setstate__(self, i):
+        self.__init__()
+        QcaCommon.__setstate__(self, i)

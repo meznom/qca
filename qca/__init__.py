@@ -5,7 +5,7 @@ try:
 except ImportError:
     pass
 
-from .models import QcaBond, QcaFixedCharge, QcaGrandCanonical, QcaError
+from .models import QcaBond, QcaFixedCharge, QcaGrandCanonical, QcaIsing, QcaError
 from .layout import Layout, Wire, NonuniformWire, WireWithTwoDriverCells, \
                     NonuniformWireWithTwoDriverCells, InfiniteWire
 from .selfconsistency import SelfConsistency

@@ -300,3 +300,13 @@ class TestQCA(unittest.TestCase):
                 verticalalignment='top', 
                 transform=p.transAxes)
         fig.savefig(os.path.join(d,'bond_and_fixedcharge.pdf'))
+
+    def test_can_construct_qca_ising(self):
+        s = qca.QcaIsing()
+        s.l = qca.Wire(3,100,2,1)
+        s.beta = 1
+        s.init()
+        s.run()
+        self.assertAlmostEqual(s.results['P'][0], 0.406722, 5)
+        self.assertAlmostEqual(s.results['P'][1], 0.358431, 5)
+        self.assertAlmostEqual(s.results['P'][2], 0.313541, 5)

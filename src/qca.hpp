@@ -312,19 +312,17 @@ public:
 
 
 private:
-    // TODO: update to use Eigen's new SparseMatrix interface
     void constructMatrix (size_t i, size_t j)
     {
         SMatrix& m = cas[I(i,j)];
         m = SMatrix(s.basis.size(), s.basis.size());
         // we expect one entry per column
-        m.reserve(s.basis.size());
+        m.reserve(VectorXi::Constant(s.basis.size(), 1));
         for (size_t col=0; col<s.basis.size(); col++)
         {
-            m.startVec(col);
             if (i==j && s.basis(col)[i] == 1)
             {
-                m.insertBack(col, col) = 1;
+                m.insert(col, col) = 1;
                 continue;
             }
             if (s.basis(col)[i] == 1 || s.basis(col)[j] == 0)
@@ -333,12 +331,12 @@ private:
             state[i] = 1;
             state[j] = 0;
             const size_t row = s.basis(state);
-            size_t sum = state.count(i,j); //TODO: is this correct?
+            size_t sum = state.count(i,j);
             if (i<j) sum -= 1; //works, because for i<j we always have sum>=1
             const double sign = (sum%2==0)?1:-1; // probably faster than using (-1)^sum
-            m.insertBack(row, col) = sign;
+            m.insert(row, col) = sign;
         }
-        m.finalize();
+        m.makeCompressed();
     }
 
     size_t I (size_t i, size_t j) const
@@ -739,8 +737,30 @@ public:
 
     void construct() 
     {
+        /*
+         * Construct the hopping part first.
+         */
         H = SMatrix(s.basis.size(), s.basis.size());
-        H.setZero();
+        // We expect one entry per column
+        H.reserve(VectorXi::Constant(s.basis.size(), 1));
+        for (size_t col=0; col<s.basis.size(); col++)
+        {
+            State state(s.basis(col));
+            for (size_t i=0; i<s.N_p(); i++)
+            {
+                // flip spin: 1 -> 0, 0 -> 1
+                state[i] = 1 - state[i];
+            }
+            const size_t row = s.basis(state);
+            // Note: this t is different from the ts in the other QCA
+            // Hamiltonians!
+            H.insert(row,col) = - s.t * s.N_p();
+        }
+        H.makeCompressed();
+
+        /*
+         * Add external potential and Coulomb interaction.
+         */
         for (int i=0; i<s.N_sites(); i++)
         {
             /*
@@ -755,16 +775,9 @@ public:
                    std::fabs((Base::external(i)+s.mu))> NumTraits<double>::dummy_precision());
 
             H += Base::external(i) * s.n(i);
-            H += hoppingMatrix();
             for (int j=i+1; j<s.N_sites(); j++)
                 H += Base::coulomb(i,j) * ( s.n(i) * s.n(j) - s.q * ( s.n(i) + s.n(j) ) );
         }
-    }
-
-    SMatrix hoppingMatrix()
-    {
-        // TODO
-        return SMatrix(s.basis.size(), s.basis.size());
     }
 };
 
@@ -835,7 +848,7 @@ public:
     {
         // construct an identity matrix
         SMatrix I(basis.size(), basis.size());
-        I.reserve(VectorXi(basis.size(),1));
+        I.reserve(VectorXi::Constant(basis.size(),1));
         for (size_t k=0; k<basis.size(); k++)
             I.insert(k,k) = 1;
         I.makeCompressed();
@@ -846,6 +859,11 @@ public:
             return 0.5 * (I + sigma(c));
         else // j==1 || j==3
             return 0.5 * (I - sigma(c));
+    }
+
+    double measureSpin (int i) const
+    {
+        return ensembleAverage(beta, sigma(i));
     }
 };
 

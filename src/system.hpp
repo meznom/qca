@@ -59,10 +59,9 @@ private:
     {
         cs[i] = SMatrix(s.basis.size(), s.basis.size());
         // we expect one entry per column
-        cs[i].reserve(s.basis.size());
+        cs[i].reserve(VectorXi::Constant(s.basis.size(),1));
         for (size_t col=0; col<s.basis.size(); col++)
         {
-            cs[i].startVec(col);
             if (s.basis(col)[i] == 1)
                 continue;
             State state(s.basis(col));
@@ -70,9 +69,9 @@ private:
             const size_t row = s.basis(state);
             const size_t sum = state.count(i);
             const double sign = (sum%2==0)?1:-1; // probably faster than using (-1)^sum
-            cs[i].insertBack(row, col) = sign;
+            cs[i].insert(row, col) = sign;
         }
-        cs[i].finalize();
+        cs[i].makeCompressed();
     }
 
     const System& s;

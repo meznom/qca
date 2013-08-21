@@ -227,4 +227,5 @@ BOOST_PYTHON_MODULE (_qca)
     define_qca_python_class<QcaBond>("QcaBond");
     define_qca_python_class<QcaFixedCharge>("QcaFixedCharge");
     define_qca_python_class<QcaGrandCanonical>("QcaGrandCanonical");
+    define_qca_python_class<QcaIsing>("QcaIsing");
 }
