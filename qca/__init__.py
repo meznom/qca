@@ -7,6 +7,6 @@ except ImportError:
 
 from .models import QcaBond, QcaFixedCharge, QcaGrandCanonical, QcaIsing, QcaError
 from .layout import Layout, Wire, NonuniformWire, WireWithTwoDriverCells, \
-                    NonuniformWireWithTwoDriverCells, InfiniteWire
+                    NonuniformWireWithTwoDriverCells, InfiniteWire, AngleWire
 from .selfconsistency import SelfConsistency
 from ._qca import ElectronsPerCell

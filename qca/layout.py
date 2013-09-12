@@ -1,5 +1,6 @@
 import _qca
 from collections import OrderedDict
+import math
 
 class Layout(object):
     def __init__(self):
@@ -179,3 +180,33 @@ class InfiniteWire(Layout):
     
     def __setstate__(self, i):
         self.__init__(i['N'], i['N_dead'], i['V1'], i['boa'], i['P'])
+
+class AngleWire(Layout):
+    def __init__(self, N_, V1_, doa_, theta_, P_):
+        Layout.__init__(self)
+        self.N = N_
+        self.V1 = V1_
+        self.doa = doa_
+        self.theta = theta_
+        self.P = P_
+
+        a = 1.0 / self.V1
+        d = self.doa * a
+        t = self.theta*math.pi/180.0
+        self._pl.addDriverCell(0, 0, a, self.P)
+        for i in range(1,self.N+1):
+            self._pl.addCell(d*math.cos(t)*i, d*math.sin(t)*i, a)
+
+    def __getstate__(self):
+        i = OrderedDict()
+        i['type'] = 'angle_wire'
+        i['N'] = self.N
+        i['V1'] = self.V1
+        i['doa'] = self.doa
+        i['theta'] = self.theta
+        i['P'] = self.P
+        i.update(Layout.__getstate__(self))
+        return i
+
+    def __setstate__(self, i):
+        self.__init__(i['N'], i['V1'], i['doa'], i['theta'], i['P'])

@@ -310,3 +310,37 @@ class TestQCA(unittest.TestCase):
         self.assertAlmostEqual(s.results['P'][0], 0.406722, 5)
         self.assertAlmostEqual(s.results['P'][1], 0.358431, 5)
         self.assertAlmostEqual(s.results['P'][2], 0.313541, 5)
+
+    def test_angle_wire(self):
+        s = qca.QcaBond()
+
+        s.l = qca.AngleWire(3, 100, 4.0, 0, 1)
+        s.V0 = 1E6
+        s.T = 1
+        s.init()
+        s.run()
+        r1 = s.results.copy()
+
+        s.l = qca.AngleWire(3, 100, 4.0, 90, 1)
+        s.V0 = 1E6
+        s.T = 1
+        s.init()
+        s.run()
+        r2 = s.results.copy()
+
+        s.l = qca.Wire(3, 100, 3.0, 1)
+        s.V0 = 1E6
+        s.T = 1
+        s.init()
+        s.run()
+        r3 = s.results.copy()
+
+        print('\nP_1 = {}\nP_2 = {}\nP_3 = {}'.format(r1['P'][0], r1['P'][1], r1['P'][2]))
+
+        self.assertAlmostEqual(r1['P'][0], r2['P'][0])
+        self.assertAlmostEqual(r1['P'][1], r2['P'][1])
+        self.assertAlmostEqual(r1['P'][2], r2['P'][2])
+
+        self.assertAlmostEqual(r1['P'][0], r3['P'][0])
+        self.assertAlmostEqual(r1['P'][1], r3['P'][1])
+        self.assertAlmostEqual(r1['P'][2], r3['P'][2])
