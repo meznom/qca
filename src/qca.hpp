@@ -17,9 +17,11 @@ public:
     std::vector<Vector2d> r_charges;
     std::vector<double> charges;
     ElectronsPerCell epc;
+    double a;
+    bool is_a_set;
 public:
     Layout ()
-    : epc(epc2)
+    : epc(epc2), a(0), is_a_set(false)
     {}
 
     void addSite (double r_x, double r_y)
@@ -35,6 +37,7 @@ public:
 
     void addCell (double r_x, double r_y, double a)
     {
+        set_a(a);
         addSite(r_x, r_y);
         addSite(r_x, r_y+a);
         addSite(r_x+a, r_y+a);
@@ -43,6 +46,7 @@ public:
 
     void addDriverCell (double r_x, double r_y, double a, double P, ElectronsPerCell epc_)
     {
+        set_a(a);
         // compensation charge. 
         // q=0 for 2 electrons per cell, q=1 for 6 electrons per cell
         assert(epc_==2 || epc_==6);
@@ -132,6 +136,8 @@ public:
         r_sites.clear();
         r_charges.clear();
         charges.clear();
+        is_a_set = false;
+        a = 0;
     }
 
     bool operator== (const Layout& l) const
@@ -140,6 +146,24 @@ public:
             r_sites == l.r_sites &&
             r_charges == l.r_charges &&
             charges == l.charges;
+    }
+
+    void set_a (double a_)
+    {
+        if (is_a_set && a != a_)
+        {
+            // a crude way to enforce we only ever use one value for a
+            std::cerr << "Error: Trying to set a value for 'a' which differs " 
+                      << "from a previously set value. Aborting..." << std::endl;
+            std::exit(EXIT_FAILURE);
+        }
+        a = a_;
+        is_a_set = true;
+    }
+
+    double get_a() const
+    {
+        return a;
     }
 };
 
@@ -752,9 +776,10 @@ public:
                 state[i] = 1 - state[i];
             }
             const size_t row = s.basis(state);
-            // Note: this t is different from the ts in the other QCA
-            // Hamiltonians!
-            H.insert(row,col) = - s.t * s.N_p();
+            // Effective hopping parameter for the 2-state system,
+            // t^{\prime} = \frac{8 t^2 a}{2 - \sqrt{2}}
+            const double tprime = 8 * s.t * s.t * s.l.get_a() / ( 2 - sqrt(2) );
+            H.insert(row,col) = - tprime * s.N_p();
         }
         H.makeCompressed();
 

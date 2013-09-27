@@ -232,15 +232,15 @@ BOOST_AUTO_TEST_CASE ( test_bond_and_ising_models_are_the_same_in_some_limits )
     QcaIsing s_i;
     s_i.q = 0.5;
     s_i.beta = 1;
-    s_i.t = 1E-3;
-    s_i.l.wire(3,0.01,0.02,1);
+    s_i.t = 1;
+    s_i.l.wire(3,0.001,0.005,1);
     s_i.update();
 
     QcaBond s_b;
     s_b.q = 0.5;
     s_b.beta = 1;
     s_b.t = 1;
-    s_b.l.wire(3,0.01,0.02,1);
+    s_b.l.wire(3,0.001,0.005,1);
     s_b.update();
 
     std::vector<double> Ps_i = {s_i.measurePolarization(0), 

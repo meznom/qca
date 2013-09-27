@@ -15,9 +15,7 @@ set(Boost_DEBUG OFF)
 set(Boost_USE_STATIC_LIBS OFF)
 set(Boost_USE_MULTITHREADED ON)
 set(Boost_USE_STATIC_RUNTIME OFF)
-find_package(Boost 1.49.0)
-find_package(Boost 1.49.0 COMPONENTS python)
-find_package(Boost 1.49.0 COMPONENTS unit_test_framework)
+find_package(Boost 1.49.0 COMPONENTS unit_test_framework python)
 
 # # Boost.NumPy
 # find_path(BoostNumPy_INCLUDE_DIRS boost/numpy.hpp)
