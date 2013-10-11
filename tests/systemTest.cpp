@@ -10,7 +10,7 @@ template<class System>
 class HubbardHamiltonian : public Hamiltonian<System>
 {
 public:
-    HubbardHamiltonian (const System& s_) 
+    HubbardHamiltonian (System& s_) 
         : Hamiltonian<System>(s_), H(Hamiltonian<System>::H), s(s_)
     {}
 
@@ -31,7 +31,7 @@ public:
     }
 
     SMatrix& H;
-    const System& s;
+    System& s;
 };
 
 typedef BasicSystem BaseSystem;

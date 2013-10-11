@@ -303,13 +303,16 @@ class TestQCA(unittest.TestCase):
 
     def test_can_construct_qca_ising(self):
         s = qca.QcaIsing()
+        s.t = 1
         s.l = qca.Wire(3,100,2,1)
         s.beta = 1
         s.init()
         s.run()
-        self.assertAlmostEqual(s.results['P'][0], 0.406722, 5)
-        self.assertAlmostEqual(s.results['P'][1], 0.358431, 5)
-        self.assertAlmostEqual(s.results['P'][2], 0.313541, 5)
+        self.assertAlmostEqual(s.results['P'][0], 0.846923, 5)
+        self.assertAlmostEqual(s.results['P'][1], 0.747275, 5)
+        self.assertAlmostEqual(s.results['P'][2], 0.653792, 5)
+        self.assertNotEqual(s.tprime, 0)
+        self.assertAlmostEqual(s.tprime, 0.13656854249492380195, 8)
 
     def test_angle_wire(self):
         s = qca.QcaBond()

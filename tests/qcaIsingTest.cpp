@@ -227,6 +227,49 @@ BOOST_AUTO_TEST_CASE ( test_simple_physical_limits )
     }
 }
 
+BOOST_AUTO_TEST_CASE ( test_tprime_gets_set_and_calculated_correctly )
+{
+    /*
+     * t^{\prime} = \frac{ 4 t^2 }{ \Delta V }
+     *            = \frac{ 8 t^2 }{ (2 - \sqrt{2}) V_1 }
+     *            = \frac{ 4 t^2 }{ 0.29289 V_1 }
+     */
+    double t;
+    double V1;
+
+    QcaIsing s;
+    s.q = 0.5;
+    s.beta = 1;
+
+    t = 1;
+    V1 = 100;
+    
+    s.t = t;
+    s.l.wire(3,1.0/V1,1,1);
+    s.update();
+    
+    // std::cerr << "t' = " << s.tprime << std::endl;
+    BOOST_CHECK(equal(s.tprime, 0.13656854249492380195));
+
+    t = 3;
+    V1 = 40;
+    s.t = t;
+    s.l.wire(3,1.0/V1,1,1);
+    s.update();
+    
+    // std::cerr << "t' = " << s.tprime << std::endl;
+    BOOST_CHECK(equal(s.tprime, 3.07279220613578554391));
+
+    t = 10;
+    V1 = 200;
+    s.t = t;
+    s.l.wire(3,1.0/V1,1,1);
+    s.update();
+    
+    // std::cerr << "t' = " << s.tprime << std::endl;
+    BOOST_CHECK(equal(s.tprime, 6.82842712474619009758));
+}
+
 BOOST_AUTO_TEST_CASE ( test_bond_and_ising_models_are_the_same_in_some_limits )
 {
     QcaIsing s_i;

@@ -80,6 +80,10 @@ class QcaCommon(object):
     def N_sites(self):
         return self.s.N_sites
 
+    @property
+    def tprime(self):
+        return self.s.tprime
+
     def init(self):
         pass
 

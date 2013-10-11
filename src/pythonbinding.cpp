@@ -124,6 +124,9 @@ void define_qca_python_class(const std::string& name)
         .add_property("N_sites",
                       &QcaSystem::N_sites,
                       "Number of sites.")
+        .add_property("tprime",
+                      &QcaSystem::tprime,
+                      "Effective Ising hopping parameter t'.")
         ;
 }
 

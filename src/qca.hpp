@@ -172,9 +172,9 @@ class QcaHamiltonian : public Hamiltonian<System>
 {
 public:
     SMatrix& H;
-    const System& s;
+    System& s;
 
-    QcaHamiltonian (const System& s_)
+    QcaHamiltonian (System& s_)
     : Hamiltonian<System>(s_), H(Hamiltonian<System>::H), 
       s(Hamiltonian<System>::s)
     {}
@@ -428,13 +428,13 @@ public:
     Polarization<S> P;
     ParticleNumber<S> N;
     Layout l;
-    double t, td, V0, mu, epsilonr, lambdaD, epsilon0, q, beta;
+    double t, tprime, td, V0, mu, epsilonr, lambdaD, epsilon0, q, beta;
 
 public:
     QcaCommon (QcaSystem& s_)
         : s(s_), N_p_(0), N_sites_(0), 
           H(s), ensembleAverage(s), P(s), N(s), l(Layout()),
-          t(1), td(0), V0(1000), mu(0),
+          t(1), tprime(0), td(0), V0(1000), mu(0),
           epsilonr(QCA_NATURAL_EPSILON_R), lambdaD(0), 
           epsilon0(QCA_EPSILON_0), q(0), beta(1)
     {}
@@ -753,9 +753,9 @@ class QcaIsingHamiltonian : public QcaHamiltonian<System>
 public:
     typedef QcaHamiltonian<System> Base;
     SMatrix& H;
-    const System& s;
+    System& s;
 
-    QcaIsingHamiltonian (const System& s_)
+    QcaIsingHamiltonian (System& s_)
     : Base(s_), H(Base::H), s(Base::s)
     {}
 
@@ -779,6 +779,7 @@ public:
             // Effective hopping parameter for the 2-state system,
             // t^{\prime} = \frac{8 t^2 a}{2 - \sqrt{2}}
             const double tprime = 8 * s.t * s.t * s.l.get_a() / ( 2 - sqrt(2) );
+            s.tprime = tprime;
             H.insert(row,col) = - tprime * s.N_p();
         }
         H.makeCompressed();

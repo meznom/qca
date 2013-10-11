@@ -142,7 +142,7 @@ template<class System>
 class Hamiltonian
 {
 public:
-    Hamiltonian (const System& s_)
+    Hamiltonian (System& s_)
     : s(s_), H()
     {}
 
@@ -380,7 +380,7 @@ protected:
         const std::vector<Range>& rs;
     };
 
-    const System& s;
+    System& s;
     SMatrix H;
     SMatrix sEigenvectors; //simple or sparse eigenvectors
     DVector sEigenvalues; //simple eigenvalues
