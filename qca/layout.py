@@ -12,16 +12,23 @@ class Layout(object):
 
     def __getstate__(self):
         i = OrderedDict()
-        i['r_sites'] = self._pl.r_sites
-        i['r_charges'] = self._pl.r_charges
-        i['charges'] = self._pl.charges
-        i['epc'] = str(self._pl.epc)
+        # This can be very verbose, disabled for now.
+        # i['r_sites'] = self._pl.r_sites
+        # i['r_charges'] = self._pl.r_charges
+        # i['charges'] = self._pl.charges
+        # i['epc'] = str(self._pl.epc)
         return i
 
     def __setstate__(self, i):
         # we do not deserialize properly
         # TODO: properly reconstruct state
         self.__init__()
+
+    def coma_getstate(self):
+        return self.__getstate__()
+
+    def coma_setstate(self, i):
+        self.__setstate__(i)
 
     def __eq__(self, l):
         d1 = self.__dict__.copy()

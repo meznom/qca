@@ -3,11 +3,27 @@ import os
 import shutil
 import pickle
 import qca
-from coma import Measurement, Experiment
+from coma import FileMeasurement, Experiment
 import numpy as np
 import matplotlib.pyplot as plt
 
 class TestQCA(unittest.TestCase):
+    def setUp(self):
+        self.f = os.path.join(os.path.dirname(__file__), 'testmeasurement.xml')
+        self.d = os.path.join(os.path.dirname(__file__), 'test_create_an_experiment')
+        if True:
+            if os.path.exists(self.f):
+                os.remove(self.f)
+            if os.path.exists(self.d):
+                shutil.rmtree(self.d)
+
+    def tearDown(self):
+        if True:
+            if os.path.exists(self.f):
+                os.remove(self.f)
+            if os.path.exists(self.d):
+                shutil.rmtree(self.d)
+
     def test_polarization_for_different_layouts(self):
         # these tests come from qcaTest.cpp, 
         # "reuse_same_system_multiple_times_with_different_layouts"
@@ -221,10 +237,7 @@ class TestQCA(unittest.TestCase):
         s.V0 = 1E6
         s.beta = 1
         
-        f = os.path.join(os.path.dirname(__file__), 'testmeasurement.xml')
-        if os.path.exists(f):
-            os.remove(f)
-        m = Measurement(f)
+        m = FileMeasurement(self.f)
         m.start()
         
         s.init()
@@ -234,10 +247,7 @@ class TestQCA(unittest.TestCase):
         m.save(s)
 
     def test_create_an_experiment_and_create_a_plot(self):
-        d = os.path.join(os.path.dirname(__file__), 'test_create_an_experiment')
-        if os.path.exists(d):
-            shutil.rmtree(d)
-        e = Experiment(d)
+        e = Experiment(self.d,1)
         e.description = 'Test creating an experiment for the qca module.'
         e.reset()
         e.start()
@@ -277,7 +287,7 @@ class TestQCA(unittest.TestCase):
         e.save()
 
         Ts_b,Ts_f,Ps_b,Ps_f = [],[],[],[]
-        for m in e.measurements:
+        for m in e.measurements():
             if m['parameters/model'] == 'QcaBond':
                 Ts_b.append(m['parameters/T'])
                 Ps_b.append(m['results/P'][1])
@@ -299,7 +309,7 @@ class TestQCA(unittest.TestCase):
                 horizontalalignment='right', 
                 verticalalignment='top', 
                 transform=p.transAxes)
-        fig.savefig(os.path.join(d,'bond_and_fixedcharge.pdf'))
+        fig.savefig(os.path.join(self.d,'bond_and_fixedcharge.pdf'))
 
     def test_can_construct_qca_ising(self):
         s = qca.QcaIsing()

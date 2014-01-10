@@ -80,8 +80,7 @@ setup(name='qca',
       author='Burkhard Ritter',
       author_email='burkhard@ualberta.ca',
       url='',
-      packages=['qca'],
-      package_dir={'qca': 'qca'},
+      packages=['qca','qca.test'],
       package_data={'qca': ['_qca.so']},
       cmdclass={ 'version': Version, 'sdist': sdist, 'install': install}
       )

@@ -1,4 +1,4 @@
-import _qca
+from . import _qca
 from . import __version__
 from .layout import Layout
 from collections import OrderedDict
@@ -126,6 +126,12 @@ class QcaCommon(object):
         self.q = i['parameters']['q']
         self.l = i['parameters']['layout']
         self.results = i['results']
+
+    def coma_getstate(self):
+        return self.__getstate__()
+
+    def coma_setstate(self, i):
+        self.__setstate__(i)
 
     def __eq__(self, s):
         d1 = self.__dict__.copy()

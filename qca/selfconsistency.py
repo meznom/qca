@@ -63,3 +63,9 @@ class SelfConsistency(object):
         self.args_start = i['parameters']['args_start']
         self.f = i['parameters']['f']
         self.results = i['results']
+
+    def coma_getstate(self):
+        return self.__getstate__()
+
+    def coma_setstate(self, i):
+        self.__setstate__(i)

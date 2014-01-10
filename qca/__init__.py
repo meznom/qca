@@ -10,3 +10,4 @@ from .layout import Layout, Wire, NonuniformWire, WireWithTwoDriverCells, \
                     NonuniformWireWithTwoDriverCells, InfiniteWire, AngleWire
 from .selfconsistency import SelfConsistency
 from ._qca import ElectronsPerCell
+from . import test
