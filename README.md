@@ -34,12 +34,30 @@ For example, in the `source_dir`:
     $ rm -f CMakeCache.txt && CXX=/opt/local/bin/clang++-mp-3.0 cmake \
       -DCMAKE_BUILD_TYPE=Release -DBASIS_NUMBER_OF_BITS=32 \
       -DPYTHON_LIBRARY="/opt/local/Library/Frameworks/Python.framework/Versions/2.7/Python" ..
+    # or, as another example
+    $ rm -f CMakeCache.txt && CXX=/opt/local/bin/g++-mp-4.8 cmake \
+      -DCMAKE_BUILD_TYPE=Release -DBASIS_NUMBER_OF_BITS=32 \
+      -DPYTHON_LIBRARY="/Users/burkhard/anaconda/lib/libpython2.7.dylib" \
+      -DPYTHON_INCLUDE_DIR=/Users/burkhard/anaconda/include/python2.7 ..
     $ make
     $ cd ..
     $ ./setup.py install --user
 
-This clears the cmake cache and builds the program with the Clang compiler in
-Release mode and with a 32 bits basis.
+This clears the cmake cache and builds the program with the Clang compiler (GCC
+in the second example) in Release mode and with a 32 bits basis.
+
+It is very important that the Python extension `_qca.so` is linked against the
+proper version of the Python library. Especially on OS X this has caused
+problems repeatedly. On OS X we can check which libraries are linked with
+
+    $ otool -L _qca.so
+
+and we can change linked libraries with the `install_name_tool`. (On Linux `ldd`
+lists linked libraries.) The Boost Python library needs to be linked against the
+same Python library (again, we check with otool) and, obviously, that should be
+the Python version we are using. Lastly, I've had issues when the Boost Python
+library and this QCA exact diagonalization code were not compiled with the same
+compiler (e.g. Clang versus GCC).
 
 Useful cmake variables:
 
@@ -58,65 +76,15 @@ Useful cmake variables:
 
 ## Usage
 
-TODO: This section is out of date.
+Recommended usage is via the `qca` python module. The unit tests in `qca.test`
+provide some examples.
 
-After compilation a file runQca should be in the `build_dir`. Run `./src/runQca
---help` to get started.
+There is also a command line program, `runQca`. It's use is no longer
+recommended, it might not even work properly anymore. After compilation a file
+`runQca` should be in the `build_dir`. Run `./src/runQca --help` to get started.
 
-For example:
-
-    $ ./src/runQca 'model: grandcanonical, t: 1, td: 0, V0: 1000, \
-      layout: {type: wire, epc: 2, a: 0.01, b: 1000}, observables: {E: yes}'
-
-Calculates the energy spectrum for the one-cell-wire grand-canonical system,
-with 2 electrons per cell (epc) and the driving cell placed very, very far away
-(b=1000).
-
-    $ ./src/runQca 'model: fixed, t: 1, td: 0, V0: 1000, beta: [0.01,0.1,1,10], \
-      layout: {type: wire, epc: 2, V1: 100, boa: [1.75,2.5], Pext: 1}, \
-      changing: [layout.boa, beta], observables: {P: all}'
-
-Computes the polarization of all cells over beta, for the two cell fixed charge
-system and for two different values of boa (b over a, that is, b in units of
-a). b is the inter-cell spacing.
-
-## Performance
-
-I am testing the performance of clang 3.0, gcc 4.6.3, and gcc 4.7.0. 
-
-    $ /opt/local/bin/clang++-mp-3.0 --version
-    clang version 3.0 (tags/RELEASE_30/final)
-    $ /opt/local/bin/g++-mp-4.6 --version
-    g++-mp-4.6 (MacPorts gcc46 4.6.3_2) 4.6.3
-    $ /opt/local/bin/g++-mp-4.7 --version
-    g++-mp-4.7 (MacPorts gcc47 4.7.0_3) 4.7.0
-    $ ( time nice -19 ./Release-clang/src/runQca \
-            'model: fixed, V0: 1000, beta: 1, t: 1, layout: {cells: 3, a: 0.01, \
-             b: 0.02, Pext: 1, epc: 2}, observables: {P: all, P2: all, N: all}' \
-        && \
-        time nice -19 ./Release-gcc/src/runQca \
-            'model: fixed, V0: 1000, beta: 1, t: 1, layout: {cells: 3, a: 0.01, \
-             b: 0.02, Pext: 1, epc: 2}, observables: {P: all, P2: all, N: all}' \
-        && \
-        time nice -19 ./Release-gcc47/src/runQca \
-            'model: fixed, V0: 1000, beta: 1, t: 1, layout: {cells: 3, a: 0.01, \
-             b: 0.02, Pext: 1, epc: 2}, observables: {P: all, P2: all, N: all}' \
-      ) > output 2>&1
-
-From this I get:
-
-    clang 3.0: 25m37.286s
-    gcc 4.6.3: 25m33.630s
-    gcc 4.7.0: 30m6.368s
-
-So clang 3.0 and gcc 4.6.3 are essentially on par while gcc 4.7.0 is
-considerably slower.
-
-The compilation time with clang is a little bit more than two times faster than
-with gcc 4.6.3 (~10 seconds instead of ~25 seconds).
-
-
-Burkhard Ritter (<burkhard@ualberta.ca>), May 2013
+---
+Burkhard Ritter (<burkhard@ualberta.ca>), January 2014
 
 
 [1]: http://www.cmake.org
