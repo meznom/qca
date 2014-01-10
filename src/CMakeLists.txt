@@ -28,6 +28,17 @@ target_link_libraries(_qca
 
 # The Python module always needs to have the name _qca.so.
 get_target_property(LIB_FILENAME _qca LOCATION)
-add_custom_command(TARGET _qca
-    POST_BUILD         
-    COMMAND mv ${LIB_FILENAME} ${CMAKE_SOURCE_DIR}/qca/_qca.so)
+if (APPLE)
+    # This makes sure we always link against the absolute filename of the
+    # Python library. Speficially, I needed this to link properly against the
+    # Anaconda Python distribution on OS X.
+    execute_process(COMMAND bash -c "otool -D ${PYTHON_LIBRARIES} | tail -n1 | tr -d '\n'" OUTPUT_VARIABLE INSTALL_NAME)
+    add_custom_command(TARGET _qca
+        POST_BUILD
+        COMMAND install_name_tool -change ${INSTALL_NAME} ${PYTHON_LIBRARIES} ${LIB_FILENAME}
+        COMMAND mv ${LIB_FILENAME} ${CMAKE_SOURCE_DIR}/qca/_qca.so)
+else()
+    add_custom_command(TARGET _qca
+        POST_BUILD
+        COMMAND mv ${LIB_FILENAME} ${CMAKE_SOURCE_DIR}/qca/_qca.so)
+endif()

@@ -15,11 +15,7 @@ set(Boost_DEBUG OFF)
 set(Boost_USE_STATIC_LIBS OFF)
 set(Boost_USE_MULTITHREADED ON)
 set(Boost_USE_STATIC_RUNTIME OFF)
-find_package(Boost 1.49.0 COMPONENTS unit_test_framework python)
-
-# # Boost.NumPy
-# find_path(BoostNumPy_INCLUDE_DIRS boost/numpy.hpp)
-# find_library(BoostNumPy_LIBRARIES boost_numpy)
+find_package(Boost 1.49.0 COMPONENTS python)
 
 # Python
 # If we don't set Python_ADDITIONCAL_VERSIONS first, cmake confuses versions and
