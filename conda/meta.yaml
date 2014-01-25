@@ -1,0 +1,22 @@
+package:
+    name: qca
+    version: 8.0.0
+
+source:
+    #fn: qca.tar.bz2
+    #url: file:///home/burkhard/qca.tar.bz2
+    git_url: ssh://git@bitbucket.org/meznom/exactdiagonalization.git
+
+requirements:
+    build:
+        - cmake
+        - python
+    run:
+        - python
+
+build:
+    number: 1
+
+about:
+    home: https://bitbucket.org/meznom/exactdiagonalization
+    license: BSD

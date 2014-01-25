@@ -74,6 +74,17 @@ Useful cmake variables:
   (GCC or Clang).
 * `USE_CXX_FLAGS_DEBUG`. Compiler flags for Debug build type.
 
+## Building a Conda package
+
+The QCA exact diagonalization module now comes with a [conda][5] recipe, so
+conda can be used to build and install a binary package. In the `source_dir`:
+
+    $ conda build ./conda/
+    $ conda install --use-local qca
+
+Note that the conda recipe fetches the latest version of this QCA exact
+diagonalization module from Bitbucket / git.
+
 ## Usage
 
 Recommended usage is via the `qca` python module. The unit tests in `qca.test`
@@ -91,3 +102,4 @@ Burkhard Ritter (<burkhard@ualberta.ca>), January 2014
 [2]: http://eigen.tuxfamily.org
 [3]: http://www.boost.org
 [4]: http://www.doxygen.org
+[5]: https://store.continuum.io/cshop/anaconda/

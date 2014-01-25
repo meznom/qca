@@ -11,6 +11,7 @@ add_custom_command(OUTPUT version.hpp
 
 # runQca
 add_executable(runQca
+    EXCLUDE_FROM_ALL
     runQca.cpp
     version.hpp
 )
