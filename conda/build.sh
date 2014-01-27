@@ -1,5 +1,10 @@
 #!/bin/bash
 
+# Set PYLIB to either .so (Linux) or .dylib (OS X)
+for i in $PREFIX/lib/libpython${PY_VER}.*; do
+    PYLIB=$i
+done
+
 mkdir Release
 cd Release
 cmake \
@@ -8,7 +13,7 @@ cmake \
     -DCMAKE_INSTALL_PREFIX=$PREFIX \
     -DCMAKE_INSTALL_RPATH=$LD_RUN_PATH \
     -DPYTHON_INCLUDE_PATH:PATH=$PREFIX/include/python${PY_VER} \
-    -DPYTHON_LIBRARY:FILEPATH=$PREFIX/lib/libpython${PY_VER}.so \
+    -DPYTHON_LIBRARY:FILEPATH=$PYLIB \
     ..
 make
 cd ..
