@@ -1,8 +1,11 @@
 #!/bin/bash
 
 # Set PYLIB to either .so (Linux) or .dylib (OS X)
-for i in $PREFIX/lib/libpython${PY_VER}.*; do
-    PYLIB=$i
+PYLIB="PYTHON_LIBRARY_NOT_FOUND"
+for i in $PREFIX/lib/libpython${PY_VER}{.so,.dylib}; do
+    if [ -f $i ]; then
+        PYLIB=$i
+    fi
 done
 
 mkdir Release
