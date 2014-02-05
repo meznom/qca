@@ -3,7 +3,6 @@
 #include <boost/python/stl_iterator.hpp>
 #include <boost/python/enum.hpp>
 #include "qca.hpp"
-#include "eigenHelpers.hpp"
 
 namespace p = boost::python;
 

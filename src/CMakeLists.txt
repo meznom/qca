@@ -9,13 +9,6 @@ add_custom_command(OUTPUT version.hpp
     COMMAND bash updateVersion.hpp.sh
 )
 
-# runQca
-add_executable(runQca
-    EXCLUDE_FROM_ALL
-    runQca.cpp
-    version.hpp
-)
-
 # Python binding
 add_library(_qca
     SHARED

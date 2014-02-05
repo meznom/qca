@@ -10,8 +10,15 @@
 #define __TEST_HPP__
 
 #include <iostream>
-#include "eigenHelpers.hpp"
+#include <Eigen/Sparse>
+#include <Eigen/Dense>
+#include <Eigen/Eigenvalues>
 #include "basis.hpp"
+using namespace Eigen;
+
+typedef SparseMatrix<double> SMatrix;
+typedef MatrixXd DMatrix;
+typedef VectorXd DVector;
 
 enum Spin {UP=0, DOWN=1};
 
@@ -177,7 +184,7 @@ public:
         sEigenvalues = es.eigenvalues();
         minEnergy = sEigenvalues.minCoeff();
         const DMatrix& denseEigenvectors = es.eigenvectors();
-        sEigenvectors = EigenHelpers::denseToSparseBlock(denseEigenvectors, 0, 0, H.rows(), H.rows());
+        sEigenvectors = denseToSparseBlock(denseEigenvectors, 0, 0, H.rows(), H.rows());
     }
 
     /**
@@ -342,6 +349,20 @@ public:
     }
 
 protected:
+    SMatrix denseToSparseBlock (const DMatrix& dm, int i, int j, int p, int q)
+    {
+        SMatrix sm(p,q);
+        for (int l=0; l<q; l++)
+        {
+            sm.startVec(l);
+            for (int k=0; k<p; k++)
+                if (dm(k+i,l+j) != 0)
+                    sm.insertBack(k,l) = dm(k+i,l+j);
+        }
+        sm.finalize();
+        return sm;
+    }
+
     void denseToSparseBlockInPlace (const DMatrix& dm, SMatrix& sm, int i, int j, int p, int q)
     {
         assert(dm.rows() == p);

@@ -10,11 +10,6 @@
 #include <iostream>
 #include <cassert>
 #include <cmath>
-#include <Eigen/Sparse>
-#include <Eigen/Dense>
-using namespace Eigen;
-
-#include "eigenHelpers.hpp"
 
 class FermionicStateException : public std::logic_error
 {

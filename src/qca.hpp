@@ -2,7 +2,6 @@
 #define __QCA_HPP__
 
 #include "system.hpp"
-#include "utilities.hpp"
 #include <limits>
 
 const double QCA_ELEMENTARY_CHARGE = 1.602176565E-19;
