@@ -152,30 +152,26 @@ BOOST_AUTO_TEST_CASE ( construct_system_with_symmetries )
 
     s.H.diagonalizeNoSymmetries();
     DVector eigenvalues1 = s.H.eigenvalues();
-    DMatrix eigenvectors1 = EigenHelpers::sparseToDenseBlock(s.H.eigenvectors(), 
-                                                             0, 0, 
-                                                             s.H.eigenvectors().cols(), 
-                                                             s.H.eigenvectors().cols());
+    auto& evs1 = s.H.eigenvectors();
+    DMatrix eigenvectors1 = evs1.block(0,0,evs1.cols(),evs1.cols());
     std::vector<double> ev1;
     for (int i=0; i<eigenvalues1.size(); i++)
         ev1.push_back(eigenvalues1(i));
     
     s.H.diagonalizeUsingSymmetries();
     DVector eigenvalues2 = s.H.eigenvalues();
-    DMatrix eigenvectors2 = EigenHelpers::sparseToDenseBlock(s.H.eigenvectors(), 
-                                                             0, 0, 
-                                                             s.H.eigenvectors().cols(), 
-                                                             s.H.eigenvectors().cols());
+    auto& evs2 = s.H.eigenvectors();
+    DMatrix eigenvectors2 = evs2.block(0,0,evs2.cols(),evs2.cols());
+    
     std::vector<double> ev2;
     for (int i=0; i<eigenvalues2.size(); i++)
         ev2.push_back(eigenvalues2(i));
 
     s.H.diagonalizeUsingSymmetriesBySectors();
     DVector eigenvalues3 = s.H.eigenvalues();
-    DMatrix eigenvectors3 = EigenHelpers::sparseToDenseBlock(s.H.eigenvectors(), 
-                                                             0, 0, 
-                                                             s.H.eigenvectors().cols(), 
-                                                             s.H.eigenvectors().cols());
+    auto& evs3 = s.H.eigenvectors();
+    DMatrix eigenvectors3 = evs3.block(0,0,evs3.cols(),evs3.cols());
+    
     std::vector<double> ev3;
     for (int i=0; i<eigenvalues3.size(); i++)
         ev3.push_back(eigenvalues3(i));

@@ -539,7 +539,7 @@ public:
         for (size_t i=0; i<eigenvalues.size(); i++)
         {
             const int size = eigenvalues[i].size();
-            SMatrix O_block = EigenHelpers::sparseToSparseBlock(O, index, index, size, size);
+            const SMatrix& O_block = O.block(index, index, size, size);
             for (int j=0; j<size; j++)
             {
                 Ns[index+j][0] = eigenvalues[i](j);

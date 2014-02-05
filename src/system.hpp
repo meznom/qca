@@ -173,7 +173,7 @@ public:
          * why Eigen gives a segfault instead of an exception.
          */
         assert(4E9 > s.basis.size()*s.basis.size()*sizeof(double));
-        EigenHelpers::MySelfAdjointEigenSolver<DMatrix> es(H);
+        SelfAdjointEigenSolver<DMatrix> es(H);
         sEigenvalues = es.eigenvalues();
         minEnergy = sEigenvalues.minCoeff();
         const DMatrix& denseEigenvectors = es.eigenvectors();
@@ -201,7 +201,7 @@ public:
         sEigenvectors = SMatrix(H.rows(), H.rows());
         sEigenvectors.setZero();
 
-        EigenHelpers::MySelfAdjointEigenSolver<DMatrix> es;
+        SelfAdjointEigenSolver<DMatrix> es;
 
         /* 
          * sorting the ranges according to size means we reduce the number of
@@ -227,7 +227,7 @@ public:
             //          << rs.size() << " ranges." << std::endl
             //          << "-> Size of range " << i << ": " << b-a << std::endl;
             assert(4E9 > (b-a)*(b-a)*sizeof(double));
-            es.computeBlock(H, a, a, b-a, b-a);
+            es.compute(H.block(a,a,b-a,b-a));
             sEigenvalues.segment(index, b-a) = es.eigenvalues();
             const DMatrix& blockEigenvectors = es.eigenvectors();
             denseToSparseBlockInPlace(blockEigenvectors, sEigenvectors, a, index, b-a, b-a);
@@ -252,9 +252,6 @@ public:
     {
         sEigenvalues.resize(0);
         sEigenvectors.resize(0,0);
-
-        EigenHelpers::MySelfAdjointEigenSolver<DMatrix> es;
-        
         const std::vector<Range>& rs = s.basis.getRanges();
         dEigenvalues.resize(rs.size());
         dEigenvectors.resize(rs.size());
@@ -262,17 +259,20 @@ public:
         for (size_t i=0; i<is.size(); i++)
             is[i] = i;
         std::sort(is.begin(), is.end(), SortIndicesAccordingToSizeOfRanges(rs));
+
+        const size_t n_largest = rs[is[0]].b-rs[is[0]].a;
+        SelfAdjointEigenSolver<DMatrix> es(n_largest*n_largest);
         
         for (size_t i=0; i<is.size(); i++)
         {
             const int a = rs[is[i]].a;
             const int b = rs[is[i]].b;
-            //useful debug output when diagonalizing very large Hamiltonians
-            //std::cerr << "-> " << "Diagonalizing range " << is[i] << " out of " 
-            //          << rs.size() << " ranges." << std::endl
-            //          << "-> Size of range " << is[i] << ": " << b-a << std::endl;
+            // useful debug output when diagonalizing very large Hamiltonians
+            // std::cerr << "-> " << "Diagonalizing range " << is[i] << " out of " 
+            //           << rs.size() << " ranges." << std::endl
+            //           << "-> Size of range " << is[i] << ": " << b-a << std::endl;
             assert(4E9 > (b-a)*(b-a)*sizeof(double));
-            es.computeBlock(H, a, a, b-a, b-a);
+            es.compute(H.block(a,a,b-a,b-a));
             dEigenvalues[is[i]] = es.eigenvalues();
             dEigenvectors[is[i]] = es.eigenvectors();
         }
@@ -429,7 +429,11 @@ public:
         const SMatrix& eigenvectors = s.H.eigenvectors();
         for (int i=0; i<eigenvalues.size(); i++)
         {
-            SMatrix m = eigenvectors.col(i).adjoint() * O * eigenvectors.col(i);
+            const SMatrix& bra = eigenvectors.col(i).adjoint();
+            const SMatrix& ket = eigenvectors.col(i);
+            SMatrix m = bra * O * ket;
+            // Does not work. Should be a bug in Eigen.
+            //SMatrix m = eigenvectors.col(i).adjoint() * O * eigenvectors.col(i);
             assert(m.size() == 1);
             if (m.nonZeros() != 0)
                 sum += std::exp(-beta * (eigenvalues(i) - s.H.Emin())) * m.coeffRef(0,0);
@@ -501,9 +505,8 @@ public:
         {
             // note: usually O is very sparse, so it is essential to use a
             // sparse matrix for the block
-            // TODO: maybe when we can do some more optimizations
             const int size = eigenvalues[i].size();
-            SMatrix O_block = EigenHelpers::sparseToSparseBlock(O, index, index, size, size);
+            const SMatrix& O_block = O.block(index,index,size,size);
             for (int j=0; j<size; j++)
                 sum += 
                     std::exp(-beta * (eigenvalues[i](j) - s.H.Emin())) * 
