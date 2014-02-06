@@ -84,6 +84,3 @@ add_custom_target(buildtest)
 add_custom_target(check COMMAND ${CMAKE_CTEST_COMMAND})
 add_dependencies(check buildtest)
 add_subdirectory(tests EXCLUDE_FROM_ALL)
-
-### documentation ###
-add_subdirectory(doc EXCLUDE_FROM_ALL)

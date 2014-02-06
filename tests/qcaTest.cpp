@@ -127,7 +127,7 @@ BOOST_AUTO_TEST_CASE ( test_qca_bond_system_for_some_parameters )
     s1.l = WireNoDriver2e(1, 1, 1);
     s1.constructBasis();
     s1.H.construct();
-    s1.H.diagonalizeNoSymmetries();
+    s1.H.diagonalize();
     BOOST_CHECK (s1.energies().size() == 6);
     double eArray1[6] = {0.43, 0.43, 0.92, 1.08 , 1.28 , 1.28};
     std::vector<double> expected1(eArray1, eArray1+6);
@@ -354,64 +354,22 @@ BOOST_AUTO_TEST_CASE ( test_construct_qca_grandcanonical_system )
 
 BOOST_AUTO_TEST_CASE ( test_diagonalization_of_qca_grand_canonical_system )
 {
+    // TODO: right now this test does not really do anything
+
     QcaGrandCanonical s1;
     s1.l = WireNoDriver2e(1);
     s1.constructBasis();
     s1.H.construct();
-    s1.H.diagonalizeNoSymmetries();
-    DVector ev1_ = s1.energies();
-    std::vector<double> ev1(ev1_.size());
-    for (int i=0; i<ev1_.size(); i++)
-        ev1[i] = ev1_(i);
-    std::sort(ev1.begin(), ev1.end());
-    
-    s1.H.diagonalizeUsingSymmetries();
-    DVector ev2_ = s1.energies();
-    std::vector<double> ev2(ev2_.size());
-    for (int i=0; i<ev2_.size(); i++)
-        ev2[i] = ev2_(i);
-    std::sort(ev2.begin(), ev2.end());
-
-    s1.H.diagonalizeUsingSymmetriesBySectors();
-    DVector ev3_ = s1.energies();
-    std::vector<double> ev3(ev3_.size());
-    for (int i=0; i<ev3_.size(); i++)
-        ev3[i] = ev3_(i);
-    std::sort(ev3.begin(), ev3.end());
-    
-    BOOST_CHECK (ev1.size() == ev2.size());
-    BOOST_CHECK (ev1.size() == ev3.size());
-    for (size_t i=0; i<ev1.size(); i++)
-    {
-        BOOST_CHECK (epsilonEqual(ev1[i], ev2[i]));
-        BOOST_CHECK (epsilonEqual(ev1[i], ev3[i]));
-    }
+    s1.H.diagonalize();
+    BOOST_CHECK (s1.energies().size() == 257);
 
     QcaGrandCanonical s2;
     s2.l = WireNoDriver2e(2);
     s2.constructBasis();
     s2.H.construct();
-
-    /*
-     * useful output
-     */
-    //const std::vector<Range>& rs = s2.basis.getRanges();
-    //std::cerr << "For the two plaquet grand canonical QCA system we have " 
-    //          << rs.size() << " ranges." << std::endl;
-    //for (size_t i=0; i<rs.size(); i++)
-    //    std::cerr << "   Size of Range " << i << ": " << rs[i].b-rs[i].a << std::endl;
-    //std::cerr << std::endl;
-    
-    /*
-     * doesn't work, because the dense matrix gets too big
-     */
-    //s2.H.diagonalizeNoSymmetries();
-
-    /*
-     * this takes a _long_ time, but works
-     */
-    //s2.H.diagonalizeUsingSymmetries();
-    //BOOST_CHECK (s2.H.eigenvalues.size() == 256*256);
+    // this takes a _long_ time, but works
+    // s2.H.diagonalize();
+    // BOOST_CHECK (s2.H.eigenvalues.size() == 256*256);
 }
 
 BOOST_AUTO_TEST_CASE ( simple_sanity_checks_for_qca_grand_canonical_system )
@@ -464,7 +422,7 @@ BOOST_AUTO_TEST_CASE ( simple_sanity_checks_for_qca_grand_canonical_system )
     BOOST_CHECK (P > 0.1 && P < 1);
 }
 
-BOOST_AUTO_TEST_CASE ( compare_performance_qca_fixed_charge_with_and_without_using_symmetries )
+BOOST_AUTO_TEST_CASE ( performance_of_diagonalization_for_qca_fixed_charge )
 {
     std::clock_t startCPUTime, endCPUTime;
     double cpuTime = 0;
@@ -480,24 +438,10 @@ BOOST_AUTO_TEST_CASE ( compare_performance_qca_fixed_charge_with_and_without_usi
               << cpuTime << "s" << std::endl;
 
     startCPUTime = std::clock();
-    s.H.diagonalizeNoSymmetries();
+    s.H.diagonalize();
     endCPUTime = std::clock();
     cpuTime = static_cast<double>(endCPUTime-startCPUTime)/CLOCKS_PER_SEC;
-    std::cerr << "Time for diagonalizeNoSymmetries of two plaquet QCA quarterfilled system: " 
-              << cpuTime << "s" << std::endl;
-
-    startCPUTime = std::clock();
-    s.H.diagonalizeUsingSymmetries();
-    endCPUTime = std::clock();
-    cpuTime = static_cast<double>(endCPUTime-startCPUTime)/CLOCKS_PER_SEC;
-    std::cerr << "Time for diagonalizeUsingSymmetries of two plaquet QCA quarterfilled system: " 
-              << cpuTime << "s" << std::endl;
-
-    startCPUTime = std::clock();
-    s.H.diagonalizeUsingSymmetriesBySectors();
-    endCPUTime = std::clock();
-    cpuTime = static_cast<double>(endCPUTime-startCPUTime)/CLOCKS_PER_SEC;
-    std::cerr << "Time for diagonalizeUsingSymmetriesBySectors of two plaquet QCA quarterfilled system: " 
+    std::cerr << "Time to diagonalize a two plaquet QCA fixed charge system: " 
               << cpuTime << "s" << std::endl;
 }
 

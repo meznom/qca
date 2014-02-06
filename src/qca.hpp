@@ -423,7 +423,7 @@ private:
 
 public:
     Hamiltonian_<S> H;
-    EnsembleAverageBySectors<S> ensembleAverage;
+    EnsembleAverage<S> ensembleAverage;
     Polarization<S> P;
     ParticleNumber<S> N;
     Layout l;
@@ -443,7 +443,7 @@ public:
         if (l.N_sites() != N_sites_)
             s.constructBasis();
         H.construct();
-        H.diagonalizeUsingSymmetriesBySectors();
+        H.diagonalize();
     }
 
     double measure (double beta_, const SMatrix& O) const

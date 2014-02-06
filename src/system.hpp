@@ -6,8 +6,8 @@
  * @date 2010-12-10
  */
 
-#ifndef __TEST_HPP__
-#define __TEST_HPP__
+#ifndef __SYSTEM_HPP__
+#define __SYSTEM_HPP__
 
 #include <iostream>
 #include <Eigen/Sparse>
@@ -148,243 +148,7 @@ private:
 template<class System>
 class Hamiltonian
 {
-public:
-    Hamiltonian (System& s_)
-    : s(s_), H()
-    {}
-
-    /**
-     * Construct the Hamiltonian matrix.
-     *
-     * Has to be overwritten by deriving classes.
-     */
-    void construct() {}
-
-    /**
-     * Diagonalizes the Hamiltonian matrix.
-     *
-     * Uses a dense matrix. Relies on Eigen for the eigenvalue decomposition.
-     *
-     * Eigenvectors are stored in a sparse matrix so the eigenvalues() and
-     * eigenvectors() accessors should be used for best performance.
-     */
-    void diagonalizeNoSymmetries ()
-    {
-        dEigenvalues.resize(0);
-        dEigenvectors.resize(0);
-
-        /*
-         * This assertion is somewhat arbitrary, just because my computers tend
-         * to have 4GB ~ 4 10^9 bytes of memory.
-         * Also, this is not the solution for the problem. I don't understand
-         * why Eigen gives a segfault instead of an exception.
-         */
-        assert(4E9 > s.basis.size()*s.basis.size()*sizeof(double));
-        SelfAdjointEigenSolver<DMatrix> es(H);
-        sEigenvalues = es.eigenvalues();
-        minEnergy = sEigenvalues.minCoeff();
-        const DMatrix& denseEigenvectors = es.eigenvectors();
-        sEigenvectors = denseToSparseBlock(denseEigenvectors, 0, 0, H.rows(), H.rows());
-    }
-
-    /**
-     * Diagonalizes the Hamiltonian matrix using symmetries.
-     *
-     * Eploits symmetries defined in the basis (i.e. SymmetryOperators). The
-     * symmetries cast the Hamiltonian in a block-diagonal form and this method
-     * then diagonalizes blockwise. Usually the method is faster than the
-     * simpler diagonalizeNoSymmetries.
-     *
-     * Eigenvectors are stored in a sparse matrix so the eigenvalues() and
-     * eigenvectors() accessors should be used for best performance.
-     */
-    void diagonalizeUsingSymmetries ()
-    {
-        dEigenvalues.resize(0);
-        dEigenvectors.resize(0);
-
-        sEigenvalues = DVector(H.rows());
-        sEigenvalues.setZero();
-        sEigenvectors = SMatrix(H.rows(), H.rows());
-        sEigenvectors.setZero();
-
-        SelfAdjointEigenSolver<DMatrix> es;
-
-        /* 
-         * sorting the ranges according to size means we reduce the number of
-         * dynamic memory allocations in the EigenSolver. In practice the
-         * performance improvement is negligible. Starting with largest blocks
-         * first also means we could improve overall memory usage (by allocating
-         * memory for the eigenvectors only as they grow).
-         */
-        std::vector<Range> rs = s.basis.getRanges();
-        std::sort(rs.begin(), rs.end(), CompareSizeOfRanges());
-        size_t evsSize = 0;
-        for (size_t i=0; i<rs.size(); i++)
-            evsSize += (rs[i].b-rs[i].a)*(rs[i].b-rs[i].a);
-        sEigenvectors.reserve(evsSize);
-            
-        size_t index=0;
-        for (size_t i=0; i<rs.size(); i++)
-        {
-            const int a = rs[i].a;
-            const int b = rs[i].b;
-            //useful debug output when diagonalizing very large Hamiltonians
-            //std::cerr << "-> " << "Diagonalizing range " << i << " out of " 
-            //          << rs.size() << " ranges." << std::endl
-            //          << "-> Size of range " << i << ": " << b-a << std::endl;
-            assert(4E9 > (b-a)*(b-a)*sizeof(double));
-            es.compute(H.block(a,a,b-a,b-a));
-            sEigenvalues.segment(index, b-a) = es.eigenvalues();
-            const DMatrix& blockEigenvectors = es.eigenvectors();
-            denseToSparseBlockInPlace(blockEigenvectors, sEigenvectors, a, index, b-a, b-a);
-            index += b-a;
-        }
-        sEigenvectors.finalize();
-        minEnergy = sEigenvalues.minCoeff();
-    }
-
-    /**
-     * Diagonalizes the Hamiltonian matrix using symmetries.
-     *
-     * Similar to diagonalizeUsingSymmetries, but stores eigenvectors as an
-     * std::vector of dense matrices. Consequently, the accessors
-     * eigenvaluesBySectors() and eigenvectorsBySectors() should be used for
-     * best performance.
-     *
-     * Uses less memory than diagonalizeUsingSymmetries and is also a little bit
-     * faster.
-     */
-    void diagonalizeUsingSymmetriesBySectors ()
-    {
-        sEigenvalues.resize(0);
-        sEigenvectors.resize(0,0);
-        const std::vector<Range>& rs = s.basis.getRanges();
-        dEigenvalues.resize(rs.size());
-        dEigenvectors.resize(rs.size());
-        std::vector<size_t> is(rs.size());
-        for (size_t i=0; i<is.size(); i++)
-            is[i] = i;
-        std::sort(is.begin(), is.end(), SortIndicesAccordingToSizeOfRanges(rs));
-
-        const size_t n_largest = rs[is[0]].b-rs[is[0]].a;
-        SelfAdjointEigenSolver<DMatrix> es(n_largest*n_largest);
-        
-        for (size_t i=0; i<is.size(); i++)
-        {
-            const int a = rs[is[i]].a;
-            const int b = rs[is[i]].b;
-            // useful debug output when diagonalizing very large Hamiltonians
-            // std::cerr << "-> " << "Diagonalizing range " << is[i] << " out of " 
-            //           << rs.size() << " ranges." << std::endl
-            //           << "-> Size of range " << is[i] << ": " << b-a << std::endl;
-            assert(4E9 > (b-a)*(b-a)*sizeof(double));
-            es.compute(H.block(a,a,b-a,b-a));
-            dEigenvalues[is[i]] = es.eigenvalues();
-            dEigenvectors[is[i]] = es.eigenvectors();
-        }
-        minEnergy = dEigenvalues[0].minCoeff();
-        for (size_t i=1; i<dEigenvalues.size(); i++)
-            if (dEigenvalues[i].minCoeff() < minEnergy) 
-                minEnergy = dEigenvalues[i].minCoeff();
-    }
-
-    void diagonalize ()
-    {
-        diagonalizeUsingSymmetriesBySectors();
-    }
-
-    const DVector& eigenvalues ()
-    {
-        if (sEigenvalues.size() == 0 && dEigenvalues.size() > 0)
-        {
-            sEigenvalues.resize(H.rows());
-            int k=0;
-            for (size_t i=0; i<dEigenvalues.size(); i++)
-                for (int j=0; j<dEigenvalues[i].size(); j++)
-                {
-                    assert(k<sEigenvalues.size());
-                    sEigenvalues(k) = dEigenvalues[i](j);
-                    k++;
-                }
-        }
-        return sEigenvalues;
-    }
-
-    const SMatrix& eigenvectors () 
-    {
-        if (sEigenvectors.size() == 0 && dEigenvectors.size() > 0)
-        {
-            sEigenvectors = SMatrix(H.rows(), H.rows());
-            sEigenvectors.setZero();
-            int k=0;
-            for (size_t i=0; i<dEigenvectors.size(); i++)
-            {
-                const int size = dEigenvectors[i].rows();
-                denseToSparseBlockInPlace(dEigenvectors[i], sEigenvectors, k, k, size, size);
-                k += size;
-            }
-            sEigenvectors.finalize();
-        }
-        return sEigenvectors;
-    }
-
-    const std::vector<DVector>& eigenvaluesBySectors ()
-    {
-        if (dEigenvalues.size() == 0 && sEigenvalues.size() > 0)
-            dEigenvalues.push_back(sEigenvalues);
-        return dEigenvalues;
-    }
-
-    const std::vector<DMatrix>& eigenvectorsBySectors ()
-    {
-        if (dEigenvectors.size() == 0 && sEigenvectors.size() > 0)
-            dEigenvectors.push_back(sEigenvectors);
-        return dEigenvectors;
-    }
-
-    double Emin () const
-    {
-        return minEnergy;
-    }
-
 protected:
-    SMatrix denseToSparseBlock (const DMatrix& dm, int i, int j, int p, int q)
-    {
-        SMatrix sm(p,q);
-        for (int l=0; l<q; l++)
-        {
-            sm.startVec(l);
-            for (int k=0; k<p; k++)
-                if (dm(k+i,l+j) != 0)
-                    sm.insertBack(k,l) = dm(k+i,l+j);
-        }
-        sm.finalize();
-        return sm;
-    }
-
-    void denseToSparseBlockInPlace (const DMatrix& dm, SMatrix& sm, int i, int j, int p, int q)
-    {
-        assert(dm.rows() == p);
-        assert(dm.cols() == q);
-
-        for (int l=0; l<q; l++)
-        {
-            sm.startVec(l+j);
-            for (int k=0; k<p; k++)
-                sm.insertBack(k+i,l+j) = dm(k,l);
-        }
-    }
-
-    class CompareSizeOfRanges
-    {
-    public:
-        bool operator() (const Range& r1, const Range& r2) const
-        {
-            return (r1.b-r1.a)>(r2.b-r2.a);
-        }
-    };
-
     class SortIndicesAccordingToSizeOfRanges
     {
     public:
@@ -403,83 +167,99 @@ protected:
 
     System& s;
     SMatrix H;
-    SMatrix sEigenvectors; //simple or sparse eigenvectors
-    DVector sEigenvalues; //simple eigenvalues
-    std::vector<DMatrix> dEigenvectors; //dense eigenvectors
-    std::vector<DVector> dEigenvalues; //dense eigenvalues
-    double minEnergy;
-};
+    DVector es; // eigenvalues
+    // SMatrix vs; // eigenvalues, unused
+    std::vector<DVector> es_s; // eigenvalues, sector-wise
+    std::vector<DMatrix> vs_s; // eigenvectors, sector-wise
+    double E_min;
 
-/**
- * Calculate the ensemble average.
- *
- * Accesses eigenvectors as one big sparse matrix. Thus it should be used
- * whenever Hamiltonian::diagonalizeNoSymmetries or
- * Hamiltonian::diagonalizeUsingSymmetries is used, for best performance.
- * Example usage:
- * @code
- * EnsembleAverage ensembleAverage(mySystem);
- * MyFunkyOperator O(mySystem);
- * ensembleAverage(beta, O); //will expect and use mySystem.H
- * @endcode
- *
- * Dependencies: System.basis and System.H (Hamiltonian)
- *
- * @tparam System
- */
-template<class System>
-class EnsembleAverage
-{
 public:
-    EnsembleAverage (System& s_)
-    : s(s_)
+    Hamiltonian (System& s_)
+    : s(s_), H(), E_min(0)
     {}
 
     /**
-     * Calculate the ensemble average for the given operator.
+     * Construct the Hamiltonian matrix.
      *
-     * @param beta = 1/T (temperature)
-     * @param O operator matrix
-     *
-     * @return 
+     * Has to be overwritten by deriving classes.
      */
-    double operator() (double beta, const SMatrix& O) const
-    {
-        double sum = 0;
-        const DVector& eigenvalues = s.H.eigenvalues();
-        const SMatrix& eigenvectors = s.H.eigenvectors();
-        for (int i=0; i<eigenvalues.size(); i++)
-        {
-            const SMatrix& bra = eigenvectors.col(i).adjoint();
-            const SMatrix& ket = eigenvectors.col(i);
-            SMatrix m = bra * O * ket;
-            // Does not work. Should be a bug in Eigen.
-            //SMatrix m = eigenvectors.col(i).adjoint() * O * eigenvectors.col(i);
-            assert(m.size() == 1);
-            if (m.nonZeros() != 0)
-                sum += std::exp(-beta * (eigenvalues(i) - s.H.Emin())) * m.coeffRef(0,0);
-        }
-        return sum / partitionFunction(beta);
-    }
+    void construct() {}
 
     /**
-     * Calculate the partition function at the given temperature.
+     * Diagonalizes the Hamiltonian matrix using symmetries.
      *
-     * @param beta = 1/T (temperature)
+     * Similar to diagonalizeUsingSymmetries, but stores eigenvectors as an
+     * std::vector of dense matrices. Consequently, the accessors
+     * eigenvaluesBySectors() and eigenvectorsBySectors() should be used for
+     * best performance.
      *
-     * @return 
+     * Uses less memory than diagonalizeUsingSymmetries and is also a little bit
+     * faster.
      */
-    double partitionFunction (double beta) const
+    void diagonalize ()
     {
-        double Z = 0;
-        const DVector& eigenvalues = s.H.eigenvalues();
-        for (int i=0; i<eigenvalues.size(); i++)
-            Z += std::exp(-beta * (eigenvalues(i) - s.H.Emin()));
-        return Z;
+        es.resize(0);
+        const std::vector<Range>& rs = s.basis.getRanges();
+        es_s.resize(rs.size());
+        vs_s.resize(rs.size());
+        std::vector<size_t> is(rs.size());
+        for (size_t i=0; i<is.size(); i++)
+            is[i] = i;
+        std::sort(is.begin(), is.end(), SortIndicesAccordingToSizeOfRanges(rs));
+
+        const size_t n_largest = rs[is[0]].b-rs[is[0]].a;
+        SelfAdjointEigenSolver<DMatrix> s(n_largest*n_largest);
+        
+        for (size_t i=0; i<is.size(); i++)
+        {
+            const int a = rs[is[i]].a;
+            const int b = rs[is[i]].b;
+            // useful debug output when diagonalizing very large Hamiltonians
+            // std::cerr << "-> " << "Diagonalizing range " << is[i] << " out of " 
+            //           << rs.size() << " ranges." << std::endl
+            //           << "-> Size of range " << is[i] << ": " << b-a << std::endl;
+            assert(4E9 > (b-a)*(b-a)*sizeof(double));
+            s.compute(H.block(a,a,b-a,b-a));
+            es_s[is[i]] = s.eigenvalues();
+            vs_s[is[i]] = s.eigenvectors();
+        }
+        E_min = es_s[0].minCoeff();
+        for (size_t i=1; i<es_s.size(); i++)
+            if (es_s[i].minCoeff() < E_min) 
+                E_min = es_s[i].minCoeff();
     }
 
-private:
-    System& s;
+    const std::vector<DVector>& eigenvaluesBySectors ()
+    {
+        return es_s;
+    }
+
+    const std::vector<DMatrix>& eigenvectorsBySectors ()
+    {
+        return vs_s;
+    }
+
+    const DVector& eigenvalues ()
+    {
+        if (es.size() == 0 && es_s.size() > 0)
+        {
+            es.resize(H.rows());
+            int k=0;
+            for (size_t i=0; i<es_s.size(); i++)
+                for (int j=0; j<es_s[i].size(); j++)
+                {
+                    assert(k<es.size());
+                    es(k) = es_s[i](j);
+                    k++;
+                }
+        }
+        return es;
+    }
+
+    double Emin () const
+    {
+        return E_min;
+    }
 };
 
 /**
@@ -501,10 +281,10 @@ private:
  * @tparam System
  */
 template<class System>
-class EnsembleAverageBySectors
+class EnsembleAverage
 {
 public:
-    EnsembleAverageBySectors (System& s_)
+    EnsembleAverage (System& s_)
     : s(s_)
     {}
 
@@ -619,4 +399,4 @@ protected:
     }
 };
 
-#endif // __TEST_HPP__
+#endif // __SYSTEM_HPP__
