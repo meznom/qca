@@ -526,8 +526,8 @@ public:
 
         // Partition function
         double Z = 0;
-        const std::vector<DVector>& eigenvalues = H.eigenvaluesBySectors();
-        const std::vector<DMatrix>& eigenvectors = H.eigenvectorsBySectors();
+        const std::vector<DVector>& eigenvalues = H.eigenvaluesBySector();
+        const std::vector<DMatrix>& eigenvectors = H.eigenvectorsBySector();
         for (size_t i=0; i<eigenvalues.size(); i++)
             for (int j=0; j<eigenvalues[i].size(); j++)
                 Z += std::exp(-beta * (eigenvalues[i](j) - H.Emin()));

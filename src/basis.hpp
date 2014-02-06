@@ -120,7 +120,7 @@ std::ostream& operator<< (std::ostream& o, const FermionicState<T>& fs)
 }
 
 #ifndef STORAGE_TYPE_OF_FERMIONIC_STATE
-#define STORAGE_TYPE_OF_FERMIONIC_STATE uint16_t
+#define STORAGE_TYPE_OF_FERMIONIC_STATE uint32_t
 #endif
 
 typedef FermionicState<STORAGE_TYPE_OF_FERMIONIC_STATE> State;

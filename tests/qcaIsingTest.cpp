@@ -1,8 +1,6 @@
 #define BOOST_TEST_DYN_LINK
 #define BOOST_TEST_MODULE qca test
 #include <boost/test/unit_test.hpp>
-
-#define STORAGE_TYPE_OF_FERMIONIC_STATE uint32_t
 #include "qca.hpp"
 
 bool equal(double a, double b, double epsilon=1E-8)

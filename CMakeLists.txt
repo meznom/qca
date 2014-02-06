@@ -1,7 +1,7 @@
 ### generic ###
 project(ExactDiagonalization)
 cmake_minimum_required(VERSION 2.6)
-#set(CMAKE_VERBOSE_MAKEFILE ON)
+set(CMAKE_VERBOSE_MAKEFILE OFF)
 
 ### set up paths and flags ###
 find_path(
@@ -29,7 +29,8 @@ include_directories(
     ${PYTHON_INCLUDE_DIRS}
 )
 
-set(BASIS_NUMBER_OF_BITS "16" CACHE STRING "Number of bits used to store basis. Should be 16, 32 or 64. Generally this should be equal to or larger than 8 times the number of QCA cells.")
+set(BASIS_NUMBER_OF_BITS "32" CACHE STRING
+    "Number of bits used to store basis. Should be 16, 32 or 64. Generally this should be equal to the number of 'orbitals' in the system.")
 
 ### check compiler and set flags appropriately ###
 # this is untested for Intel, as I don't have access to Intel compilers right now

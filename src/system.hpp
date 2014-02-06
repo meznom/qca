@@ -188,13 +188,9 @@ public:
     /**
      * Diagonalizes the Hamiltonian matrix using symmetries.
      *
-     * Similar to diagonalizeUsingSymmetries, but stores eigenvectors as an
-     * std::vector of dense matrices. Consequently, the accessors
-     * eigenvaluesBySectors() and eigenvectorsBySectors() should be used for
-     * best performance.
-     *
-     * Uses less memory than diagonalizeUsingSymmetries and is also a little bit
-     * faster.
+     * The Hamiltonian is diagonalized block-wise. Consequently, eigenvalues and
+     * eigenvectors should be accessed via the eigenvaluesBySector and
+     * eigenvectorsBySector methods.
      */
     void diagonalize ()
     {
@@ -208,7 +204,7 @@ public:
         std::sort(is.begin(), is.end(), SortIndicesAccordingToSizeOfRanges(rs));
 
         const size_t n_largest = rs[is[0]].b-rs[is[0]].a;
-        SelfAdjointEigenSolver<DMatrix> s(n_largest*n_largest);
+        SelfAdjointEigenSolver<DMatrix> s(n_largest);
         
         for (size_t i=0; i<is.size(); i++)
         {
@@ -229,12 +225,12 @@ public:
                 E_min = es_s[i].minCoeff();
     }
 
-    const std::vector<DVector>& eigenvaluesBySectors ()
+    const std::vector<DVector>& eigenvaluesBySector ()
     {
         return es_s;
     }
 
-    const std::vector<DMatrix>& eigenvectorsBySectors ()
+    const std::vector<DMatrix>& eigenvectorsBySector ()
     {
         return vs_s;
     }
@@ -268,10 +264,9 @@ public:
  * "By sectors" essentially means that the eigenvalues are accessed as an
  * std::vector of dense vectors and the eigenvectors are accessed as an
  * std::vector of dense matrices. Hence this class should be used whenever
- * Hamiltonian::diagonlizeUsingSymmetriesBySectors is used, for best
- * performance. Example usage:
+ * Hamiltonian::diagonlize is used, for best performance. Example usage:
  * @code
- * EnsembleAverageBySectors ensembleAverage(mySystem);
+ * EnsembleAverage ensembleAverage(mySystem);
  * MyFunkyOperator O(mySystem);
  * ensembleAverage(beta, O); //will expect and use mySystem.H
  * @endcode
@@ -300,8 +295,8 @@ public:
     {
         double sum = 0;
         size_t index = 0;
-        const std::vector<DVector>& eigenvalues = s.H.eigenvaluesBySectors();
-        const std::vector<DMatrix>& eigenvectors = s.H.eigenvectorsBySectors();
+        const std::vector<DVector>& eigenvalues = s.H.eigenvaluesBySector();
+        const std::vector<DMatrix>& eigenvectors = s.H.eigenvectorsBySector();
         for (size_t i=0; i<eigenvalues.size(); i++)
         {
             // note: usually O is very sparse, so it is essential to use a
@@ -327,7 +322,7 @@ public:
     double partitionFunction (double beta) const
     {
         double Z = 0;
-        const std::vector<DVector>& eigenvalues = s.H.eigenvaluesBySectors();
+        const std::vector<DVector>& eigenvalues = s.H.eigenvaluesBySector();
         for (size_t i=0; i<eigenvalues.size(); i++)
             for (int j=0; j<eigenvalues[i].size(); j++)
                 Z += std::exp(-beta * (eigenvalues[i](j) - s.H.Emin()));
@@ -336,67 +331,6 @@ public:
 
 private:
     System& s;
-};
-
-/**
- * Minimal base class for a fermionic quantum system.
- *
- * Only contains the basis. 
- *
- * Typical usage is to subclass and specify a custom Hamiltonian (subclassed
- * from Hamiltonian) as mySystem.H and probably some observables of interest
- * (say the particle number) as well as the EnsembleAverage.
- */
-class MinimalSystem
-{
-public:
-    /**
-     * Construct the minimal system. 
-     *
-     * @param N_orbital number of orbitals
-     */
-    MinimalSystem (size_t N_orbital_)
-    : N_orbital(N_orbital_)
-    {}
-
-    size_t N_orbital;
-    Basis basis;
-
-protected:
-    void construct ()
-    {
-        basis.construct(N_orbital);
-    }
-};
-
-/**
- * Basic base class for fermionic quantum systems.
- *
- * In addition to the basis the basic system conveniently defines creator and
- * annihilator.
- */
-class BasicSystem : public MinimalSystem
-{
-public:
-    /**
-     * Construct the basic system.
-     *
-     * @param N_orbital_
-     */
-    BasicSystem (size_t N_orbital_)
-    : MinimalSystem(N_orbital_), creator(*this), annihilator(*this)
-    {}
-
-    Creator<BasicSystem> creator;
-    Annihilator<BasicSystem> annihilator;
-
-protected:
-    void construct ()
-    {
-        MinimalSystem::construct();
-        creator.construct();
-        annihilator.construct();
-    }
 };
 
 #endif // __SYSTEM_HPP__

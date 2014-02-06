@@ -2,8 +2,6 @@
 #define BOOST_TEST_MODULE qca test
 #include <boost/test/unit_test.hpp>
 #include <ctime>
-
-#define STORAGE_TYPE_OF_FERMIONIC_STATE uint32_t
 #include "qca.hpp"
 
 // TODO: replace Vext tests (commented for now) with tests that don't need Vext
@@ -361,7 +359,7 @@ BOOST_AUTO_TEST_CASE ( test_diagonalization_of_qca_grand_canonical_system )
     s1.constructBasis();
     s1.H.construct();
     s1.H.diagonalize();
-    BOOST_CHECK (s1.energies().size() == 257);
+    BOOST_CHECK (s1.energies().size() == 256);
 
     QcaGrandCanonical s2;
     s2.l = WireNoDriver2e(2);
@@ -434,7 +432,7 @@ BOOST_AUTO_TEST_CASE ( performance_of_diagonalization_for_qca_fixed_charge )
     s.H.construct();
     endCPUTime = std::clock();
     cpuTime = static_cast<double>(endCPUTime-startCPUTime)/CLOCKS_PER_SEC;
-    std::cerr << "Time for construction of two plaquet QCA quarterfilled system: " 
+    std::cerr << "Time for construction of two plaquet QCA fixed charge system: " 
               << cpuTime << "s" << std::endl;
 
     startCPUTime = std::clock();
