@@ -357,3 +357,97 @@ class TestQCA(unittest.TestCase):
         self.assertAlmostEqual(r1['P'][0], r3['P'][0])
         self.assertAlmostEqual(r1['P'][1], r3['P'][1])
         self.assertAlmostEqual(r1['P'][2], r3['P'][2])
+    
+    def test_kinky_wire(self):
+        s = qca.QcaBond()
+
+        # Compare normal wire and kinky wire without kinks
+        s.l = qca.Wire(3,100,3.0,1)
+        s.V0 = 1E6
+        s.T = 1
+        s.q = 0.5
+        s.init()
+        s.run()
+        r_ = s.results.copy()
+        print('\nKinky wire, equal to a normal wire')
+        print('P_1 = {}\nP_2 = {}\nP_3 = {}'
+              .format(r_['P'][0], r_['P'][1], r_['P'][2]))
+
+        kinks = [{},{0:0},{1:0},{1:0,2:0},{0:90},{3:10},{5:90}]
+        for k in kinks:
+            s.l = qca.KinkyWire(3,100,4.0,1,k)
+            s.V0 = 1E6
+            s.T = 1
+            s.q = 0.5
+            s.init()
+            s.run()
+            r = s.results.copy()
+            self.assertAlmostEqual(r_['P'][0], r['P'][0])
+            self.assertAlmostEqual(r_['P'][1], r['P'][1])
+            self.assertAlmostEqual(r_['P'][2], r['P'][2])
+
+
+        # Compare angle wire and kinky wire without kinks
+        s.l = qca.AngleWire(3,100,4.0,45.0,1)
+        s.V0 = 1E6
+        s.T = 1
+        s.q = 0.5
+        s.init()
+        s.run()
+        r_ = s.results.copy()
+        print('\nKinky wire, equal to a 45 degree wire')
+        print('P_1 = {}\nP_2 = {}\nP_3 = {}'
+              .format(r_['P'][0], r_['P'][1], r_['P'][2]))
+
+        kinks = [{0:45},{0:45,2:0},{0:-45},{0:135},{0:45,3:10}]
+        for k in kinks:
+            s.l = qca.KinkyWire(3,100,4.0,1,k)
+            s.V0 = 1E6
+            s.T = 1
+            s.q = 0.5
+            s.init()
+            s.run()
+            r = s.results.copy()
+            self.assertAlmostEqual(r_['P'][0], r['P'][0])
+            self.assertAlmostEqual(r_['P'][1], r['P'][1])
+            self.assertAlmostEqual(r_['P'][2], r['P'][2])
+
+        # Compare normal wire and kinky wire with one kink
+        s.l = qca.Wire(3,100,3.0,1)
+        s.V0 = 1E6
+        s.T = 1
+        s.q = 0.5
+        s.init()
+        s.run()
+        r_ = s.results.copy()
+        print('\nNormal wire')
+        print('P_1 = {}\nP_2 = {}\nP_3 = {}'
+              .format(r_['P'][0], r_['P'][1], r_['P'][2]))
+
+        s.l = qca.KinkyWire(3,100,4.0,1,{1: 10})
+        s.V0 = 1E6
+        s.T = 1
+        s.q = 0.5
+        s.init()
+        s.run()
+        r = s.results.copy()
+        print('\nKinky wire with 10 degree kink after the first cell')
+        print('P_1 = {}\nP_2 = {}\nP_3 = {}'
+              .format(r['P'][0], r['P'][1], r['P'][2]))
+        self.assertAlmostEqual(r_['P'][0], r['P'][0], 2)
+        self.assertGreater(r_['P'][1], r['P'][1])
+        self.assertGreater(r_['P'][2], r['P'][2])
+
+        s.l = qca.KinkyWire(3,100,4.0,1,{2: -10})
+        s.V0 = 1E6
+        s.T = 1
+        s.q = 0.5
+        s.init()
+        s.run()
+        r = s.results.copy()
+        print('\nKinky wire with -10 degree kink after the second cell')
+        print('P_1 = {}\nP_2 = {}\nP_3 = {}'
+              .format(r['P'][0], r['P'][1], r['P'][2]))
+        self.assertAlmostEqual(r_['P'][0], r['P'][0],2)
+        self.assertAlmostEqual(r_['P'][1], r['P'][1],2)
+        self.assertGreater(r_['P'][2], r['P'][2])

@@ -217,3 +217,43 @@ class AngleWire(Layout):
 
     def __setstate__(self, i):
         self.__init__(i['N'], i['V1'], i['doa'], i['theta'], i['P'])
+
+class KinkyWire(Layout):
+    def __init__(self, N_, V1_, doa_, P_, kinks_):
+        Layout.__init__(self)
+        self.N = N_
+        self.V1 = V1_
+        self.doa = doa_
+        self.P = P_
+        self.kinks = kinks_
+        
+        a = 1.0 / self.V1
+        d = self.doa * a
+        theta,x,y = 0,0,0
+        thetas,xs,ys = [],[],[]
+        for i in range(self.N):
+            if self.kinks.has_key(i):
+                theta += self.kinks[i] * math.pi / 180.0
+            x += d * math.cos(theta)
+            y += d * math.sin(theta)
+            thetas.append(theta)
+            xs.append(x)
+            ys.append(y)
+
+        self._pl.addDriverCell(0, 0, a, self.P)
+        for x,y in zip(xs,ys):
+            self._pl.addCell(x, y, a)
+
+    def __getstate__(self):
+        i = OrderedDict()
+        i['type'] = 'kinky_wire'
+        i['N'] = self.N
+        i['V1'] = self.V1
+        i['doa'] = self.doa
+        i['P'] = self.P
+        i['kinks'] = self.kinks
+        i.update(Layout.__getstate__(self))
+        return i
+
+    def __setstate__(self, i):
+        self.__init__(i['N'], i['V1'], i['doa'], i['P'], i['kinks'])
