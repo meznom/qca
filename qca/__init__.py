@@ -8,7 +8,7 @@ except ImportError:
 from .models import QcaBond, QcaFixedCharge, QcaGrandCanonical, QcaIsing, QcaError
 from .layout import Layout, Wire, NonuniformWire, WireWithTwoDriverCells, \
                     NonuniformWireWithTwoDriverCells, InfiniteWire, AngleWire, \
-                    KinkyWire
+                    KinkyWire, MajorityGate
 from .selfconsistency import SelfConsistency
 from ._qca import ElectronsPerCell
 from . import test

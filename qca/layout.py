@@ -257,3 +257,48 @@ class KinkyWire(Layout):
 
     def __setstate__(self, i):
         self.__init__(i['N'], i['V1'], i['doa'], i['P'], i['kinks'])
+
+class MajorityGate(Layout):
+    def __init__(self, N_lead_, V1_, doa_, I1_, I2_, I3_):
+        Layout.__init__(self)
+        self.N_lead = N_lead_
+        self.V1 = V1_
+        self.doa = doa_
+        self.I1 = I1_
+        self.I2 = I2_
+        self.I3 = I3_
+
+        a = 1.0 / self.V1
+        d = self.doa * a
+        
+        # active cells
+        self._pl.addCell(0,0,a)
+        for i in range(1, self.N_lead+1):
+            self._pl.addCell(0,i*d,a)
+        for i in range(1, self.N_lead+1):
+            self._pl.addCell(-i*d,0,a)
+        for i in range(1, self.N_lead+1):
+            self._pl.addCell(0,-i*d,a)
+        for i in range(1, self.N_lead+1):
+            self._pl.addCell(i*d,0,a)
+
+        # driver cells
+        z = (self.N_lead+1)*d
+        self._pl.addDriverCell(0,z,a,self.I1)
+        self._pl.addDriverCell(-z,0,a,self.I2)
+        self._pl.addDriverCell(0,-z,a,self.I3)
+
+    def __getstate__(self):
+        i = OrderedDict()
+        i['type'] = 'majority_gate'
+        i['N_lead'] = self.N_lead
+        i['V1'] = self.V1
+        i['doa'] = self.doa
+        i['I1'] = self.I1
+        i['I2'] = self.I2
+        i['I3'] = self.I3
+        i.update(Layout.__getstate__(self))
+        return i
+
+    def __setstate__(self, i):
+        self.__init__(i['N_lead'], i['V1'], i['doa'], i['I1'], i['I2'], i['I3'])

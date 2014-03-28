@@ -451,3 +451,31 @@ class TestQCA(unittest.TestCase):
         self.assertAlmostEqual(r_['P'][0], r['P'][0],2)
         self.assertAlmostEqual(r_['P'][1], r['P'][1],2)
         self.assertGreater(r_['P'][2], r['P'][2])
+
+    def test_majority_gate(self):
+        s = qca.QcaIsing()
+        
+        s.l = qca.MajorityGate(1,200,3.0,0,0,0)
+        s.V0 = 1E6
+        s.T = 1
+        s.q = 0.5
+        s.init()
+        s.run()
+        self.assertAlmostEqual(s.results['P'][-1], 0)
+
+        Is = [(1,1,1),(-1,-1,-1),
+              (1,-1,1),(-1,1,1),(-1,-1,1), # or gate with I3 fixed
+              (-1,1,1),(1,1,-1),(-1,1,-1)] # or gate with I2 fixed
+        Os = [1,-1,
+              1,1,-1,
+              1,1,-1]
+        for I,O in zip(Is,Os):
+            s.l = qca.MajorityGate(1,200,3.0,*I)
+            s.V0 = 1E6
+            s.T = 1
+            s.q = 0.5
+            s.init()
+            s.run()
+            # print(s.results['P'])
+            # test the output polarization
+            self.assertGreater(s.results['P'][-1] * O, 0.5)
