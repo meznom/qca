@@ -220,6 +220,20 @@ class AngleWire(Layout):
 
 class KinkyWire(Layout):
     def __init__(self, N_, V1_, doa_, P_, kinks_):
+        """Construct a wire with kinks.
+
+        N_ is the number of cells in the wire.
+        V1_ is the Coulombic term, V1 = 1/a.
+        doa_ is d/a, the cell-cell distance. (d/a = b/a + 1).
+        P_ is the driver cell polarization.
+
+        kinks_ is a tuple of 2-tuples. Each 2-tuple's first entry is the cell
+        after which the kink is positioned. The second entry is the angle of
+        the kink in degrees. For example, kinks_=((5,90),) describes a wire
+        with a single 90 degree kink after the fifth cell. Alternatively,
+        kinks_ can also be a corresponding dict (but a dict is mutable which is
+        a disadvantage in certain use cases).
+        """
         Layout.__init__(self)
         self.N = N_
         self.V1 = V1_
@@ -229,11 +243,12 @@ class KinkyWire(Layout):
         
         a = 1.0 / self.V1
         d = self.doa * a
+        ks = dict(self.kinks)
         theta,x,y = 0,0,0
         thetas,xs,ys = [],[],[]
         for i in range(self.N):
-            if self.kinks.has_key(i):
-                theta += self.kinks[i] * math.pi / 180.0
+            if ks.has_key(i):
+                theta += ks[i] * math.pi / 180.0
             x += d * math.cos(theta)
             y += d * math.sin(theta)
             thetas.append(theta)
