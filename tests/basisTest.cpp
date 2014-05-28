@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2011-2014 Burkhard Ritter
+ * This code is distributed under the two-clause BSD License.
+ */
 #define BOOST_TEST_DYN_LINK
 #define BOOST_TEST_MODULE basis test
 #include <boost/test/unit_test.hpp>

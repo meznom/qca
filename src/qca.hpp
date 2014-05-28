@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2011-2014 Burkhard Ritter
+ * This code is distributed under the two-clause BSD License.
+ */
 #ifndef __QCA_HPP__
 #define __QCA_HPP__
 

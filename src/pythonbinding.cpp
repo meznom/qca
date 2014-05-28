@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2011-2014 Burkhard Ritter
+ * This code is distributed under the two-clause BSD License.
+ */
 #include <boost/python.hpp>
 #include <boost/python/to_python_converter.hpp>
 #include <boost/python/stl_iterator.hpp>

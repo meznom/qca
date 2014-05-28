@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2011-2014 Burkhard Ritter
+ * This code is distributed under the two-clause BSD License.
+ */
 #ifndef __BASIS_HPP__
 #define __BASIS_HPP__
 

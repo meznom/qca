@@ -1,11 +1,7 @@
-/**
- * @file system.hpp
- * Exact diagonalizer base classes.
- * @author Burkhard Ritter
- * @version 
- * @date 2010-12-10
+/*
+ * Copyright (c) 2011-2014 Burkhard Ritter
+ * This code is distributed under the two-clause BSD License.
  */
-
 #ifndef __SYSTEM_HPP__
 #define __SYSTEM_HPP__
 
