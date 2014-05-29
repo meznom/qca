@@ -66,8 +66,8 @@ public:
 
     typename bitset::reference operator[] (size_t pos)
     {
-        //return s[pos];
-        return typename bitset::reference(s, pos);
+        return s[pos];
+        //return typename bitset::reference(s, pos);
     }
 
     size_t size() const

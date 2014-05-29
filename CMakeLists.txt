@@ -5,10 +5,10 @@ set(CMAKE_VERBOSE_MAKEFILE OFF)
 
 ### set up paths and flags ###
 find_path(
-	EIGEN_INCLUDE_DIR 
+    EIGEN_INCLUDE_DIR 
     NAMES Eigen/Sparse Eigen/Dense
-	PATHS ~/include ~/src/include ~/o/include ~/o/src/include /opt/local/include /sw/include
-	PATH_SUFFIXES eigen3 eigen
+    PATHS ~/include ~/src/include ~/o/include ~/o/src/include /opt/local/include
+    PATH_SUFFIXES eigen3 eigen
 )
 # Boost
 set(Boost_DEBUG OFF)
@@ -24,7 +24,7 @@ set(Python_ADDITIONAL_VERSIONS "2.7")
 find_package(PythonLibs)
 
 include_directories(
-	${EIGEN_INCLUDE_DIR}
+    ${EIGEN_INCLUDE_DIR}
     ${Boost_INCLUDE_DIRS}
     ${PYTHON_INCLUDE_DIRS}
 )
@@ -52,16 +52,16 @@ endif()
 
 if (${COMPILER} STREQUAL "Intel")
     message(STATUS "Setting flags for Intel compiler")
- 	set(USE_CXX_FLAGS_DEBUG "-O0 -Wall -g" CACHE STRING "")
- 	set(USE_CXX_FLAGS_RELEASE "-fast -Wall -DNDEBUG" CACHE STRING "")
+    set(USE_CXX_FLAGS_DEBUG "-O0 -Wall -g" CACHE STRING "")
+    set(USE_CXX_FLAGS_RELEASE "-fast -Wall -DNDEBUG" CACHE STRING "")
 elseif (${COMPILER} STREQUAL "GCC")
     message(STATUS "Setting flags for GCC compiler")
     set(USE_CXX_FLAGS_DEBUG "-std=c++11 -m64 -O0 -Wall -Wno-unused-local-typedefs -ggdb -fopenmp" CACHE STRING "")
- 	set(USE_CXX_FLAGS_RELEASE "-std=c++11 -m64 -O3 -Wall -Wno-unused-local-typedefs -march=native -fopenmp -DNDEBUG" CACHE STRING "")
+    set(USE_CXX_FLAGS_RELEASE "-std=c++11 -m64 -O3 -Wall -Wno-unused-local-typedefs -march=native -fopenmp -DNDEBUG" CACHE STRING "")
 elseif (${COMPILER} STREQUAL "Clang")
     message(STATUS "Setting flags for Clang compiler")
-    set(USE_CXX_FLAGS_DEBUG "-std=c++11 -m64 -O0 -Wall -ggdb" CACHE STRING "")
- 	set(USE_CXX_FLAGS_RELEASE "-std=c++11 -m64 -O3 -Wall -march=native -DNDEBUG" CACHE STRING "")
+    set(USE_CXX_FLAGS_DEBUG "-std=c++11 -stdlib=libc++ -mmacosx-version-min=10.8 -m64 -O0 -Wall -ggdb" CACHE STRING "")
+    set(USE_CXX_FLAGS_RELEASE "-std=c++11 -stdlib=libc++ -mmacosx-version-min=10.8 -m64 -O3 -Wall -march=native -DNDEBUG" CACHE STRING "")
 endif()
 
 set(CMAKE_CXX_FLAGS_DEBUG "${USE_CXX_FLAGS_DEBUG} -DSTORAGE_TYPE_OF_FERMIONIC_STATE=uint${BASIS_NUMBER_OF_BITS}_t")
