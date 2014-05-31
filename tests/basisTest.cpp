@@ -41,8 +41,10 @@ BOOST_AUTO_TEST_CASE ( costruct_basis_with_symmetry_operators )
     
     BOOST_CHECK (b1.size() == 16);
    
-    char eArray1[][10] = {"0000", "0100", "0001", "1000", "0010", "0101", "1100", "0110", "1001", "0011", "1010", "1101", "0111", "1110", "1011", "1111"};
-    std::vector<std::string> expected1(eArray1, eArray1+16);
+    std::vector<std::string> expected1 = {"0000", "0100", "0001", "1000",
+                                          "0010", "0101", "1100", "0110",
+                                          "1001", "0011", "1010", "1101",
+                                          "0111", "1110", "1011", "1111"};
     for (size_t i=0; i<b1.size(); i++)
         BOOST_CHECK (expected1[i] == b1(i).toString());
 
@@ -53,8 +55,10 @@ BOOST_AUTO_TEST_CASE ( costruct_basis_with_symmetry_operators )
 
     BOOST_CHECK (b2.size() == 16);
    
-    char eArray2[][10] = {"0101", "0100", "0001", "1101", "0111", "0000", "1100", "0110", "1001", "0011", "1111", "1000", "0010", "1110", "1011", "1010"};
-    std::vector<std::string> expected2(eArray2, eArray2+16);
+    std::vector<std::string> expected2 = {"0101", "0100", "0001", "1101",
+                                          "0111", "0000", "1100", "0110",
+                                          "1001", "0011", "1111", "1000",
+                                          "0010", "1110", "1011", "1010"};
     for (size_t i=0; i<b2.size(); i++)
         BOOST_CHECK (expected2[i] == b2(i).toString());
     
@@ -170,8 +174,8 @@ BOOST_AUTO_TEST_CASE ( test_construct_basis_with_filter )
     SpinSymmetryOperator S;
     b.addSymmetryOperator(&N);
     b.addSymmetryOperator(&S);
-    BOOST_CHECK_THROW (b.setFilter(constructSector(1,2,3)), BasisException);
-    b.setFilter(constructSector(2));
+    BOOST_CHECK_THROW (b.setFilter(Sector{1,2,3}), BasisException);
+    b.setFilter(Sector{2});
     b.construct(8);
     BOOST_CHECK (b.size() == 28);
     BOOST_CHECK (b.getRanges().size() == 3);
@@ -179,7 +183,7 @@ BOOST_AUTO_TEST_CASE ( test_construct_basis_with_filter )
     b = Basis();
     b.addSymmetryOperator(&N);
     b.addSymmetryOperator(&S);
-    b.setFilter(constructSector(2,0));
+    b.setFilter(Sector{2,0});
     b.construct(8);
     BOOST_CHECK (b.size() == 16);
     BOOST_CHECK (b.getRanges().size() == 1);
@@ -187,7 +191,7 @@ BOOST_AUTO_TEST_CASE ( test_construct_basis_with_filter )
     b = Basis();
     b.addSymmetryOperator(&N);
     b.addSymmetryOperator(&S);
-    b.setFilter(constructSector(3,-1));
+    b.setFilter(Sector{3,-1});
     b.construct(8);
     BOOST_CHECK (b.size() == 24);
     BOOST_CHECK (b.getRanges().size() == 1);
@@ -195,7 +199,7 @@ BOOST_AUTO_TEST_CASE ( test_construct_basis_with_filter )
     b = Basis();
     b.addSymmetryOperator(&N);
     b.addSymmetryOperator(&S);
-    b.setFilter(constructSector(3));
+    b.setFilter(Sector{3});
     b.construct(8);
     BOOST_CHECK (b.size() == 56);
     BOOST_CHECK (b.getRanges().size() == 4);
@@ -203,7 +207,7 @@ BOOST_AUTO_TEST_CASE ( test_construct_basis_with_filter )
     b = Basis();
     b.addSymmetryOperator(&S);
     b.addSymmetryOperator(&N);
-    b.setFilter(constructSector(3));
+    b.setFilter(Sector{3});
     b.construct(8);
     BOOST_CHECK (b.size() == 8);
     BOOST_CHECK (b.getRanges().size() == 2);
@@ -211,7 +215,7 @@ BOOST_AUTO_TEST_CASE ( test_construct_basis_with_filter )
     b = Basis();
     b.addSymmetryOperator(&S);
     b.addSymmetryOperator(&N);
-    b.setFilter(constructSector(0,2));
+    b.setFilter(Sector{0,2});
     b.construct(8);
     BOOST_CHECK (b.size() == 16);
     BOOST_CHECK (b.getRanges().size() == 1);
@@ -219,7 +223,7 @@ BOOST_AUTO_TEST_CASE ( test_construct_basis_with_filter )
     b = Basis();
     b.addSymmetryOperator(&S);
     b.addSymmetryOperator(&N);
-    b.setFilter(constructSector(17,234));
+    b.setFilter(Sector{17,234});
     b.construct(8);
     BOOST_CHECK (b.size() == 0);
     BOOST_CHECK (b.getRanges().size() == 0);
@@ -247,7 +251,7 @@ BOOST_AUTO_TEST_CASE ( construct_basis_multiple_times )
     b = Basis();
     b.addSymmetryOperator(&N);
     b.addSymmetryOperator(&S);
-    b.setFilter(constructSector(2));
+    b.setFilter(Sector{2});
 
     b.construct(8);
     n_b1 = b.size();

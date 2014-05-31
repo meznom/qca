@@ -4,8 +4,6 @@
 # https://github.com/warner/python-ecdsa.
 import os, sys, subprocess, re
 from distutils.core import setup, Command, Extension
-from distutils.command.sdist import sdist as _sdist
-from distutils.command.install import install as _install
 
 VERSION_PY_FILENAME = 'qca/_version.py'
 VERSION_PY = """\
@@ -70,22 +68,6 @@ class Version(Command):
         update_version_py()
         print 'Version is now', get_version()
 
-class sdist(_sdist):
-    def run(self):
-        update_version_py()
-        # unless we update this, the sdist command will keep using the old
-        # version
-        self.distribution.metadata.version = get_version()
-        return _sdist.run(self)
-    
-class install(_install):
-    def run(self):
-        update_version_py()
-        # unless we update this, the sdist command will keep using the old
-        # version
-        self.distribution.metadata.version = get_version()
-        return _install.run(self)
-
 setup(name='qca',
       version=get_version(),
       description='QCA exact diagonalization.',
@@ -94,5 +76,5 @@ setup(name='qca',
       url='',
       packages=['qca','qca.test'],
       package_data={'qca': ['_qca.so']},
-      cmdclass={ 'version': Version, 'sdist': sdist, 'install': install}
+      cmdclass={ 'version': Version}
       )

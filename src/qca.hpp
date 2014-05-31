@@ -609,7 +609,7 @@ public:
         basis = Basis();
         basis.addSymmetryOperator(&PPSO);
         int filterValue = PPSO.valueForNElectronsPerPlaquet(2,Base::N_p());
-        basis.setFilter(constructSector(filterValue));
+        basis.setFilter(Sector{filterValue});
         basis.construct(plaquetSize*Base::N_p());
         ca.construct();
     }
@@ -652,7 +652,7 @@ public:
         basis.addSymmetryOperator(&PPSO);
         basis.addSymmetryOperator(&SSO);
         int filterValue = PPSO.valueForNElectronsPerPlaquet(Base::l.epc, Base::N_p());
-        basis.setFilter(constructSector(filterValue));
+        basis.setFilter(Sector{filterValue});
         basis.construct(plaquetSize*Base::N_p());
         creatorAnnihilator.construct();
     }
