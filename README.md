@@ -3,7 +3,7 @@
 ## Overview
 
 An exact diagonalization implementation for computer simulations of quantum-dot
-cellular automata, a beyond-CMOS computing paradigm ([Original paper proposing
+cellular automata (QCA), a beyond-CMOS computing paradigm ([Original paper proposing
 QCA][Lent1993]).
 
 The simulation is written in C++, but exposed as a Python extension module, and
@@ -42,7 +42,7 @@ $ cmake ..
 $ make
 ```
 
-Build example using a MacPorts g++ compiler, MacPorts Boost library and the
+Build example using a MacPorts g++ compiler, MacPorts Boost library, and the
 [Anaconda][] Python distribution:
 ```
 $ mkdir Release
@@ -152,3 +152,4 @@ Burkhard Ritter (<burkhard@ualberta.ca>), May 2014
 [Anaconda]: https://store.continuum.io/cshop/anaconda/
 [Python]: https://www.python.org/
 [Conda]: https://github.com/conda/conda
+[conda-recipes]: https://bitbucket.org/meznom/conda-recipes
