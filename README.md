@@ -14,8 +14,33 @@ integration and unit testing.
 
 ### Prebuilt binaries
 
-Binary packages should be available on [Binstar][]. More detailed installation
-instructions for those will follow in the future.
+Prebuilt OS X and Linux binary packages for use with the [Anaconda][] Python distribution (or
+another distribution using the [conda][] package manager) are available on
+[Binstar][]. To use them, first install Anaconda, and then install the qca package
+from Binstar.
+```
+$ conda install -c https://conda.binstar.org/meznom qca
+```
+This will pull in all dependencies and install everything into the main Anaconda
+environment. One notable dependency is boost-python which is also provided by my
+Binstar channel.
+
+Alternatively, you can create a new environment and install the qca package
+there.
+```
+# Add my Binstar channel permanently to your conda config (~/.condarc)
+$ conda config --add channels http://conda.binstar.org/meznom
+# Create a new environment 'qca' with a number of useful packages
+$ conda create -n qca qca coma ipython ipython-notebook matplotlib numpy scipy
+# Activate the 'qca' environment
+$ source activate qca
+# Do some work, as an example, start the IPython notebook
+$ ipython notebook
+# Deactivate the 'qca' environment
+$ source deactivate
+# To remove the 'qca' environment with all packages, you would run:
+$ conda remove -n qca --all
+```
 
 ### Installing from source
 
