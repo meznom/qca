@@ -27,7 +27,7 @@ Binstar channel.
 
 Alternatively, you can create a new environment and install the qca package
 there.
-```
+```bash
 # Add my Binstar channel permanently to your conda config (~/.condarc)
 $ conda config --add channels http://conda.binstar.org/meznom
 # Create a new environment 'qca' with a number of useful packages
